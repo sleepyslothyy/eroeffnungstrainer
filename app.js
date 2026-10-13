@@ -97,7 +97,6 @@ function consistentIn(o,h){const r=[];o.lines.forEach((l,i)=>{if(l.m.length<h.le
 function bookMovesIn(o,h){const s=new Set();consistentIn(o,h).forEach(i=>{const m=o.lines[i].m[h.length];if(m)s.add(strip(m))});return [...s]}
 const fmtMoves=(arr,start)=>{start=start||0;let s="";arr.forEach((m,i)=>{const p=start+i;if(p%2===0)s+=(p/2+1)+"."+de(m)+" ";else s+=(i===0?(Math.floor(p/2)+1)+"..."+de(m):de(m))+" "});return s.trim()};
 const anyBook=h=>ALL.some(o=>o.g!=="c"&&consistentIn(o,h).length&&o.lines.some(l=>l.m.length>h.length-1));
-const sanToUci=(fen,san)=>{const g=new Chess(fen);const m=g.moves({verbose:true}).find(x=>strip(x.san)===strip(san));return m?m.from+m.to+(m.promotion||""):null};
 const histUci=h=>{const g=new Chess();return h.map(s=>{const m=g.move(s);return m.from+m.to+(m.promotion||"")})};
 
 /* ---------------- Toast ---------------- */
@@ -236,9 +235,7 @@ const fmtEval=(cp,mateTxt)=>mateTxt||((cp===0?"0.0":(cp>0?"+":"")+(cp/100).toFix
 
 /* ================= Brett-Zustand ================= */
 let op=null,mode="train",hist=[],fens=[],mvs=[],flags=[],view=0,shown=null,target=null,forced=null,busy=false,done=false,mistakes=0,usedHelp=false,hintLvl=0,sel=null,timer=null,lock=false,badge=null,liveStatus=null,curStatus=null,tab="ex",flipped=false,sess=null,game=null,sfStart=0,sfEval=null,drill=null,puz=null,tried=new Set(),blindOn=false,peeked=false,vtab="list",evalCp=null,evalTok=0,blitzT=null,blitzLeft=0,startFen=null;
-let moveFilter=null;
 const boardEl=$("board"),sqsEl=$("sqs"),pcsEl=$("pcs"),ovl=$("ovl"),ideasEl=$("ideas"),marksEl=$("marks"),badgesEl=$("badges");
-const START=new Chess().fen();
 const live=()=>view===hist.length;
 const consistent=h=>op&&op.lines?consistentIn(op,h):[];
 const bookMoves=h=>bookMovesIn(op,h);
@@ -568,7 +565,9 @@ $("moveInput").addEventListener("keydown",e=>{
 const ACC={p:"den Bauern",n:"den Springer",b:"den Läufer",r:"den Turm",q:"die Dame",k:"den König"};
 const fi=s=>s.charCodeAt(0)-97,ri=s=>+s[1]-1,sqn=(f,r)=>(f>=0&&f<8&&r>=0&&r<8)?"abcdefgh"[f]+(r+1):null;
 function ray(g,from,df,dr){const out=[];let f=fi(from)+df,r=ri(from)+dr;while(f>=0&&f<8&&r>=0&&r<8){const s=sqn(f,r);const p=g.get(s);if(p)out.push({s,p});f+=df;r+=dr}return out}
-function explain(fenBefore,mv,prev){
+const exMemo=new Map();
+function explain(f,mv,prev){const k=f+"|"+mv.san+"|"+(prev?prev.san:"");let r=exMemo.get(k);if(!r){r=explainRaw(f,mv,prev);if(exMemo.size>500)exMemo.clear();exMemo.set(k,r)}return r}
+function explainRaw(fenBefore,mv,prev){
   const g=new Chess(fenBefore);g.move(mv.san);
   const white=mv.color==="w",to=mv.to,from=mv.from,p=mv.piece,out=[],arrows=[];const them=white?"b":"w";
   if(mv.flags.indexOf("k")>=0)out.push("Kurze Rochade: Der König steht in Sicherheit und der Turm kommt ins Spiel.");
@@ -615,6 +614,7 @@ function explain(fenBefore,mv,prev){
 function lineNote(h,ply){if(!op||!op.lines)return "";for(const i of consistent(h)){const n=op.lines[i].notes;if(n&&n[ply])return n[ply]}return ""}
 const CLS={book:["Buchzug","c-book","B"],best:["Bester Zug","c-best","★"],exc:["Exzellent","c-exc","!"],good:["Gut","c-good","✓"],inacc:["Ungenauigkeit","c-inacc","?!"],mist:["Fehler","c-mist","?"],blun:["Patzer","c-blun","??"]};
 function renderExplain(){
+  if(tab!=="ex")return;
   const el=$("tabEx");const h=hist.slice(0,view);let html="";
   const R=game&&game.review;
   if(view>0){
@@ -652,35 +652,40 @@ function renderExplain(){
 function reviewSummaryHtml(R){
   const cnt=c=>{const o={w:{},b:{}};R.cls.forEach((k,i)=>{if(!k)return;const s=i%2===0?"w":"b";o[s][k]=(o[s][k]||0)+1});return o};const C=cnt();
   const pts=R.evals.map((v,i)=>v==null?null:[i,winPct(v)]).filter(Boolean);const n=Math.max(1,hist.length);
-  const path=pts.map((p,i)=>(i?"L":"M")+(p[0]/n*100).toFixed(2)+" "+(100-p[1]).toFixed(2)).join(" ");
   const area=pts.length?`M0 100 ${pts.map(p=>"L"+(p[0]/n*100).toFixed(2)+" "+(100-p[1]).toFixed(2)).join(" ")} L${(pts[pts.length-1][0]/n*100).toFixed(2)} 100Z`:"";
   const rows=["book","best","exc","good","inacc","mist","blun"].map(k=>`<b>${C.w[k]||0}</b><span class="c"><span class="cls ${CLS[k][1]}">${CLS[k][2]}</span>${CLS[k][0]}</span><b>${C.b[k]||0}</b>`).join("");
   return `<div class="excard"><div class="exh"><span>Game Review${R.doneN<hist.length?` · analysiere ${R.doneN}/${hist.length}`:""}</span><span>${esc(R.engine||"")}</span></div>
   <svg class="graph" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${area}" fill="#F2F1EC"/><line x1="0" y1="50" x2="100" y2="50" stroke="#888" stroke-width=".4"/><line x1="${(view/n*100).toFixed(2)}" y1="0" x2="${(view/n*100).toFixed(2)}" y2="100" stroke="#81B64C" stroke-width=".8"/></svg>
   <div class="revsum" style="margin-top:10px"><b style="font-size:20px">${R.acc&&R.acc.w!=null?R.acc.w.toFixed(1):"–"}</b><span class="c">Genauigkeit</span><b style="font-size:20px">${R.acc&&R.acc.b!=null?R.acc.b.toFixed(1):"–"}</b><span class="sub" style="text-align:center">Weiß</span><span></span><span class="sub" style="text-align:center">Schwarz</span>${rows}</div></div>`;
 }
-function setTab(t){tab=t;["ex","var","db"].forEach(x=>{$("tab"+{ex:"Ex",var:"Var",db:"Db"}[x]+"Btn").setAttribute("aria-selected",String(t===x));$({ex:"tabEx",var:"tabVar",db:"tabDb"}[x]).hidden=t!==x});if(t==="db")renderDb()}
+function setTab(t){tab=t;["ex","var","db"].forEach(x=>{$("tab"+{ex:"Ex",var:"Var",db:"Db"}[x]+"Btn").setAttribute("aria-selected",String(t===x));$({ex:"tabEx",var:"tabVar",db:"tabDb"}[x]).hidden=t!==x});if(t==="db")renderDb(true);else if(t==="var")renderVars();else renderExplain()}
 $("tabExBtn").onclick=()=>setTab("ex");$("tabVarBtn").onclick=()=>setTab("var");$("tabDbBtn").onclick=()=>setTab("db");
 $("vList").onclick=()=>{vtab="list";$("vList").setAttribute("aria-pressed","true");$("vTree").setAttribute("aria-pressed","false");renderVars()};
 $("vTree").onclick=()=>{vtab="tree";$("vTree").setAttribute("aria-pressed","true");$("vList").setAttribute("aria-pressed","false");renderVars()};
 
 /* ================= Lichess-Datenbank ================= */
-const exCache={};
-async function explorer(db,h,timeoutMs){
-  const key=db+"|"+h.join(" ");if(exCache[key])return exCache[key];
+const exCache={},exPend={};let exAuthFail=null;
+function explorer(db,h,timeoutMs){
+  const key=db+"|"+h.join(" ");if(exCache[key])return Promise.resolve(exCache[key]);
+  if(exAuthFail!==null&&exAuthFail===(S.set.liToken||""))return Promise.reject(new Error("auth"));
+  if(exPend[key])return exPend[key];
+  const pr=explorerFetch(db,h,timeoutMs,key).finally(()=>{delete exPend[key]});exPend[key]=pr;return pr;
+}
+async function explorerFetch(db,h,timeoutMs,key){
   const play=histUci(h).join(",");
   const url=db==="masters"?`https://explorer.lichess.ovh/masters?play=${play}&moves=12&topGames=8`:`https://explorer.lichess.ovh/lichess?variant=standard&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500&play=${play}&moves=12&topGames=0&recentGames=0`;
   const ctl=window.AbortController?new AbortController():null;const tt=timeoutMs?setTimeout(()=>ctl&&ctl.abort(),timeoutMs):null;
   const headers={};if(S.set.liToken)headers.Authorization="Bearer "+S.set.liToken;
   const r=await fetch(url,{headers,signal:ctl?ctl.signal:undefined});if(tt)clearTimeout(tt);
-  if(r.status===401||r.status===403)throw new Error("auth");if(r.status===429)throw new Error("ratelimit");if(!r.ok)throw new Error("http");
+  if(r.status===401||r.status===403){exAuthFail=S.set.liToken||"";throw new Error("auth")}if(r.status===429)throw new Error("ratelimit");if(!r.ok)throw new Error("http");
   const d=await r.json();exCache[key]=d;return d;
 }
 const dbBar=m=>{const n=m.white+m.draws+m.black||1;const w=m.white/n*100,d=m.draws/n*100,l=m.black/n*100;return `<div class="dbbar"><i class="w" style="width:${w}%">${w>=14?Math.round(w)+"%":""}</i><i class="d" style="width:${d}%">${d>=14?Math.round(d)+"%":""}</i><i class="l" style="width:${l}%">${l>=14?Math.round(l)+"%":""}</i></div>`};
 const fmtN=n=>n>=1e6?(n/1e6).toFixed(1)+" Mio.":n>=1e3?Math.round(n/1e3)+" Tsd.":String(n);
-let dbTok=0;
-async function renderDb(){
-  const el=$("tabDb");if(tab!=="db"||!el)return;const h=hist.slice(0,view);const tok=++dbTok;
+let dbTok=0,dbKey="";
+async function renderDb(force){
+  const el=$("tabDb");if(tab!=="db"||!el)return;const h=hist.slice(0,view);
+  const key=(op?op.id:"")+"|"+h.join(" ");if(!force&&key===dbKey)return;dbKey=key;const tok=++dbTok;
   const myRows=myTreeAt(h);
   const bk=op&&op.lines&&op.lines.length?bookMoves(h):[];
   el.innerHTML=`<div class="excard"><div class="exh"><span>Lichess-Spieler (1600–2500)</span></div><div id="dbL"><p class="sub">Lädt …</p></div></div><div class="excard"><div class="exh"><span>Meisterpartien</span></div><div id="dbM"><p class="sub">Lädt …</p></div></div>${myRows}`;
@@ -755,7 +760,7 @@ function render(anim,extra){
     const n=el.dataset.sq;
     el.classList.toggle("hl",!!((last&&(last.from===n||last.to===n))||sel===n));
     el.classList.toggle("bad",!!(extra.bad&&extra.bad.indexOf(n)>=0));
-    el.classList.toggle("ring",!!(hm&&hintLvl===1&&hm.from===n));
+    el.classList.toggle("hsq",!!(hm&&hintLvl===1&&hm.from===n));
     el.classList.toggle("check",chk===n);
     const old=el.querySelector(".dot");if(old)old.remove();
     const t=targets.find(m=>m.to===n);
@@ -848,6 +853,7 @@ function renderVars(){
   const v=$("vars"),tr=$("tree");v.hidden=vtab!=="list";tr.hidden=vtab!=="tree";
   if(!op.lines||!op.lines.length){v.innerHTML='<div class="empty">Keine Varianten.</div>';tr.innerHTML="";$("varProg").textContent="";return}
   const cl=op.lines.filter((l,i)=>P(op.id,i)===2).length;$("varProg").textContent=`${cl}/${op.lines.length}`;
+  if(tab!=="var")return;
   if(vtab==="tree"){renderTree();return}
   v.innerHTML="";const c=new Set(consistent(hist));
   op.lines.forEach((l,i)=>{
@@ -975,7 +981,7 @@ function toggleRep(o){const i=S.rep.indexOf(o.id);if(i>=0)S.rep.splice(i,1);else
 function renderList(){
   const q=$("search").value.trim();const list=$("list");list.innerHTML="";
   const repOnly=$("repOnly").getAttribute("aria-pressed")==="true";
-  const {mf,mq}=filterOpenings(q,repOnly);moveFilter=mf;
+  const {mf,mq}=filterOpenings(q,repOnly);
   const info=$("searchInfo");info.hidden=!mf;if(mf)info.textContent=`${fmtMoves(mq.moves)} – ${Object.keys(mf).length} Eröffnungen${mq.bad?` („${mq.bad}“ ist hier nicht möglich)`:""}`;
   GROUPS.forEach(([g,label])=>{
     const items=filterOpenings(q,repOnly,g).items;if(!items.length)return;
@@ -1147,7 +1153,7 @@ function renderGames(){
 function renderEndPage(){
   const v=$("v-end");
   v.innerHTML=`<button class="back" data-back>← Lernen</button><div class="hero"><span class="ic" style="background:#5D9948">${NI.king}</span><div><h2>Endspiele</h2><p>Grundtechniken und ein typisches Eröffnungs-Endspiel. Du spielst gegen Stockfish – stell die Stärke unter Profil → Einstellungen ein.</p></div></div>
-  <div class="grid3">${ENDGAMES.map(e=>{const fen=e.fen||(()=>{const g=new Chess();e.moves.split(" ").forEach(m=>g.move(m));return g.fen()})();return `<div class="gcard">${st.ends[e.id]?'<span class="done-tag">Gespielt</span>':""}<h4>${esc(e.t)}</h4><div id="eb-${e.id}"></div><p>${esc(e.goal)}</p><button class="btn grn" data-end="${e.id}">Gegen Stockfish spielen (${e.side==="w"?"Weiß":"Schwarz"})</button></div>`}).join("")}</div>`;
+  <div class="grid3">${ENDGAMES.map(e=>{return `<div class="gcard">${st.ends[e.id]?'<span class="done-tag">Gespielt</span>':""}<h4>${esc(e.t)}</h4><div id="eb-${e.id}"></div><p>${esc(e.goal)}</p><button class="btn grn" data-end="${e.id}">Gegen Stockfish spielen (${e.side==="w"?"Weiß":"Schwarz"})</button></div>`}).join("")}</div>`;
   wireBack(v);
   ENDGAMES.forEach(e=>{const fen=e.fen||(()=>{const g=new Chess();e.moves.split(" ").forEach(m=>g.move(m));return g.fen()})();$("eb-"+e.id).appendChild(staticBoard(fen,e.side))});
   v.querySelectorAll("[data-end]").forEach(b=>b.onclick=()=>startEndgame(ENDGAMES.find(e=>e.id===b.dataset.end)));
@@ -1418,7 +1424,6 @@ function collectBookPuzzles(R){
 /* ---- Zustand Zentrale ---- */
 const CH={src:(S.ana&&S.ana.src)||store.get("et-anasrc","chesscom"),user:(S.ana&&S.ana.user)||"",profile:null,games:store.get("et-games",[]).map(g=>Object.assign({},g,{moves:g.m.split(" ")})),result:null,tab:"overview",months:3,type:"all",treeColor:"w",treePath:[],gFilter:"all",rTc:null};
 if(CH.games.length)CH.result=null;
-let chLoading=false;
 const siteName=()=>CH.src==="lichess"?"Lichess":"Chess.com";
 function saveGames(){store.set("et-games",CH.games.slice(0,400).map(g=>Object.assign({},g,{moves:undefined,m:g.moves.join(" ")})))}
 async function getJSON(url,opt){const r=await fetch(url,Object.assign({headers:{Accept:"application/json"}},opt||{}));if(r.status===404)throw new Error("notfound");if(r.status===429)throw new Error("ratelimit");if(r.status===401||r.status===403)throw new Error("auth");if(!r.ok)throw new Error("http "+r.status);return r.json()}
@@ -1846,5 +1851,5 @@ try{
   }
 }catch(err){window.__showErr(String(err&&err.stack||err))}
 renderTabbar();
-window.__ET={expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();
