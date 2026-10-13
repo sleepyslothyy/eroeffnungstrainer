@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#21201D">
-<meta name="description" content="Schach-Eröffnungen trainieren: 59 Eröffnungen, Wiederholung nach Lernkurve, Stockfish, Quiz und Chess.com-/Lichess-Analyse.">
+<meta name="description" content="Schach-Eröffnungen trainieren: 59 Eröffnungen, Wiederholung nach Lernkurve, Stockfish 17, Game Review und Chess.com-/Lichess-Analyse.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Eröffnungen">
@@ -18,10 +18,9 @@
 </head>
 <body>
 <div class="app">
-  <aside class="side" id="side" aria-label="Navigation">
+  <aside class="side" id="side" aria-label="Eröffnungen">
     <div class="brand"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a3 3 0 0 0-1.6 5.5L8 9v2h2.2c-.3 2.4-1.4 4.6-3.2 6.2V19h10v-1.8c-1.8-1.6-2.9-3.8-3.2-6.2H16V9l-2.4-1.5A3 3 0 0 0 12 2zM6 20h12v2H6z"/></svg></span><h1>Eröffnungstrainer</h1></div>
     <div class="side-scroll">
-      <nav class="nav-main" id="navMain"></nav>
       <div class="sidebar-tools">
         <input id="search" class="search" type="search" placeholder="Name, ECO oder Züge (1.d4 Sf6)" aria-label="Eröffnung oder Züge suchen">
         <button class="tog-rep" id="repOnly" aria-pressed="false" title="Nur mein Repertoire zeigen" aria-label="Nur mein Repertoire zeigen"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg></button>
@@ -30,12 +29,9 @@
       <div class="list" id="list"></div>
     </div>
   </aside>
-  <div class="scrim" id="scrim" hidden></div>
 
   <main class="main">
-    <button class="menu-btn" id="menuBtn" aria-controls="side"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg><span id="menuName">Menü</span><span class="chev">Öffnen</span></button>
-
-    <!-- Brettansicht: Training, Stockfish, Musterpartie, eigene Variante -->
+    <!-- Brett: Training, Stockfish, Partien, Review, Rätsel, Editor -->
     <div class="train view" id="v-train">
       <div class="board-col">
         <div class="pbar">
@@ -43,13 +39,16 @@
           <span class="pname"><span id="oppName">Eröffnungsbuch</span><span class="ptag" id="oppTag"></span></span>
           <span class="pclock" id="oppClock">Buch</span>
         </div>
-        <div class="board" id="board" aria-label="Schachbrett">
-          <div class="sqs" id="sqs"></div>
-          <svg class="ovl" id="ideas" viewBox="0 0 8 8" preserveAspectRatio="none"></svg>
-          <div class="pcs" id="pcs"></div>
-          <svg class="ovl" id="ovl" viewBox="0 0 8 8" preserveAspectRatio="none"></svg>
-          <svg class="ovl" id="marks" viewBox="0 0 8 8" preserveAspectRatio="none"></svg>
-          <div class="pcs" id="badges"></div>
+        <div class="boardwrap">
+          <div class="evalbar" id="evalBar" hidden title="Bewertung von Stockfish"><i id="evalFill"></i><span id="evalTxt"></span></div>
+          <div class="board" id="board" aria-label="Schachbrett">
+            <div class="sqs" id="sqs"></div>
+            <svg class="ovl" id="ideas" viewBox="0 0 8 8" preserveAspectRatio="none"></svg>
+            <div class="pcs" id="pcs"></div>
+            <svg class="ovl" id="ovl" viewBox="0 0 8 8" preserveAspectRatio="none"></svg>
+            <svg class="ovl" id="marks" viewBox="0 0 8 8" preserveAspectRatio="none"></svg>
+            <div class="pcs" id="badges"></div>
+          </div>
         </div>
         <div class="pbar">
           <span class="avatar you"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg></span>
@@ -68,6 +67,7 @@
           <span class="face" id="face"></span>
           <div class="bub"><b id="stTitle">Seite lädt …</b><small id="stText">Bleibt dieser Text stehen, ist JavaScript in diesem Programm blockiert. Öffne die Seite in Safari, Chrome oder Firefox.</small><span class="eval" id="evalTag" hidden></span></div>
         </div>
+        <div class="mvin"><input id="moveInput" placeholder="Zug eintippen, z. B. Sf3 oder e4" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Zug eintippen"><span class="timer" id="timer" hidden></span></div>
         <div class="acts" id="actsTrain">
           <button class="btn" id="hintBtn">Hinweis</button>
           <button class="btn" id="showBtn">Lösung</button>
@@ -85,7 +85,7 @@
           <label for="edName">Name der Variante<input id="edName" maxlength="60" placeholder="z. B. Mein Anti-Londoner"></label>
           <div class="row">
             <label for="edSide">Ich trainiere<select id="edSide"><option value="w">Weiß</option><option value="b">Schwarz</option></select></label>
-            <label for="edCount">Züge<input id="edCount" readonly value="0"></label>
+            <label for="edGroup">Ordner<input id="edGroup" maxlength="40" placeholder="Meine Varianten"></label>
           </div>
           <label for="edPlan">Plan / Notiz (optional)<textarea id="edPlan" maxlength="300" placeholder="Was ist die Idee dieser Variante?"></textarea></label>
           <div class="acts" style="padding:0"><button class="btn" id="edUndo">Zug zurück</button><button class="btn" id="edClear">Leeren</button><button class="btn grn" id="edSave">Speichern</button></div>
@@ -96,28 +96,40 @@
           <button class="nb" id="navPrev" aria-label="Zug zurück"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.4 4.6 8 12l7.4 7.4 1.4-1.4-6-6 6-6z"/></svg></button>
           <button class="nb" id="navNext" aria-label="Zug vor"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.6 4.6 16 12l-7.4 7.4L7.2 18l6-6-6-6z"/></svg></button>
           <button class="nb" id="navLast" aria-label="Zur aktuellen Stellung"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zm-1.5 7L6 18.5v-13z"/></svg></button>
-          <button class="nb" id="flipBtn" aria-label="Brett drehen" title="Brett drehen"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3 3 7l4 4V8h10V6H7zm10 10v3H7v2h10v3l4-4z"/></svg></button>
+          <button class="nb" id="flipBtn" aria-label="Brett drehen" title="Brett drehen (F)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3 3 7l4 4V8h10V6H7zm10 10v3H7v2h10v3l4-4z"/></svg></button>
+          <button class="nb" id="evalBtn" aria-pressed="false" aria-label="Bewertungsbalken" title="Bewertungsbalken (Stockfish)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 3h4v18h-4zM4 13h4v8H4zm12-6h4v14h-4z"/></svg></button>
+          <button class="nb" id="blindBtn" aria-pressed="false" aria-label="Blind-Modus" title="Blind-Modus: Figuren ausblenden"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 5.3 3.3 4 20 20.7 18.7 22l-3.1-3.1A11 11 0 0 1 12 19.5C6.5 19.5 2.7 15 1.5 12a12 12 0 0 1 4-5zM12 4.5c5.5 0 9.3 4.5 10.5 7.5a12.3 12.3 0 0 1-3.3 4.5l-3-3A4.5 4.5 0 0 0 10.5 7.8L8.4 5.6A10.7 10.7 0 0 1 12 4.5z"/></svg></button>
         </div>
         <button class="big" id="nextBtn">Nächste Variante</button>
         <div class="tabs" role="tablist">
           <button class="tab" role="tab" id="tabExBtn" aria-selected="true" aria-controls="tabEx">Erklärung</button>
           <button class="tab" role="tab" id="tabVarBtn" aria-selected="false" aria-controls="tabVar">Varianten <span id="varProg" style="color:var(--muted);font-weight:600"></span></button>
+          <button class="tab" role="tab" id="tabDbBtn" aria-selected="false" aria-controls="tabDb">Datenbank</button>
         </div>
         <div class="tabarea">
           <div id="tabEx" role="tabpanel" class="ex"></div>
-          <div id="tabVar" role="tabpanel" hidden><div class="varhead">Antippen übt eine bestimmte Variante. Grün: fehlerfrei, orange: mit Fehlern, „fällig“: zur Wiederholung dran.</div><div id="vars"></div></div>
+          <div id="tabVar" role="tabpanel" hidden>
+            <div class="vseg"><span class="seg"><button id="vList" aria-pressed="true">Liste</button><button id="vTree" aria-pressed="false">Baum</button></span></div>
+            <div class="varhead">Antippen übt eine bestimmte Variante. Grün: fehlerfrei, orange: mit Fehlern, „fällig“: zur Wiederholung dran.</div>
+            <div id="vars"></div><div id="tree" class="tree" hidden></div>
+          </div>
+          <div id="tabDb" role="tabpanel" class="db" hidden></div>
         </div>
         <div class="foot"><span><span class="kbd">←</span> <span class="kbd">→</span> Züge · Rechtsklick: Pfeile</span><span id="footInfo"></span></div>
       </section>
     </div>
 
-    <section class="page view" id="v-ana" hidden aria-label="Partien-Analyse"></section>
-    <section class="page view" id="v-stats" hidden aria-label="Statistik"></section>
+    <section class="page view" id="v-learn" hidden aria-label="Lernen"></section>
+    <section class="page view" id="v-openings" hidden aria-label="Eröffnungen"></section>
+    <section class="page view" id="v-chess" hidden aria-label="Chess.com"></section>
+    <section class="page view" id="v-profile" hidden aria-label="Profil"></section>
     <section class="page view" id="v-quiz" hidden aria-label="Quiz"></section>
     <section class="page view" id="v-games" hidden aria-label="Musterpartien"></section>
-    <section class="page view" id="v-settings" hidden aria-label="Einstellungen"></section>
+    <section class="page view" id="v-import" hidden aria-label="Repertoire importieren"></section>
+    <section class="page view" id="v-end" hidden aria-label="Endspiele"></section>
   </main>
 </div>
+<nav class="tabbar" id="tabbar" aria-label="Bereiche"></nav>
 <script src="lib/chess.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
