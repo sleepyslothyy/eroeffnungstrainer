@@ -14,9 +14,10 @@
 <title>Eröffnungstrainer</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="pieces.css">
-<script>window.__showErr=function(m){var s=document.getElementById("stTitle");if(s){s.textContent="Fehler beim Laden";document.getElementById("stText").textContent=m}};window.addEventListener("error",function(e){window.__showErr((e.message||"Unbekannter Fehler")+(e.lineno?" (Zeile "+e.lineno+")":""))});</script>
+<script>window.__showErr=function(m){var sp=document.getElementById("splash");if(sp)sp.remove();var s=document.getElementById("stTitle");if(s){s.textContent="Fehler beim Laden";document.getElementById("stText").textContent=m}};window.addEventListener("error",function(e){window.__showErr((e.message||"Unbekannter Fehler")+(e.lineno?" (Zeile "+e.lineno+")":""))});</script>
 </head>
 <body>
+<div class="splash" id="splash" aria-hidden="true"><div class="splash-in"><span class="logo"><svg width="34" height="34" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a3 3 0 0 0-1.6 5.5L8 9v2h2.2c-.3 2.4-1.4 4.6-3.2 6.2V19h10v-1.8c-1.8-1.6-2.9-3.8-3.2-6.2H16V9l-2.4-1.5A3 3 0 0 0 12 2zM6 20h12v2H6z"/></svg></span><b>Eröffnungstrainer</b></div></div>
 <div class="app">
   <aside class="side" id="side" aria-label="Eröffnungen">
     <div class="brand"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a3 3 0 0 0-1.6 5.5L8 9v2h2.2c-.3 2.4-1.4 4.6-3.2 6.2V19h10v-1.8c-1.8-1.6-2.9-3.8-3.2-6.2H16V9l-2.4-1.5A3 3 0 0 0 12 2zM6 20h12v2H6z"/></svg></span><h1>Eröffnungstrainer</h1></div>
@@ -36,7 +37,7 @@
       <div class="board-col">
         <div class="pbar">
           <span class="avatar bookav" id="oppAv"></span>
-          <span class="pname"><span id="oppName">Eröffnungsbuch</span><span class="ptag" id="oppTag"></span></span>
+          <span class="pname"><span id="oppName">Eröffnungsbuch</span><span class="ptag" id="oppTag"></span></span><span class="mat" id="oppMat" aria-label="Geschlagene Figuren"></span>
           <span class="pclock" id="oppClock">Buch</span>
         </div>
         <div class="boardwrap">
@@ -52,7 +53,7 @@
         </div>
         <div class="pbar">
           <span class="avatar you"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg></span>
-          <span class="pname"><span id="youName">Du</span><span class="ptag" id="youTag"></span></span>
+          <span class="pname"><span id="youName">Du</span><span class="ptag" id="youTag"></span></span><span class="mat" id="youMat" aria-label="Geschlagene Figuren"></span>
           <span class="pclock" id="youClock">Am Zug</span>
         </div>
       </div>
@@ -68,9 +69,10 @@
           <div class="bub"><b id="stTitle">Seite lädt …</b><small id="stText">Bleibt dieser Text stehen, ist JavaScript in diesem Programm blockiert. Öffne die Seite in Safari, Chrome oder Firefox.</small><span class="eval" id="evalTag" hidden></span></div>
         </div>
         <div class="mvin"><input id="moveInput" placeholder="Zug eintippen, z. B. Sf3 oder e4" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Zug eintippen"><span class="timer" id="timer" hidden></span></div>
-        <div class="acts" id="actsTrain">
+        <div class="acts four" id="actsTrain">
           <button class="btn" id="hintBtn">Hinweis</button>
           <button class="btn" id="showBtn">Lösung</button>
+          <button class="btn" id="backBtn" title="Deinen letzten Zug zurücknehmen">Zurück</button>
           <button class="btn" id="restartBtn">Neu starten</button>
         </div>
         <div class="acts two" id="actsDone" hidden>
@@ -115,7 +117,7 @@
           </div>
           <div id="tabDb" role="tabpanel" class="db" hidden></div>
         </div>
-        <div class="foot"><span><span class="kbd">←</span> <span class="kbd">→</span> Züge · Rechtsklick: Pfeile</span><span id="footInfo"></span></div>
+        <div class="foot"><span><span class="kbd">←</span> <span class="kbd">→</span> Züge · Wischen auf dem Brett · Rechtsklick: Pfeile</span><span id="footInfo"></span></div>
       </section>
     </div>
 

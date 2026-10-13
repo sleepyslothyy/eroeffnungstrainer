@@ -10,7 +10,15 @@ Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline
 - **Lernen** – Tagestraining mit Serie, Wiederholung nach Lernkurve (pro Variante und pro Stellung), deine eigenen Fehler, Fallen, Blitz-Drill, Blind-Training, Quiz, Endspiele, Musterpartien und Meisterpartien, eigene Varianten, Repertoire-Import (PGN / Lichess-Studie) und Teilen-Link
 - **Eröffnungen** – 59 Eröffnungen mit 236 geprüften Varianten, Filter und Zugsuche („1.d4 Sf6 2.c4“)
 - **Chess.com** (oder Lichess) – Profil und Wertungen, Wertungsverlauf, alle Partien mit Game Review (Genauigkeit, Zugbewertung, bessere Züge), schwache Eröffnungen mit typischen Abweichungen, Lücken im Repertoire, was Gegner gegen dich spielen, persönlicher Eröffnungsbaum, Tages- und Zufallsrätsel, Trainingsplan aus Schwächen
-- **Profil** – Statistik, 28 Abzeichen, Einstellungen (Hell/Dunkel, Brett, Figuren, Stockfish-Stärke), Sync über privates GitHub-Gist, Export/Import
+- **Profil** – Statistik, 28 Abzeichen, Einstellungen (Hell/Dunkel, Brett, Figuren, Stockfish-Stärke, Komfort, Schriftgröße), Sync über privates GitHub-Gist, Export/Import
+
+## Komfort
+- Startseite „Weitermachen“ mit letzter Eröffnung, fälligen Wiederholungen und Tagesziel; Ersteinrichtung beim ersten Öffnen
+- Handy-Layout mit Knöpfen direkt unter dem Brett, Zugliste als Streifen, Tab-Leiste blendet sich beim Scrollen aus
+- Wischen auf dem Brett zum Blättern, vergrößerte Figur beim Ziehen mit dem Finger, Zug zurücknehmen, automatisch Dame
+- Automatisch weiter nach gelösten Varianten und Aufgaben, Materialanzeige, Konfetti und Serien-Feier
+- Chess.com/Lichess beim Öffnen automatisch abgleichen, neue Partien im Hintergrund analysieren
+- Querformat und Tablets, Schriftgröße, „Weniger Animationen“
 
 ## Technik
 Reines HTML/CSS/JavaScript ohne Build-Schritt.
