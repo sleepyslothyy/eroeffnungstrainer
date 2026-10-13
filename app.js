@@ -56,19 +56,28 @@ const NI={
 
 /* ---------------- Speicher ---------------- */
 const SKEL='<div class="skel"></div><div class="skel w80"></div><div class="skel w60"></div>';
-const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+/* Gespeicherte Werte mit falschem Typ (alte Versionen, kaputte Sicherung) werden durch den Standardwert ersetzt */
+const sameType=(v,d)=>v!==null&&typeof v===typeof d&&Array.isArray(v)===Array.isArray(d);
+function fixT(o,def){for(const k in def){if(def[k]!==null&&def[k]!==undefined&&!sameType(o[k],def[k]))o[k]=def[k]}return o}
+const store={get(k,d){try{const s=localStorage.getItem(k);if(s==null)return d;const v=JSON.parse(s);return d!=null&&!sameType(v,d)?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const KEYS=["prog","srs","pos","rep","daily","streak","stats","set","custom","ana","puz"];
 const S={
   prog:store.get("et-prog",{}),srs:store.get("et-srs",{}),pos:store.get("et-pos",{}),rep:store.get("et-rep",[]),daily:store.get("et-daily",null),
   streak:store.get("et-streak",{last:null,n:0,best:0}),stats:store.get("et-stats",{}),
-  set:Object.assign({theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true},store.get("et-set",{})),
+  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true},store.get("et-set",{})),
   custom:store.get("et-custom",{w:[],b:[]}),ana:store.get("et-ana",null),puz:store.get("et-puz",[])
 };
+{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true};fixT(S.set,SD)}
+fixT(S.streak,{last:"",n:0,best:0});if(S.streak.last==="")S.streak.last=null;
+fixT(S.custom,{w:[],b:[]});S.custom.w=S.custom.w.filter(l=>l&&Array.isArray(l.m));S.custom.b=S.custom.b.filter(l=>l&&Array.isArray(l.m));
+S.rep=S.rep.filter(x=>typeof x==="string");S.puz=S.puz.filter(x=>x&&typeof x==="object"&&x.key);
+if(S.daily&&(typeof S.daily!=="object"||!Array.isArray(S.daily.queue)||!Array.isArray(S.daily.done)))S.daily=null;
+if(S.ana&&(typeof S.ana!=="object"||Array.isArray(S.ana)))S.ana=null;
 let savedAt=store.get("et-savedAt",0);
 const save=k=>{store.set("et-"+k,S[k]);savedAt=Date.now();store.set("et-savedAt",savedAt)};
 const st=S.stats;
-st.op=st.op||{};st.hard=st.hard||{};st.quiz=st.quiz||{n:0,ok:0};st.engine=st.engine||0;st.anaRuns=st.anaRuns||0;st.games=st.games||{};st.days=st.days||{};st.badges=st.badges||[];
-st.reviews=st.reviews||0;st.puzOk=st.puzOk||0;st.blitz=st.blitz||0;st.blind=st.blind||0;st.ends=st.ends||{};st.imports=st.imports||0;
+fixT(st,{op:{},hard:{},quiz:{n:0,ok:0},engine:0,anaRuns:0,games:{},days:{},badges:[]});
+fixT(st,{reviews:0,puzOk:0,blitz:0,blind:0,ends:{},imports:0});
 const P=(id,i)=>(S.prog[id]||{})[i]||0;
 const lk=(id,i)=>id+"#"+i;
 const pk=k=>{const j=k.lastIndexOf("#");return [k.slice(0,j),+k.slice(j+1)]};
@@ -336,7 +345,7 @@ function finish(){
   const s=opStat(op.id);s.att++;if(clean)s.clean++;st.days[today()]=(st.days[today()]||0)+1;
   if(clean&&sess&&sess.blitz)st.blitz++;if(clean&&blindOn&&!peeked)st.blind++;saveStats();
   if(badge&&badge.ply===hist.length)badge.type="ok";
-  if(sess){sess.res.push({k,clean});if(sess.type==="daily")markDailyDone(k)}else markDailyDone(k);
+  if(sess){sess.res.push({k,clean});if(sess.type==="daily"){markDailyDone(k);const qk=sess.queue[sess.idx];if(qk&&qk!==k)markDailyDone(qk)}}else markDailyDone(k);
   const nxt=S.srs[k]?Math.round((S.srs[k].due-startOfDay(Date.now()))/DAY):1;
   setStatus("done","Variante geschafft: "+op.lines[i].n,(clean?"Fehlerfrei gespielt.":`Mit ${mistakes} ${mistakes===1?"Fehler":"Fehlern"} – sie kommt bald wieder.`)+` Nächste Wiederholung in ${nxt} ${nxt===1?"Tag":"Tagen"}.`);
   setTimeout(()=>sfx("done"),180);
@@ -919,7 +928,7 @@ function renderMaterial(){
   $("youMat").innerHTML=lost(opp)+(d>0?`<em>+${d}</em>`:"");$("oppMat").innerHTML=lost(me)+(d<0?`<em>+${-d}</em>`:"");
 }
 $("restartBtn").onclick=()=>{if(drill){startPosition(op,drill.pre,drill.info);return}if(mode==="puzzle"){startPuzzle(puz);return}startTrain()};
-$("nextBtn").onclick=()=>{if(sess){if(!done&&!(mode==="puzzle"&&puz&&puz.reported)){toast("Löse die Aufgabe erst oder nutze »Lösung«.");return}sessNext()}else{forced=null;drill=null;startTrain()}};
+$("nextBtn").onclick=()=>{cancelAuto();if(sess){if(!done&&!(mode==="puzzle"&&puz&&puz.reported)){toast("Löse die Aufgabe erst oder nutze »Lösung«.");return}sessNext()}else{forced=null;drill=null;startTrain()}};
 
 /* ---------------- Umwandlung & Züge ---------------- */
 function pickPromotion(color){
@@ -1265,9 +1274,16 @@ function shareRepertoire(){
   if(!data.rep.length&&!data.c.w.length&&!data.c.b.length){toast("Markiere zuerst Eröffnungen mit einem Stern oder lege eigene Varianten an.");return}
   const link=location.origin+location.pathname+"#r="+b64e(JSON.stringify(data));
   const done=()=>toast("Link kopiert – schick ihn per WhatsApp oder Mail.");
-  if(navigator.share){navigator.share({title:"Mein Eröffnungsrepertoire",url:link}).catch(()=>{})}
-  else if(navigator.clipboard){navigator.clipboard.writeText(link).then(done).catch(()=>prompt("Link kopieren:",link))}
-  else prompt("Link kopieren:",link);
+  if(navigator.share){navigator.share({title:"Mein Eröffnungsrepertoire",url:link}).catch(e=>{if(!e||e.name!=="AbortError")linkBox(link)})}
+  else if(navigator.clipboard){navigator.clipboard.writeText(link).then(done).catch(()=>linkBox(link))}
+  else linkBox(link);
+}
+/* Link zum Kopieren in einem eigenen Fenster (statt blockierendem prompt) */
+function linkBox(link){
+  const ov=document.createElement("div");ov.className="onb";ov.innerHTML=`<div class="onb-box" role="dialog" aria-modal="true" aria-label="Link kopieren"><h2 style="font-size:20px">Link kopieren</h2><p class="hint">Halte den Link gedrückt oder tippe auf »Kopieren«.</p><input class="txt" readonly style="width:100%" value="${esc(link)}"><div class="btnrow onb-act"><button class="btn grn" data-cp>Kopieren</button><button class="btn" data-x>Schließen</button></div></div>`;
+  document.body.appendChild(ov);const inp=ov.querySelector("input");inp.focus();inp.select();
+  ov.querySelector("[data-x]").onclick=()=>ov.remove();ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  ov.querySelector("[data-cp]").onclick=()=>{inp.select();let ok=false;try{ok=document.execCommand("copy")}catch(e){}toast(ok?"Link kopiert":"Bitte den Link markieren und kopieren.");if(ok)ov.remove()};
 }
 function checkShareHash(){
   const m=location.hash.match(/^#r=([A-Za-z0-9_-]+)/);if(!m)return false;
@@ -1488,7 +1504,7 @@ function collectBookPuzzles(R){
 }
 
 /* ---- Zustand Zentrale ---- */
-const CH={src:(S.ana&&S.ana.src)||store.get("et-anasrc","chesscom"),user:(S.ana&&S.ana.user)||"",profile:null,games:store.get("et-games",[]).map(g=>Object.assign({},g,{moves:g.m.split(" ")})),result:null,tab:"overview",months:3,type:"all",treeColor:"w",treePath:[],gFilter:"all",rTc:null};
+const CH={src:(S.ana&&S.ana.src)||store.get("et-anasrc","chesscom"),user:(S.ana&&S.ana.user)||"",profile:null,games:store.get("et-games",[]).filter(g=>g&&typeof g.m==="string"&&g.id).map(g=>Object.assign({},g,{moves:g.m.split(" ")})),result:null,tab:"overview",months:3,type:"all",treeColor:"w",treePath:[],gFilter:"all",rTc:null};
 if(CH.games.length)CH.result=null;
 const siteName=()=>CH.src==="lichess"?"Lichess":"Chess.com";
 function saveGames(){store.set("et-games",CH.games.slice(0,400).map(g=>Object.assign({},g,{moves:undefined,m:g.moves.join(" ")})))}
@@ -1971,6 +1987,7 @@ function wireAnaInput(){const b=$("anaGo");if(!b)return;b.onclick=async()=>{b.di
 
 /* ================= Taktik: Lichess-Rätsel mit Fortschrittssystem ================= */
 const PZ=Object.assign({r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10},store.get("et-tac",{}));
+fixT(PZ,{r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10});fixT(PZ.day,{date:"",n:0});fixT(PZ.streak,{last:"",n:0,best:0});if(PZ.streak.last==="")PZ.streak.last=null;PZ.hist=PZ.hist.filter(x=>x&&typeof x==="object");PZ.fails=PZ.fails.filter(x=>x&&x.p);for(const k in PZ.paths)if(!PZ.paths[k]||typeof PZ.paths[k]!=="object")delete PZ.paths[k];
 let pzCache=store.get("et-pzcache",[]);
 const savePZ=()=>{store.set("et-tac",PZ);savedAt=Date.now();store.set("et-savedAt",savedAt)};
 const savePzCache=()=>store.set("et-pzcache",pzCache.slice(-400));
@@ -2013,10 +2030,16 @@ const queues={};
 async function nextPuzzle(angle,difficulty){
   const k=angle+"|"+difficulty;const q=queues[k]||(queues[k]=[]);
   while(q.length&&PZ.seen[q[0].id])q.shift();
-  if(q.length<3){const p=fetchPuzzles(angle,difficulty,12).then(a=>{a.forEach(x=>{if(!PZ.seen[x.id]&&!q.some(y=>y.id===x.id))q.push(x)})});if(!q.length){try{await p}catch(e){
-    // offline: zwischengespeicherte Aufgaben verwenden
-    const off=pzCache.filter(c=>!PZ.seen[c.id]&&(angle==="mix"||c.angle===angle||c.themes.indexOf(angle)>=0));if(off.length)return off[Math.floor(Math.random()*off.length)];
-    const any=pzCache.filter(c=>angle==="mix"||c.themes.indexOf(angle)>=0);if(any.length)return rnd(any);throw e}}else p.catch(()=>{})}
+  if(q.length<3){
+    const pr=fetchPuzzles(angle,difficulty,12).then(a=>{a.forEach(x=>{if(!PZ.seen[x.id]&&!q.some(y=>y.id===x.id))q.push(x)})});
+    if(!q.length){let err=null;try{await pr}catch(e){err=e}
+      if(!q.length){
+        // offline oder keine neuen Aufgaben: zwischengespeicherte Aufgaben verwenden
+        const fit=c=>angle==="mix"||c.angle===angle||c.themes.indexOf(angle)>=0;
+        const off=pzCache.filter(c=>!PZ.seen[c.id]&&fit(c));if(off.length)return rnd(off);
+        const any=pzCache.filter(fit);if(any.length)return rnd(any);
+        throw err||new Error("empty")}}
+    else pr.catch(()=>{})}
   return q.shift();
 }
 function recordTactic(p,ok,opts){
@@ -2078,7 +2101,8 @@ async function loadNextTactic(s){
     else if(s.kind==="opening"){try{p=await nextPuzzle(s.angle,diffFor(PZ.r))}catch(e){if(String(e.message)==="angle"){toast("Für diese Eröffnung gibt es keine eigene Auswahl – gemischte Aufgaben.");s.angle="mix";p=await nextPuzzle("mix",diffFor(PZ.r))}else throw e}}
     else if(s.kind==="sprint"){const lv=Math.min(4,Math.floor(s.solved/4));p=await nextPuzzle("mix",DIFF[lv][0])}
     else p=await nextPuzzle("mix",diffFor(PZ.r));
-  }catch(e){busy=false;if(sess===s){sess=null;renderChrome()}setStatus("bad","Keine Aufgabe verfügbar",String(e&&e.message)==="ratelimit"?"Lichess meldet zu viele Anfragen – warte eine Minute.":"Für neue Aufgaben braucht es eine Internetverbindung.");return}
+  }catch(e){busy=false;if(sess===s){sess=null;renderChrome()}setStatus("bad","Keine Aufgabe verfügbar",String(e&&e.message)==="ratelimit"?"Lichess meldet zu viele Anfragen – warte eine Minute.":String(e&&e.message)==="empty"?"Lichess hat gerade keine neuen Aufgaben geliefert – versuch es gleich noch einmal.":"Für neue Aufgaben braucht es eine Internetverbindung.");return}
+  if(!p){busy=false;if(sess===s){sess=null;renderChrome()}setStatus("bad","Keine Aufgabe verfügbar","Versuch es gleich noch einmal.");return}
   if(sess!==s)return;busy=false;s.cur=p;
   const rated=s.kind==="rated"||s.kind==="opening";
   playTactic(p,{title:s.title,rated,silentFail:s.kind==="sprint",
