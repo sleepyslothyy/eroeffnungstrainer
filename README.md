@@ -1,21 +1,19 @@
 # Eröffnungstrainer
 
-Schach-Eröffnungen trainieren – im Browser, auf dem Handy installierbar und offline nutzbar.
+Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline nutzbar.
 
 **Live:** https://sleepyslothyy.github.io/eroeffnungstrainer/
 
-## Funktionen
-- **59 Eröffnungen, 236 Varianten** für Weiß, Schwarz sowie Gambits & Fallen – alle Züge automatisch auf Legalität geprüft
-- **Tagestraining & Wiederholung nach Lernkurve** (SM-2): Fehler kommen öfter, sichere Varianten seltener; Serien-Zähler
-- **Eigenes Repertoire** per Stern, Training und Quiz nutzen dann nur diese Eröffnungen
-- **Stockfish** nach dem Buchende: die Stellung weiterspielen, mit Bewertung und einstellbarer Stärke
-- **Erklärungen** zu jedem Zug mit Ideen-Pfeilen, Plan nach der Variante und strategischem Plan
-- **Fallen-Training**, **Quiz** (Buchzug, Eröffnung erkennen, Plan zuordnen) und **Musterpartien** mit Erklärungen
-- **Eigene Varianten** einspielen und trainieren
-- **Partien-Analyse** für Chess.com und Lichess (oder PGN): schwache Eröffnungen, typische Abweichungen mit Link zur Partie, Verlauf pro Monat, was Gegner gegen dich spielen, Trainingsplan aus Schwächen
-- **Statistik & Abzeichen**, schwierigste Züge, Export/Import des Fortschritts
-- Brettfarben, zwei Figurensets, Brett drehen, Rechtsklick-Pfeile, Zugsuche („1.d4 Sf6 2.c4“), Umwandlungsauswahl
+## Bereiche (Tab-Balken unten)
+- **Brett** – Training gegen das Eröffnungsbuch mit Erklärungen, Variantenbaum, Lichess-Datenbank, Bewertungsbalken, Zugeingabe per Tastatur, Blind-Modus und Stockfish 17.1 nach dem Buchende
+- **Lernen** – Tagestraining mit Serie, Wiederholung nach Lernkurve (pro Variante und pro Stellung), deine eigenen Fehler, Fallen, Blitz-Drill, Blind-Training, Quiz, Endspiele, Musterpartien und Meisterpartien, eigene Varianten, Repertoire-Import (PGN / Lichess-Studie) und Teilen-Link
+- **Eröffnungen** – 59 Eröffnungen mit 236 geprüften Varianten, Filter und Zugsuche („1.d4 Sf6 2.c4“)
+- **Chess.com** (oder Lichess) – Profil und Wertungen, Wertungsverlauf, alle Partien mit Game Review (Genauigkeit, Zugbewertung, bessere Züge), schwache Eröffnungen mit typischen Abweichungen, Lücken im Repertoire, was Gegner gegen dich spielen, persönlicher Eröffnungsbaum, Tages- und Zufallsrätsel, Trainingsplan aus Schwächen
+- **Profil** – Statistik, 20 Abzeichen, Einstellungen (Hell/Dunkel, Brett, Figuren, Stockfish-Stärke), Sync über privates GitHub-Gist, Export/Import
 
 ## Technik
-Reines HTML/CSS/JavaScript ohne Build-Schritt. Bibliotheken: [chess.js](https://github.com/jhlywa/chess.js) (BSD-2), [stockfish.js](https://github.com/nmrugg/stockfish.js) (GPLv3, wird zur Laufzeit von cdnjs geladen).
-Figuren: „Klassisch“ von Colin M.L. Burnett (GPLv2+), „Staunty“ aus lichess (CC BY-NC-SA 4.0).
+Reines HTML/CSS/JavaScript ohne Build-Schritt.
+- [chess.js](https://github.com/jhlywa/chess.js) (BSD-2)
+- [Stockfish.js 17.1 lite](https://github.com/nmrugg/stockfish.js) (GPLv3, siehe `engine/COPYING.txt`)
+- Figuren: „Klassisch“ von Colin M.L. Burnett (GPLv2+), „Staunty“ aus lichess (CC BY-NC-SA 4.0)
+- Daten: öffentliche APIs von Chess.com und Lichess (Opening Explorer, Meisterdatenbank)
