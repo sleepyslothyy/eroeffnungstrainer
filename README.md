@@ -12,6 +12,12 @@ Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline
 - **Chess.com** (oder Lichess) – Profil und Wertungen, Wertungsverlauf, alle Partien mit Game Review (Genauigkeit, Zugbewertung, bessere Züge), schwache Eröffnungen mit typischen Abweichungen, Lücken im Repertoire, was Gegner gegen dich spielen, persönlicher Eröffnungsbaum, Tages- und Zufallsrätsel, Trainingsplan aus Schwächen
 - **Profil** – Statistik, 28 Abzeichen, Einstellungen (Hell/Dunkel, Brett, Figuren, Stockfish-Stärke, Komfort, Schriftgröße), Sync über privates GitHub-Gist, Export/Import
 
+## Partieanalyse (Game Review)
+- Partien aus Chess.com/Lichess, per Link oder als PGN – Stockfish 17.1 bewertet jeden Zug
+- Zugbewertungen wie auf Chess.com: Brillant, Großartig, Bester Zug, Exzellent, Gut, Buchzug, Ungenauigkeit, Fehler, Verpasst, Patzer, Erzwungen
+- Coach-Erklärung zu jedem Zug (was er verliert, erlaubtes Matt, bessere Fortsetzung), Genauigkeit und geschätzte Elo pro Spieler, Genauigkeit nach Partiephase, Bewertungsgraph, wichtige Momente
+- »Bester Zug«, »Nochmal versuchen«, eigene Varianten direkt auf dem Brett mit Live-Bewertung und den drei besten Stockfish-Linien
+
 ## Komfort
 - Startseite „Weitermachen“ mit letzter Eröffnung, fälligen Wiederholungen und Tagesziel; Ersteinrichtung beim ersten Öffnen
 - Handy-Layout mit Knöpfen direkt unter dem Brett, Zugliste als Streifen, Tab-Leiste blendet sich beim Scrollen aus
