@@ -246,7 +246,7 @@ const findMove=(g,san)=>g.moves({verbose:true}).find(x=>strip(x.san)===strip(san
 const userTurnShown=()=>shown&&shown.turn()===op.side;
 function baseOrient(){if(mode==="replay")return game&&game.orient||"w";if(mode==="edit")return $("edSide").value;return op.side}
 const orient=()=>flipped?(baseOrient()==="w"?"b":"w"):baseOrient();
-function expected(){if(mode==="puzzle")return puz&&puz.sol[hist.length]?[strip(puz.sol[hist.length])]:[];return bookMoves(hist.slice(0,view))}
+function expected(){if(mode==="puzzle"){const k=hist.length-(puz&&puz.base||0);return puz&&puz.sol[k]?[strip(puz.sol[k])]:[]}return bookMoves(hist.slice(0,view))}
 
 function pickTarget(){
   const c=consistent(hist);if(!c.length)return null;
@@ -322,6 +322,7 @@ function wrongMove(mv,animate,h){
   const keep=shown;shown=tmp;badge={ply:-1,sq:r.to,type:"no"};
   render(animate?{fwd:r}:null,{bad:[r.from,r.to]});sfx("wrong");
   setStatus("bad",de(r.san)+(mode==="puzzle"?" ist nicht die Lösung":" ist nicht im Buch"),mistakes>=2&&hintLvl===0?"Tipp: Mit »Hinweis« siehst du, welche Figur ziehen sollte.":"Versuch es noch einmal.");
+  if(mode==="puzzle")reportPuzzle(false);
   setTimeout(()=>{shown=keep;badge=null;lock=false;render({back:r});boardEl.classList.remove("shake");void boardEl.offsetWidth;boardEl.classList.add("shake")},750);
 }
 function finish(){
@@ -360,27 +361,32 @@ function finishDrill(clean,skip){
 
 /* ---- Rätsel (Tagesrätsel, eigene Fehler aus Game Review) ---- */
 function startPuzzle(p){
-  stopEngine();sess=sess&&sess.type==="mine"?sess:null;game=null;drill=null;puz=p;mode="puzzle";flipped=false;
-  const g=new Chess(p.fen);op={id:"__puz",g:"c",side:g.turn(),name:p.title,eco:p.eco||"Rätsel",d:p.sub||"",plan:[],lines:[]};
-  resetBoard(p.fen);mode="puzzle";
-  showView("train");buildSquares();renderChrome();render();
+  stopEngine();sess=sess&&(sess.type==="mine"||sess.type==="tactic")?sess:null;game=null;drill=null;puz=p;p.reported=false;mode="puzzle";flipped=false;
+  resetBoard(p.fen||undefined);mode="puzzle";
+  if(p.pre){for(const m of p.pre){const gg=new Chess(fens[hist.length]);const mv=findMove(gg,m);if(!mv)break;commit(mv,"g")}view=hist.length;shown=new Chess(fens[view])}
+  p.base=hist.length;
+  const g=new Chess(fens[view]);op={id:"__puz",g:"c",side:g.turn(),name:p.title,eco:p.eco||"Rätsel",d:p.sub||"",plan:[],lines:[]};
+  if(curView!=="train")showView("train");buildSquares();renderChrome();render();
   setStatus("turn",p.prompt||"Finde den besten Zug",`${g.turn()==="w"?"Weiß":"Schwarz"} am Zug.`);
 }
+function reportPuzzle(ok){if(puz&&puz.onResult&&!puz.reported){puz.reported=true;return puz.onResult(ok)}return null}
 function puzzleMove(mv,animate){
   const exp=expected();
   if(exp.indexOf(strip(mv.san))<0){
     // Matt in einem Zug ist immer richtig
     const t=new Chess(shown.fen());t.move(mv.san);if(!t.in_checkmate()){wrongMove(mv,animate,[]);return}
   }
-  const r=commit(mv,"u");view=hist.length;shown=new Chess(fens[view]);sel=null;hintLvl=0;render(animate?{fwd:r}:null);playSound(r);
-  if(hist.length>=puz.sol.length||new Chess(fens[view]).in_checkmate()){
-    done=true;const clean=mistakes===0&&!usedHelp;if(clean)st.puzOk++;saveStats();
+  const r=commit(mv,"p");view=hist.length;shown=new Chess(fens[view]);sel=null;hintLvl=0;render(animate?{fwd:r}:null);playSound(r);
+  if(hist.length-puz.base>=puz.sol.length||new Chess(fens[view]).in_checkmate()){
+    done=true;const clean=mistakes===0&&!usedHelp;if(clean&&!puz.onResult)st.puzOk++;saveStats();
     if(puz.key){const pz=S.puz.find(x=>x.key===puz.key);if(pz){pz.tries=(pz.tries||0)+1;if(clean)pz.solved=(pz.solved||0)+1;save("puz")}}
     if(sess)sess.res.push({k:"puz",clean});
-    setStatus("done",clean?"Gelöst!":"Gelöst – mit Hilfe",puz.after||"");sfx("done");render();renderChrome();checkBadges();return;
+    setStatus("done",clean?"Gelöst!":"Gelöst – mit Hilfe",puz.after||"");sfx("done");
+    const wasRep=puz.reported;const res=reportPuzzle(clean);if(!wasRep&&puz.onSolved)puz.onSolved(clean,res);
+    render();renderChrome();checkBadges();return;
   }
   busy=true;setStatus("good","Richtig!","Der Gegner antwortet …");
-  setTimeout(()=>{busy=false;if(mode!=="puzzle")return;const g=new Chess(fens[hist.length]);const m=findMove(g,puz.sol[hist.length]);if(!m)return;const rr=commit(m,"b");view=hist.length;shown=new Chess(fens[view]);render({fwd:rr});playSound(rr);setStatus("turn","Weiter","Finde den nächsten Zug.")},500);
+  setTimeout(()=>{busy=false;if(mode!=="puzzle")return;const g=new Chess(fens[hist.length]);const m=findMove(g,puz.sol[hist.length-puz.base]);if(!m)return;const rr=commit(m,"b");view=hist.length;shown=new Chess(fens[view]);render({fwd:rr});playSound(rr);setStatus("turn","Weiter","Finde den nächsten Zug.")},500);
 }
 
 /* ---- Sitzungen ---- */
@@ -409,6 +415,7 @@ function runSessionItem(){
   const [id,i]=pk(k);selectOpening(byId(id),i,true);
 }
 function sessNext(){
+  if(sess.next){sess.next();return}
   sess.idx++;
   if(sess.idx>=sess.queue.length){
     const ok=sess.res.filter(r=>r.clean).length,n=sess.res.length,t=sess.title;sess=null;blindOn=false;applyBlind();renderChrome();
@@ -790,10 +797,11 @@ function render(anim,extra){
 }
 function renderChrome(){
   const inSess=!!sess;$("sessBar").hidden=!inSess;
-  if(inSess){$("sessTitle").textContent=sess.title;$("sessCount").textContent=`${Math.min(sess.idx+1,sess.queue.length)}/${sess.queue.length}`;$("sessProg").style.width=(sess.idx/sess.queue.length*100)+"%"}
+  if(inSess&&sess.next){$("sessTitle").textContent=sess.title;$("sessCount").textContent=sess.countText();$("sessProg").style.width=(sess.progress()*100)+"%"}
+  else if(inSess){$("sessTitle").textContent=sess.title;$("sessCount").textContent=`${Math.min(sess.idx+1,sess.queue.length)}/${sess.queue.length}`;$("sessProg").style.width=(sess.idx/sess.queue.length*100)+"%"}
   $("actsSf").hidden=mode!=="engine";$("editor").hidden=mode!=="edit";
-  $("nextBtn").hidden=!((mode==="train"&&!op.endId)||(mode==="puzzle"&&sess));
-  $("nextBtn").textContent=sess?(sess.idx+1>=sess.queue.length?"Training abschließen":`Weiter (${sess.idx+2}/${sess.queue.length})`):"Nächste Variante";
+  $("nextBtn").hidden=!((mode==="train"&&!op.endId)||(mode==="puzzle"&&sess))||!!(sess&&sess.kind==="sprint");
+  $("nextBtn").textContent=sess?(sess.next?"Nächste Aufgabe":sess.idx+1>=sess.queue.length?"Training abschließen":`Weiter (${sess.idx+2}/${sess.queue.length})`):"Nächste Variante";
   const eco=$("eco"),title=$("title"),desc=$("desc");
   if(mode==="replay"&&game){eco.textContent=(game.review?"Game Review":"Partie")+(game.year?" · "+game.year:"");title.textContent=game.title;desc.textContent=game.players||"";$("phIcon").innerHTML=ICON.crown}
   else if(mode==="edit"){eco.textContent="Editor";title.textContent="Eigene Variante";desc.textContent=op.d;$("phIcon").innerHTML=ICON.pen}
@@ -870,11 +878,11 @@ function renderTree(){
 $("hintBtn").onclick=()=>{if($("hintBtn").disabled)return;hintLvl=Math.min(2,hintLvl+1);usedHelp=true;render();setStatus("turn",hintLvl===1?"Diese Figur zieht":"So geht der Zug",hintLvl===1?"Noch ein Klick auf »Hinweis« zeigt das Zielfeld.":"Spiel den markierten Zug.")};
 $("showBtn").onclick=()=>{
   if($("showBtn").disabled)return;const ex=expected();const mv=findMove(shown,ex[0]);if(!mv)return;
-  usedHelp=true;mistakes++;if(mode==="puzzle"){puzzleMove(mv,true);return}trainMove(mv,true,true);
+  usedHelp=true;mistakes++;if(mode==="puzzle"){reportPuzzle(false);puzzleMove(mv,true);return}trainMove(mv,true,true);
   if(!done)setStatus("bad","Der Buchzug war "+de(mv.san),"Merk ihn dir. Das Buch antwortet …");
 };
 $("restartBtn").onclick=()=>{if(drill){startPosition(op,drill.pre,drill.info);return}if(mode==="puzzle"){startPuzzle(puz);return}startTrain()};
-$("nextBtn").onclick=()=>{if(sess){if(!done){toast("Löse die Aufgabe erst oder nutze »Lösung«.");return}sessNext()}else{forced=null;drill=null;startTrain()}};
+$("nextBtn").onclick=()=>{if(sess){if(!done&&!(mode==="puzzle"&&puz&&puz.reported)){toast("Löse die Aufgabe erst oder nutze »Lösung«.");return}sessNext()}else{forced=null;drill=null;startTrain()}};
 
 /* ---------------- Umwandlung & Züge ---------------- */
 function pickPromotion(color){
@@ -935,14 +943,14 @@ if(window.ResizeObserver)new ResizeObserver(sizeVar).observe(boardEl);
 
 /* ================= Ansichten & Tab-Balken ================= */
 let curView="train";
-const VIEW_TAB={train:"train",learn:"learn",quiz:"learn",games:"learn",import:"learn",end:"learn",openings:"openings",chess:"chess",profile:"profile"};
+const VIEW_TAB={tactics:"tactics",train:"train",learn:"learn",quiz:"learn",games:"learn",import:"learn",end:"learn",openings:"openings",chess:"chess",profile:"profile"};
 function showView(v){
   curView=v;document.querySelectorAll(".view").forEach(el=>el.hidden=el.id!=="v-"+v);
   if(v!=="train"){stopEngine();stopBlitz()}
-  ({learn:renderLearn,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage}[v]||(()=>{}))();
+  ({tactics:renderTactics,learn:renderLearn,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage}[v]||(()=>{}))();
   renderTabbar();applyBlind();if(v!=="train")window.scrollTo(0,0);else sizeVar();
 }
-const TABS=[["train","Brett","board"],["learn","Lernen","learn"],["openings","Eröffnungen","list"],["chess","Chess.com","chess"],["profile","Profil","profile"]];
+const TABS=[["train","Brett","board"],["learn","Lernen","learn"],["tactics","Taktik","bolt"],["openings","Eröffnungen","list"],["chess","Chess.com","chess"],["profile","Profil","profile"]];
 function renderTabbar(){
   ensureDaily();const due=dueKeys().length;const open=S.daily.queue.length-S.daily.done.length;
   $("tabbar").innerHTML=TABS.map(([id,t,ic])=>`<button class="tb" data-tab="${id}" aria-current="${VIEW_TAB[curView]===id}">${NI[ic]}<span>${t}</span>${id==="learn"&&(open>0||due>0)?`<span class="dotn">${Math.max(open,due)}</span>`:""}</button>`).join("");
@@ -1029,6 +1037,7 @@ function renderLearn(){
   </div>
   <div class="sec-h"><h3>Trainingsarten</h3><small>Abwechslung macht sicher</small></div>
   <div class="hubgrid">
+    ${card("tactics","bolt","#81B64C","Taktik-Training",`Echte Lichess-Rätsel mit Wertung, Levels und Themen-Pfaden. Deine Wertung: ${PZ.r}.`,pzToday().n+"/"+PZ.goal)}
     ${card("blitz","bolt","#E6912C","Blitz-Drill",`10 Varianten mit nur ${S.set.blitzSec} Sekunden pro Zug – damit die Züge automatisch kommen.`)}
     ${card("blind","eye","#5C5A57","Blind-Training","Die Figuren sind unsichtbar, nur die Notation hilft dir.")}
     ${card("quiz","quiz","#8A63B8","Quiz","Buchzug finden, Eröffnung erkennen und Plan zuordnen.",st.quiz.ok?st.quiz.ok+" ✓":null)}
@@ -1550,7 +1559,7 @@ function renderChOverview(el){
       return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(fmtMoves(O.mv))}</b><span class="sub">${O.n} Partien · <span class="${sc<.45?"score-bad":sc>.55?"score-good":""}">${pct(sc)}</span></span></div>${wdl(O)}${sg.length?`<div class="chips" style="margin-top:6px">${sg.map(o=>`<button class="chip" data-train="${o.id}" data-line="${consistentIn(o,O.mv)[0]}">${esc(o.name)}</button>`).join("")}</div>`:""}</div>`}).join("")}</div>`}
   html+=`</div>`;
   for(const c of ["w","b"]){const rows=R.list.filter(G=>G.color===c).sort((a,b)=>b.n-a.n);if(!rows.length)continue;
-    html+=`<div class="sec-h"><h3>Alle Eröffnungen mit ${c==="w"?"Weiß":"Schwarz"}</h3><small>${rows.length} ${rows.length===1?"Gruppe":"Gruppen"}</small></div><div class="tbl-wrap"><table><thead><tr><th>Eröffnung</th><th style="text-align:right">Partien</th><th>Bilanz</th><th style="text-align:right">Punkte</th><th></th></tr></thead><tbody>
+    html+=`<div class="sec-h"><h3>Alle Eröffnungen mit ${c==="w"?"Weiß":"Schwarz"}</h3><small>${rows.length} Gruppen</small></div><div class="tbl-wrap"><table><thead><tr><th>Eröffnung</th><th style="text-align:right">Partien</th><th>Bilanz</th><th style="text-align:right">Punkte</th><th></th></tr></thead><tbody>
     ${rows.map(G=>`<tr><td><div class="nm">${esc(G.name)}${G.id?"":" <small>(keine Übung)</small>"}</div></td><td class="num">${G.n}</td><td>${wdl(G)}</td><td class="num ${G.score<0.45?"score-bad":G.score>0.55?"score-good":""}">${pct(G.score)}</td><td style="text-align:right">${G.id?`<button class="mini" data-train="${G.id}" data-line="${G.focusLine===null?"":G.focusLine}">Üben</button>`:""}</td></tr>`).join("")}</tbody></table></div>`}
   el.innerHTML=html;
   el.querySelectorAll("[data-train]").forEach(b=>b.onclick=()=>{const o=byId(b.dataset.train);const ln=b.dataset.line===""?null:+b.dataset.line;selectOpening(o,ln)});
@@ -1652,6 +1661,178 @@ async function renderChPuzzle(el){
   catch(e){const box=$("pzDaily");if(box)box.innerHTML='<p class="sub">Chess.com ist gerade nicht erreichbar.</p>'}
 }
 
+/* ================= Taktik: Lichess-Rätsel mit Fortschrittssystem ================= */
+const PZ=Object.assign({r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10},store.get("et-tac",{}));
+let pzCache=store.get("et-pzcache",[]);
+const savePZ=()=>{store.set("et-tac",PZ);savedAt=Date.now();store.set("et-savedAt",savedAt)};
+const savePzCache=()=>store.set("et-pzcache",pzCache.slice(-400));
+const DIFF=[["easiest",-600],["easier",-300],["normal",0],["harder",300],["hardest",600]];
+const diffFor=r=>DIFF.reduce((b,d)=>Math.abs(1500+d[1]-r)<Math.abs(1500+b[1]-r)?d:b)[0];
+const RANKS=[[1,"Bauer"],[6,"Springer"],[11,"Läufer"],[16,"Turm"],[21,"Dame"],[26,"König"],[31,"Großmeister"]];
+const xpForLevel=l=>Math.round(60*Math.pow(l-1,1.45));
+const levelOf=xp=>{let l=1;while(xpForLevel(l+1)<=xp)l++;return l};
+const rankOf=l=>RANKS.filter(r=>l>=r[0]).pop()[1];
+const TTH={mateIn1:["Matt in 1","Finde den direkten Mattzug."],hangingPiece:["Ungedeckte Figur","Schlage, was ungeschützt herumsteht."],fork:["Gabel","Eine Figur greift zwei Ziele gleichzeitig an."],pin:["Fesselung","Eine Figur darf nicht ziehen, weil dahinter etwas Wertvolleres steht."],
+  skewer:["Spieß","Wie eine Fesselung – nur steht die wertvollere Figur vorne."],mateIn2:["Matt in 2","Zwei Züge bis zum Matt."],discoveredAttack:["Abzugsangriff","Eine Figur zieht weg und öffnet eine Linie."],backRankMate:["Grundreihenmatt","Der König ist hinter seinen Bauern gefangen."],promotion:["Umwandlung","Bring den Bauern durch."],endgame:["Endspiel","Taktik mit wenig Material."],
+  sacrifice:["Opfer","Material geben für mehr."],deflection:["Ablenkung","Lock einen Verteidiger von seiner Aufgabe weg."],attraction:["Hinlenkung","Zwing eine Figur auf ein schlechtes Feld."],doubleCheck:["Doppelschach","Zwei Figuren geben gleichzeitig Schach."],trappedPiece:["Gefangene Figur","Eine Figur hat kein Fluchtfeld mehr."],
+  smotheredMate:["Ersticktes Matt","Der Springer setzt den eingeklemmten König matt."],xRayAttack:["Röntgenangriff","Wirkung durch eine Figur hindurch."],clearance:["Räumung","Mach ein Feld oder eine Linie frei."],interference:["Verstellung","Unterbrich die Verbindung zwischen Verteidigern."],quietMove:["Stiller Zug","Kein Schach, kein Schlagen – aber tödlich."],defensiveMove:["Verteidigung","Finde den einzigen rettenden Zug."],mateIn3:["Matt in 3","Drei Züge bis zum Matt."],zugzwang:["Zugzwang","Der Gegner muss ziehen und verliert dadurch."]};
+const TIERS=[{need:0,keys:["mateIn1","hangingPiece","fork","pin"]},{need:5,keys:["skewer","mateIn2","discoveredAttack","backRankMate","promotion","endgame"]},{need:18,keys:["sacrifice","deflection","attraction","doubleCheck","trappedPiece"]},{need:35,keys:["smotheredMate","xRayAttack","clearance","interference","quietMove","defensiveMove","mateIn3","zugzwang"]}];
+const PATH_STEPS=5,PATH_N=4;
+const OPENING_ANGLE={italienisch:"Italian_Game",evans:"Italian_Game",friedliver:"Italian_Game",spanisch:"Ruy_Lopez",jaenisch:"Ruy_Lopez",schottisch:"Scotch_Game",damengambit:"Queens_Gambit_Declined",dg_abgelehnt:"Queens_Gambit_Declined",englisch:"English_Opening",wiener:"Vienna_Game",najdorf:"Sicilian_Defense",drachen:"Sicilian_Defense",sweschnikow:"Sicilian_Defense",taimanow:"Sicilian_Defense",beschl_drachen:"Sicilian_Defense",offen_siz_w:"Sicilian_Defense",morra:"Sicilian_Defense",franzoesisch:"French_Defense",gegen_franz_w:"French_Defense",carokann:"Caro-Kann_Defense",gegen_caro_w:"Caro-Kann_Defense",skandinavisch:"Scandinavian_Defense",gegen_skandi_w:"Scandinavian_Defense",koenigsindisch:"Kings_Indian_Defense",gegen_ki_w:"Kings_Indian_Defense",nimzo:"Nimzo-Indian_Defense",slawisch:"Slav_Defense",hollaendisch:"Dutch_Defense",gegen_holl_w:"Dutch_Defense",aljechin:"Alekhine_Defense",gruenfeld:"Grunfeld_Defense",pirc:"Pirc_Defense",modern:"Modern_Defense",petrow:"Russian_Game",stafford:"Russian_Game",koenigsgambit:"Kings_Gambit_Accepted",daenisch:"Danish_Gambit",bird:"Bird_Opening",benko:"Benko_Gambit",budapester:"Budapest_Defense",albin:"Queens_Gambit_Declined",katalanisch:"Catalan_Opening",vierspringer:"Four_Knights_Game",philidor:"Philidor_Defense",damenindisch:"Queens_Indian_Defense",benoni:"Benoni_Defense",englund:"Englund_Gambit",reti:"Zukertort_Opening",e5_schwarz:"Kings_Knight_Opening"};
+const pathOf=k=>PZ.paths[k]||(PZ.paths[k]={step:0,n:0});
+const totalStars=()=>Object.values(PZ.paths).reduce((a,p)=>a+Math.min(PATH_STEPS,p.step),0);
+const tierUnlocked=i=>totalStars()>=TIERS[i].need;
+function pzToday(){if(PZ.day.date!==today())PZ.day={date:today(),n:0};return PZ.day}
+
+/* Rätsel von Lichess laden (Batch) und normalisieren */
+function normLichessPuzzle(x){
+  try{
+    const g=new Chess();const mv=(x.game.pgn||"").split(" ").filter(Boolean);let last=null;
+    for(const m of mv){last=g.move(m);if(!last)return null}
+    const fen=g.fen();const sol=[];const t=new Chess(fen);
+    for(const u of x.puzzle.solution){const m=t.moves({verbose:true}).find(z=>z.from===u.slice(0,2)&&z.to===u.slice(2,4)&&(!z.promotion||z.promotion===(u[4]||"q")));if(!m)return null;t.move(m.san);sol.push(m.san)}
+    return {id:x.puzzle.id,pre:mv,sol,rating:x.puzzle.rating,themes:x.puzzle.themes||[],plays:x.puzzle.plays,game:x.game.id,side:new Chess(fen).turn()};
+  }catch(e){return null}
+}
+async function fetchPuzzles(angle,difficulty,nb){
+  const headers={Accept:"application/json"};if(S.set.liToken)headers.Authorization="Bearer "+S.set.liToken;
+  const r=await fetch(`https://lichess.org/api/puzzle/batch/${encodeURIComponent(angle)}?nb=${nb||10}&difficulty=${difficulty}`,{headers});
+  if(r.status===429)throw new Error("ratelimit");if(r.status===404||r.status===400)throw new Error("angle");if(!r.ok)throw new Error("http");
+  const d=await r.json();const arr=(d.puzzles||(Array.isArray(d)?d:[d])).map(normLichessPuzzle).filter(Boolean);
+  arr.forEach(p=>{p.angle=angle;p.diff=difficulty;if(!pzCache.some(c=>c.id===p.id))pzCache.push(p)});savePzCache();return arr;
+}
+const queues={};
+async function nextPuzzle(angle,difficulty){
+  const k=angle+"|"+difficulty;const q=queues[k]||(queues[k]=[]);
+  while(q.length&&PZ.seen[q[0].id])q.shift();
+  if(q.length<3){const p=fetchPuzzles(angle,difficulty,12).then(a=>{a.forEach(x=>{if(!PZ.seen[x.id]&&!q.some(y=>y.id===x.id))q.push(x)})});if(!q.length){try{await p}catch(e){
+    // offline: zwischengespeicherte Aufgaben verwenden
+    const off=pzCache.filter(c=>!PZ.seen[c.id]&&(angle==="mix"||c.angle===angle||c.themes.indexOf(angle)>=0));if(off.length)return off[Math.floor(Math.random()*off.length)];
+    const any=pzCache.filter(c=>angle==="mix"||c.themes.indexOf(angle)>=0);if(any.length)return rnd(any);throw e}}else p.catch(()=>{})}
+  return q.shift();
+}
+function recordTactic(p,ok,opts){
+  opts=opts||{};PZ.seen[p.id]=1;const sk=Object.keys(PZ.seen);if(sk.length>3000)delete PZ.seen[sk[0]];
+  PZ.n++;if(ok)PZ.ok++;const d=pzToday();d.n++;
+  let delta=0;
+  if(opts.rated!==false){const n=PZ.n;const K=n<20?40:n<60?28:18;const E=1/(1+Math.pow(10,(p.rating-PZ.r)/400));delta=Math.round(K*((ok?1:0)-E));PZ.r=Math.max(400,PZ.r+delta);PZ.hist.push([Date.now(),PZ.r]);if(PZ.hist.length>600)PZ.hist.shift()}
+  const lvBefore=levelOf(PZ.xp);let xp=0;if(ok){xp=10+Math.max(0,Math.round((p.rating-PZ.r+300)/60));PZ.xp+=xp}
+  p.themes.forEach(t=>{const T=PZ.themes[t]||(PZ.themes[t]={n:0,ok:0});T.n++;if(ok)T.ok++});
+  if(!ok&&!PZ.fails.some(f=>f.id===p.id))PZ.fails.unshift({id:p.id,p,ok:0});
+  if(ok){const f=PZ.fails.find(x=>x.id===p.id);if(f){f.ok++;if(f.ok>=2)PZ.fails=PZ.fails.filter(x=>x!==f)}}
+  PZ.fails=PZ.fails.slice(0,150);
+  if(d.n===PZ.goal&&PZ.streak.last!==today()){PZ.streak.n=PZ.streak.last===yesterday()?PZ.streak.n+1:1;PZ.streak.last=today();PZ.streak.best=Math.max(PZ.streak.best,PZ.streak.n);setTimeout(()=>toast(`Taktik-Tagesziel erreicht! Serie: ${PZ.streak.n} ${PZ.streak.n===1?"Tag":"Tage"}`),900)}
+  st.days[today()]=(st.days[today()]||0)+1;saveStats();savePZ();
+  const lvAfter=levelOf(PZ.xp);if(lvAfter>lvBefore)setTimeout(()=>{toast(`Level ${lvAfter} erreicht – Rang: ${rankOf(lvAfter)}`);sfx("badge")},1200);
+  checkBadges();return {delta,xp};
+}
+const ratedText=(ok,res,p)=>`${ok?"Gelöst":"Nicht gelöst"} · Aufgabe ${p.rating} · Wertung ${PZ.r} (${res.delta>=0?"+":""}${res.delta})${res.xp?` · +${res.xp} XP`:""}`;
+function playTactic(p,cfg){
+  cfg=cfg||{};
+  startPuzzle({pre:p.pre,sol:p.sol,title:cfg.title||"Taktik",eco:cfg.eco||("Aufgabe "+p.rating),sub:cfg.sub||(p.themes.map(t=>TTH[t]?TTH[t][0]:null).filter(Boolean).slice(0,3).join(" · ")||"Lichess-Rätsel"),
+    prompt:`${p.side==="w"?"Weiß":"Schwarz"} am Zug – finde den besten Zug`,
+    after:`Lichess-Rätsel ${p.id} aus einer echten Partie.`,
+    onResult:ok=>{const res=recordTactic(p,ok,{rated:cfg.rated!==false});if(cfg.onResult)cfg.onResult(ok,res);
+      if(!ok&&!cfg.silentFail)setStatus("bad","Leider falsch",cfg.rated!==false?ratedText(false,res,p)+". Versuch es weiter oder tippe auf »Weiter«.":"Versuch es weiter oder tippe auf »Weiter«.");
+      return res},
+    onSolved:(clean,res)=>{if(clean&&res)setStatus("done","Richtig gelöst!",cfg.rated!==false?ratedText(true,res,p):`+${res.xp} XP`)}
+  });
+}
+/* Sitzungen */
+function tacticSession(kind,arg){
+  const s={type:"tactic",kind,title:"",idx:0,res:[],solved:0,failed:0,cur:null};
+  if(kind==="rated")s.title="Taktik-Training";
+  if(kind==="theme"){s.title="Pfad: "+TTH[arg][0];s.theme=arg}
+  if(kind==="opening"){s.title="Taktik: "+byId(arg).name;s.angle=OPENING_ANGLE[arg]}
+  if(kind==="fails"){if(!PZ.fails.length){toast("Keine offenen Fehler – stark!");return}s.title="Taktik-Fehler wiederholen";s.list=PZ.fails.slice(0,20).map(f=>f.p)}
+  if(kind==="sprint"){s.title="Taktik-Sprint";s.lives=3;s.end=Date.now()+180000;s.level=0}
+  s.next=()=>loadNextTactic(s);
+  s.countText=()=>kind==="sprint"?`${s.solved} gelöst · ${"♥".repeat(Math.max(0,s.lives))}`:kind==="theme"?`Stufe ${Math.min(PATH_STEPS,pathOf(s.theme).step+1)}/${PATH_STEPS} · ${pathOf(s.theme).n}/${PATH_N}`:`${s.solved} gelöst · ${s.failed} falsch`;
+  s.progress=()=>kind==="sprint"?Math.max(0,(s.end-Date.now())/180000):kind==="theme"?pathOf(s.theme).n/PATH_N:0;
+  sess=s;showView("train");
+  if(kind==="sprint")startSprintTimer(s);
+  loadNextTactic(s);
+}
+let sprintT=null;
+function startSprintTimer(s){clearInterval(sprintT);const t=$("timer");sprintT=setInterval(()=>{if(sess!==s){clearInterval(sprintT);t.hidden=true;return}const left=Math.max(0,s.end-Date.now());t.hidden=false;t.textContent=Math.floor(left/60000)+":"+String(Math.floor(left/1000)%60).padStart(2,"0");t.classList.toggle("low",left<20000);$("sessProg").style.width=(left/180000*100)+"%";if(left<=0){clearInterval(sprintT);endSprint(s)}},250)}
+function endSprint(s){
+  if(sess!==s)return;const best=s.solved>PZ.sprintBest;if(best)PZ.sprintBest=s.solved;savePZ();checkBadges();
+  sess=null;done=true;lock=false;busy=false;$("timer").hidden=true;renderChrome();render();
+  setStatus("done",`Sprint vorbei: ${s.solved} gelöst`,best?"Neuer Rekord!":`Dein Rekord: ${PZ.sprintBest}`);sfx("done");
+}
+async function loadNextTactic(s){
+  if(sess!==s)return;
+  setStatus("turn","Lade Aufgabe …","");busy=true;renderChrome();
+  let p=null;
+  try{
+    if(s.kind==="fails"){if(s.idx>=s.list.length){sess=null;busy=false;renderChrome();setStatus("done","Fehler wiederholt",`${s.solved} von ${s.list.length} gelöst.`);return}p=s.list[s.idx]}
+    else if(s.kind==="theme"){const ps=pathOf(s.theme);p=await nextPuzzle(s.theme,DIFF[Math.min(PATH_STEPS-1,ps.step)][0])}
+    else if(s.kind==="opening"){try{p=await nextPuzzle(s.angle,diffFor(PZ.r))}catch(e){if(String(e.message)==="angle"){toast("Für diese Eröffnung gibt es keine eigene Auswahl – gemischte Aufgaben.");s.angle="mix";p=await nextPuzzle("mix",diffFor(PZ.r))}else throw e}}
+    else if(s.kind==="sprint"){const lv=Math.min(4,Math.floor(s.solved/4));p=await nextPuzzle("mix",DIFF[lv][0])}
+    else p=await nextPuzzle("mix",diffFor(PZ.r));
+  }catch(e){busy=false;if(sess===s){sess=null;renderChrome()}setStatus("bad","Keine Aufgabe verfügbar",String(e&&e.message)==="ratelimit"?"Lichess meldet zu viele Anfragen – warte eine Minute.":"Für neue Aufgaben braucht es eine Internetverbindung.");return}
+  if(sess!==s)return;busy=false;s.cur=p;
+  const rated=s.kind==="rated"||s.kind==="opening";
+  playTactic(p,{title:s.title,rated,silentFail:s.kind==="sprint",
+    onResult:(ok)=>{s.res.push({clean:ok});if(ok)s.solved++;else s.failed++;
+      if(s.kind==="theme"&&ok){const ps=pathOf(s.theme);ps.n++;if(ps.n>=PATH_N){ps.step=Math.min(PATH_STEPS,ps.step+1);ps.n=0;savePZ();setTimeout(()=>toast(ps.step>=PATH_STEPS?`Pfad „${TTH[s.theme][0]}“ gemeistert!`:`Stufe ${ps.step} geschafft – ★ ${ps.step}/${PATH_STEPS}`),600);if(ps.step>=PATH_STEPS){setTimeout(()=>{if(sess===s){sess=null;renderChrome();setStatus("done","Pfad gemeistert!","Alle fünf Sterne gesammelt. Neue Pfade schaltest du mit Sternen frei.")}},1500)}}savePZ()}
+      if(s.kind==="sprint"){if(!ok){s.lives--;sfx("wrong")}renderChrome();
+        if(s.lives<=0){setTimeout(()=>endSprint(s),600);return}
+        setTimeout(()=>{if(sess===s)s.next()},ok?500:900)}
+      if(s.kind==="fails")s.idx++;
+      renderChrome();
+    }});
+}
+
+/* Ansicht */
+function tacticChart(){
+  const pts=PZ.hist;if(pts.length<3)return '<p class="hint">Der Wertungsverlauf erscheint nach ein paar Aufgaben im Wertungstraining.</p>';
+  const W=600,H=160,p=34;const ys=pts.map(x=>x[1]);const lo=Math.floor((Math.min(...ys)-20)/50)*50,hi=Math.ceil((Math.max(...ys)+20)/50)*50;
+  const X=i=>p+i/(pts.length-1)*(W-p-8),Y=r=>8+(hi-r)/Math.max(1,hi-lo)*(H-30);
+  const d=pts.map((x,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(x[1]).toFixed(1)).join(" ");
+  const ticks=[];for(let r=lo;r<=hi;r+=Math.max(50,Math.round((hi-lo)/4/50)*50))ticks.push(r);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${ticks.map(r=>`<line x1="${p}" x2="${W}" y1="${Y(r)}" y2="${Y(r)}" stroke="var(--line)"/><text x="2" y="${Y(r)+4}" font-size="11" fill="var(--muted)">${r}</text>`).join("")}<path d="${d} L${X(pts.length-1)} ${H-22} L${X(0)} ${H-22}Z" fill="rgba(129,182,76,.15)"/><path d="${d}" fill="none" stroke="#81B64C" stroke-width="2.2"/><circle cx="${X(pts.length-1)}" cy="${Y(pts[pts.length-1][1])}" r="4" fill="#81B64C"/><text x="${p}" y="${H-5}" font-size="11" fill="var(--muted)">erste Aufgabe</text><text x="${W-4}" y="${H-5}" font-size="11" fill="var(--muted)" text-anchor="end">heute</text></svg>`;
+}
+function renderTactics(){
+  const v=$("v-tactics");const lv=levelOf(PZ.xp);const a=xpForLevel(lv),b=xpForLevel(lv+1);const d=pzToday();const stars=totalStars();
+  const tierHtml=TIERS.map((T,ti)=>{const open=tierUnlocked(ti);return `<div class="sec-h"><h3>${["Grundlagen","Aufbau","Fortgeschritten","Meisterklasse"][ti]}</h3><small>${open?"freigeschaltet":"gesperrt – ab "+T.need+" Sternen (du hast "+stars+")"}</small></div>
+    <div class="hubgrid">${T.keys.map(k=>{const ps=pathOf(k);const done=ps.step>=PATH_STEPS;const th=PZ.themes[k];
+      return `<button class="hc tpath" data-path="${k}" ${open?"":"disabled"} style="${open?"":"opacity:.45;cursor:not-allowed"}"><b>${TTH[k][0]}</b><small>${TTH[k][1]}</small><span class="stars">${[0,1,2,3,4].map(i=>`<i class="${i<ps.step?"on":""}">★</i>`).join("")}</span><small>${done?"Gemeistert":open?`Stufe ${ps.step+1}: ${ps.n}/${PATH_N} gelöst`:"gesperrt"}${th?` · ${pct(th.ok/th.n)} richtig`:""}</small></button>`}).join("")}</div>`}).join("");
+  const repOps=S.rep.map(byId).filter(o=>o&&OPENING_ANGLE[o.id]);
+  const weakT=Object.entries(PZ.themes).filter(([k,t])=>t.n>=4&&TTH[k]).sort((x,y)=>x[1].ok/x[1].n-y[1].ok/y[1].n).slice(0,5);
+  v.innerHTML=`<div class="tac-hero">
+    <div class="tac-r"><small>Taktik-Wertung</small><b>${PZ.r}</b><span>${PZ.n} Aufgaben · ${PZ.n?pct(PZ.ok/PZ.n):"–"} gelöst</span></div>
+    <div class="tac-lv"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Level ${lv} · ${rankOf(lv)}</b><small>${PZ.xp-a}/${b-a} XP</small></div><div class="xpbar"><i style="width:${(PZ.xp-a)/(b-a)*100}%"></i></div>
+      <div class="tac-mini"><span><b>${d.n}/${PZ.goal}</b> heute</span><span><b>${PZ.streak.last===today()||PZ.streak.last===yesterday()?PZ.streak.n:0}</b> Tage Serie</span><span><b>${stars}</b> ★ Sterne</span><span><b>${PZ.sprintBest}</b> Sprint-Rekord</span></div></div>
+  </div>
+  <div class="hubgrid">
+    <button class="hc" data-tac="rated"><span class="ic" style="background:#81B64C">${NI.bolt}</span><b>Wertungstraining</b><small>Endlos Aufgaben passend zu deiner Wertung. Jede Lösung verändert deine Taktik-Wertung.</small><span class="meta">${PZ.r}</span></button>
+    <button class="hc" data-tac="sprint"><span class="ic" style="background:#E6912C">${NI.review}</span><b>Taktik-Sprint</b><small>3 Minuten, 3 Leben: Löse so viele Aufgaben wie möglich. Sie werden immer schwerer.</small><span class="meta">${PZ.sprintBest}</span></button>
+    <button class="hc" data-tac="fails" ${PZ.fails.length?"":"disabled"}><span class="ic" style="background:#B9483C">${NI.target}</span><b>Fehler wiederholen</b><small>Aufgaben, die du nicht gelöst hast. Zweimal richtig, dann verschwinden sie.</small><span class="meta${PZ.fails.length?" hot":""}">${PZ.fails.length}</span></button>
+  </div>
+  ${repOps.length?`<div class="sec-h"><h3>Taktik aus deinen Eröffnungen</h3><small>Aufgaben aus Partien mit deinem Repertoire</small></div><div class="chips">${repOps.map(o=>`<button class="chip" data-tacop="${o.id}">${esc(o.name)}</button>`).join("")}</div>`:`<p class="hint">Tipp: Markiere Eröffnungen mit einem Stern, dann bekommst du hier Taktikaufgaben aus genau diesen Eröffnungen.</p>`}
+  <div class="sec-h"><h3>Themen-Pfade</h3><small>Je ${PATH_N} Aufgaben pro Stufe, 5 Stufen bis zum Meister</small></div>
+  ${tierHtml}
+  <div class="card"><h3>Wertungsverlauf</h3>${tacticChart()}</div>
+  ${weakT.length?`<div class="card"><h3>Deine schwächsten Motive</h3>${weakT.map(([k,t])=>`<div class="setrow"><span><b>${TTH[k][0]}</b><small>${t.ok} von ${t.n} gelöst</small></span><span style="display:flex;gap:10px;align-items:center"><b class="${t.ok/t.n<.5?"score-bad":""}">${pct(t.ok/t.n)}</b>${tierUnlocked(TIERS.findIndex(T=>T.keys.indexOf(k)>=0))?`<button class="mini" data-path="${k}">Üben</button>`:""}</span></div>`).join("")}</div>`:""}
+  <div class="card"><h3>Tagesziel</h3><div class="btnrow"><span class="hint">Aufgaben pro Tag:</span>${[5,10,20,30].map(n=>`<button class="chip" data-goal="${n}" style="${PZ.goal===n?"background:var(--green);color:#fff":""}">${n}</button>`).join("")}</div><p class="hint" style="margin:8px 0 0">Die Aufgaben stammen aus der freien Lichess-Rätseldatenbank (CC0). Bereits geladene Aufgaben funktionieren auch offline. Mit einem Lichess-Token (Profil → Einstellungen) bekommst du nur Aufgaben, die du dort noch nicht gesehen hast.</p></div>`;
+  v.querySelectorAll("[data-tac]").forEach(b=>b.onclick=()=>tacticSession(b.dataset.tac));
+  v.querySelectorAll("[data-path]").forEach(b=>b.onclick=()=>{if(b.disabled)return;const k=b.dataset.path;if(pathOf(k).step>=PATH_STEPS){pathOf(k).step=PATH_STEPS-1;pathOf(k).n=0;toast("Pfad wird auf der höchsten Stufe wiederholt.")}tacticSession("theme",k)});
+  v.querySelectorAll("[data-tacop]").forEach(b=>b.onclick=()=>tacticSession("opening",b.dataset.tacop));
+  v.querySelectorAll("[data-goal]").forEach(b=>b.onclick=()=>{PZ.goal=+b.dataset.goal;savePZ();renderTactics()});
+}
+BADGES.push(
+  {id:"t1",t:"Taktik-Einsteiger",d:"25 Taktikaufgaben gelöst",ok:()=>PZ.ok>=25},
+  {id:"t2",t:"Taktik-Kenner",d:"250 Taktikaufgaben gelöst",ok:()=>PZ.ok>=250},
+  {id:"t1500",t:"Taktik 1500",d:"Taktik-Wertung von 1500 erreicht",ok:()=>PZ.r>=1500},
+  {id:"t1800",t:"Taktik 1800",d:"Taktik-Wertung von 1800 erreicht",ok:()=>PZ.r>=1800},
+  {id:"t2100",t:"Taktik 2100",d:"Taktik-Wertung von 2100 erreicht",ok:()=>PZ.r>=2100},
+  {id:"sprint15",t:"Sprinter",d:"15 Aufgaben in einem Sprint",ok:()=>PZ.sprintBest>=15},
+  {id:"path",t:"Pfadfinder",d:"Einen Themen-Pfad gemeistert",ok:()=>Object.values(PZ.paths).some(p=>p.step>=PATH_STEPS)},
+  {id:"stars50",t:"Sternensammler",d:"50 Sterne in Themen-Pfaden",ok:()=>totalStars()>=50}
+);
+KEYS.push("tac");S.tac=PZ;
+
 /* ================= Start ================= */
 applySettings();
 st.badges=BADGES.filter(b=>{try{return b.ok()}catch(e){return false}}).map(b=>b.id);saveStats();
@@ -1665,5 +1846,5 @@ try{
   }
 }catch(err){window.__showErr(String(err&&err.stack||err))}
 renderTabbar();
-window.__ET={fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();
