@@ -34,6 +34,7 @@ const ICON={
 };
 const NI={
   board:SV('<path d="M3 3h18v18H3zm2 2v4h4V5zm4 4v4h4V9zm4-4v4h4V5zm-8 8v4h4v-4zm8 0v4h4v-4z"/>'),
+  online:SV('<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-3a15.7 15.7 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8zM12 4c.8 1.2 1.5 2.5 1.9 4h-3.8c.4-1.5 1.1-2.8 1.9-4zM4.3 14a8.2 8.2 0 0 1 0-4h3.4a16.5 16.5 0 0 0 0 4zm.8 2h3a15.7 15.7 0 0 0 1.4 3.6A8 8 0 0 1 5.1 16zm3-8h-3a8 8 0 0 1 4.4-3.6C8 5.6 7.5 6.8 8.1 8zM12 20c-.8-1.2-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.8-1.9 4zm2.3-6H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4zm.3 5.6c.6-1.1 1.1-2.3 1.4-3.6h3a8 8 0 0 1-4.4 3.6zM16.3 14a16.5 16.5 0 0 0 0-4h3.4a8.2 8.2 0 0 1 0 4z"/>'),
   learn:SV('<path d="M12 3 1 9l11 6 9-4.9V17h2V9zM5 13.2v4L12 21l7-3.8v-4L12 17z"/>'),
   list:SV('<path d="M3 5h2v2H3zm4 0h14v2H7zM3 11h2v2H3zm4 0h14v2H7zm-4 6h2v2H3zm4 0h14v2H7z"/>'),
   chess:SV('<path d="M4 20V10h3v10zm6.5 0V4h3v16zM17 20v-7h3v7z"/>'),
@@ -74,7 +75,7 @@ S.rep=S.rep.filter(x=>typeof x==="string");S.puz=S.puz.filter(x=>x&&typeof x==="
 if(S.daily&&(typeof S.daily!=="object"||!Array.isArray(S.daily.queue)||!Array.isArray(S.daily.done)))S.daily=null;
 if(S.ana&&(typeof S.ana!=="object"||Array.isArray(S.ana)))S.ana=null;
 let savedAt=store.get("et-savedAt",0);
-const save=k=>{store.set("et-"+k,S[k]);savedAt=Date.now();store.set("et-savedAt",savedAt)};
+const save=k=>{store.set("et-"+k,S[k]);savedAt=Date.now();store.set("et-savedAt",savedAt);cloudDirty()};
 const st=S.stats;
 fixT(st,{op:{},hard:{},quiz:{n:0,ok:0},engine:0,anaRuns:0,games:{},days:{},badges:[]});
 fixT(st,{reviews:0,puzOk:0,blitz:0,blind:0,ends:{},imports:0});
@@ -254,7 +255,7 @@ const consistent=h=>op&&op.lines?consistentIn(op,h):[];
 const bookMoves=h=>bookMovesIn(op,h);
 const findMove=(g,san)=>g.moves({verbose:true}).find(x=>strip(x.san)===strip(san));
 const userTurnShown=()=>shown&&shown.turn()===op.side;
-function baseOrient(){if(mode==="replay")return game&&game.orient||"w";if(mode==="edit")return $("edSide").value;return op.side}
+function baseOrient(){if(mode==="online")return ON.color||"w";if(mode==="replay")return game&&game.orient||"w";if(mode==="edit")return $("edSide").value;return op.side}
 const orient=()=>flipped?(baseOrient()==="w"?"b":"w"):baseOrient();
 function expected(){if(mode==="puzzle"){const k=hist.length-(puz&&puz.base||0);return puz&&puz.sol[k]?[strip(puz.sol[k])]:[]}return bookMoves(hist.slice(0,view))}
 
@@ -569,6 +570,7 @@ function setView(v){
     replayStatus();return;
   }
   if(mode==="edit")return;
+  if(mode==="online"){onlineStatus();return}
   if(live()){if(liveStatus)setStatus(...liveStatus,true);startBlitz()}
   else{
     stopBlitz();if(wasLive)liveStatus=curStatus;
@@ -710,6 +712,7 @@ const fmtN=n=>n>=1e6?(n/1e6).toFixed(1)+" Mio.":n>=1e3?Math.round(n/1e3)+" Tsd."
 let dbTok=0,dbKey="";
 async function renderDb(force){
   const el=$("tabDb");if(tab!=="db"||!el)return;const h=hist.slice(0,view);
+  if(mode==="online"&&ON.g&&ON.g.status!=="over"){el.innerHTML='<div class="excard"><p>Während einer laufenden Online-Partie ist die Datenbank aus – fair bleiben! Nach der Partie ist sie wieder da.</p></div>';dbKey="";return}
   const key=(op?op.id:"")+"|"+h.join(" ");if(!force&&key===dbKey)return;dbKey=key;const tok=++dbTok;
   const myRows=myTreeAt(h);
   const bk=op&&op.lines&&op.lines.length?bookMoves(h):[];
@@ -764,12 +767,14 @@ function canMoveNow(){
   if(mode==="engine")return live()&&shown.turn()===op.side;
   if(mode==="edit")return true;
   if(mode==="replay")return !!game;
+  if(mode==="online")return onCanMove();
   return false;
 }
-const ownPiece=p=>p&&(mode==="edit"||mode==="replay"?p.color===shown.turn():p.color===op.side);
+const ownPiece=p=>p&&(mode==="edit"||mode==="replay"?p.color===shown.turn():mode==="online"?p.color===ON.color:p.color===op.side);
 function updateEvalBar(){
   const bar=$("evalBar");const R=game&&game.review;
-  const on=S.set.evalbar||mode==="engine"||(mode==="replay"&&R);
+  const onlineLive=mode==="online"&&ON.g&&ON.g.status!=="over";
+  const on=(S.set.evalbar&&!onlineLive)||mode==="engine"||(mode==="replay"&&R);
   $("evalBtn").setAttribute("aria-pressed",String(!!S.set.evalbar));bar.hidden=!on;if(!on)return;
   // Weißer Anteil = Gewinnchance von Weiß; er liegt immer auf der Seite, auf der Weiß am Brett sitzt
   const setBar=cp=>{const w=winPct(cp);const wBottom=orient()==="w";const f=$("evalFill");f.style.height=w+"%";f.style.bottom=wBottom?"0":"auto";f.style.top=wBottom?"auto":"0";
@@ -853,8 +858,10 @@ function renderChrome(){
   if(mode==="replay"&&game){const pl=(game.players||" – ").split(" – ");const o=orient();$("youName").textContent=(o==="w"?pl[0]:pl[1])||"";$("oppName").textContent=(o==="w"?pl[1]:pl[0])||"";$("youTag").textContent="";$("oppTag").textContent=""}
   else{$("youName").textContent="Du";const ys=mode==="edit"?$("edSide").value:op.side;$("youTag").textContent=ys==="w"?"(Weiß)":"(Schwarz)";$("oppTag").textContent=ys==="w"?"(Schwarz)":"(Weiß)"}
   const d=dueKeys().length;$("footInfo").textContent=d?d+" fällig":"";
+  if(mode==="online")onlineChrome();else $("actsOn").hidden=true;
 }
 function renderBars(){
+  if(mode==="online"){onlineClocks();return}
   const tm=shown.turn();const active=live()&&!done&&mode!=="replay";
   const yourTurn=active&&(mode==="edit"?true:tm===op.side);const oppTurn=active&&!yourTurn;
   $("youClock").classList.toggle("on",!!yourTurn);$("oppClock").classList.toggle("on",!!oppTurn);
@@ -963,7 +970,7 @@ function tryMove(from,to,animate,promo){
   if(!canMoveNow())return false;
   const cands=shown.moves({verbose:true}).filter(m=>m.from===from&&m.to===to);
   if(!cands.length)return false;
-  const go=mv=>{if(mode==="train")trainMove(mv,animate);else if(mode==="puzzle")puzzleMove(mv,animate);else if(mode==="engine")engineUserMove(mv,animate);else if(mode==="edit")editMove(mv,animate);else if(mode==="replay")anaMove(mv,animate)};
+  const go=mv=>{if(mode==="train")trainMove(mv,animate);else if(mode==="puzzle")puzzleMove(mv,animate);else if(mode==="engine")engineUserMove(mv,animate);else if(mode==="edit")editMove(mv,animate);else if(mode==="replay")anaMove(mv,animate);else if(mode==="online")onlineMove(mv,animate)};
   if(cands.length>1){const pre=cands.find(m=>m.promotion===(promo||(S.set.autoQueen?"q":"")));if(pre){go(pre);return true}
     lock=true;pickPromotion(cands[0].color).then(p=>{lock=false;const mv=cands.find(m=>m.promotion===p);if(mv)go(mv);else render()});return true}
   go(cands[0]);return true;
@@ -1016,18 +1023,18 @@ if(window.ResizeObserver)new ResizeObserver(sizeVar).observe(boardEl);
 
 /* ================= Ansichten & Tab-Balken ================= */
 let curView="train";
-const VIEW_TAB={tactics:"tactics",train:"train",learn:"learn",quiz:"learn",games:"learn",import:"learn",end:"learn",openings:"openings",chess:"chess",profile:"profile"};
+const VIEW_TAB={online:"online",tactics:"tactics",train:"train",learn:"learn",quiz:"learn",games:"learn",import:"learn",end:"learn",openings:"openings",chess:"chess",profile:"profile"};
 function showView(v){
   if(v!==curView)cancelAuto();const tbb=$("tabbar");if(tbb)tbb.classList.remove("hide");
   curView=v;document.querySelectorAll(".view").forEach(el=>el.hidden=el.id!=="v-"+v);
   if(v!=="train"){stopEngine();stopBlitz()}
-  ({tactics:renderTactics,learn:renderLearn,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage}[v]||(()=>{}))();
+  ({tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage}[v]||(()=>{}))();
   renderTabbar();applyBlind();if(v!=="train")window.scrollTo(0,0);else sizeVar();
 }
-const TABS=[["train","Brett","board"],["learn","Lernen","learn"],["tactics","Taktik","bolt"],["openings","Eröffnungen","list"],["chess","Chess.com","chess"],["profile","Profil","profile"]];
+const TABS=[["train","Brett","board"],["learn","Lernen","learn"],["tactics","Taktik","bolt"],["online","Online","online"],["openings","Eröffnungen","list","Eröffn."],["chess","Chess.com","chess","Chess"],["profile","Profil","profile"]];
 function renderTabbar(){
   ensureDaily();const due=dueKeys().length;const open=S.daily.queue.length-S.daily.done.length;
-  $("tabbar").innerHTML=TABS.map(([id,t,ic])=>`<button class="tb" data-tab="${id}" aria-current="${VIEW_TAB[curView]===id}">${NI[ic]}<span>${t}</span>${id==="learn"&&(open>0||due>0)?`<span class="dotn">${Math.max(open,due)}</span>`:""}</button>`).join("");
+  $("tabbar").innerHTML=TABS.map(([id,t,ic,sh])=>`<button class="tb" data-tab="${id}" aria-label="${t}" aria-current="${VIEW_TAB[curView]===id}">${NI[ic]}<span class="tl">${t}</span>${sh?`<span class="ts">${sh}</span>`:""}${id==="learn"&&(open>0||due>0)?`<span class="dotn">${Math.max(open,due)}</span>`:id==="online"&&ON.badge?`<span class="dotn">${ON.badge}</span>`:""}</button>`).join("");
   $("tabbar").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{const t=b.dataset.tab;if(t==="train"&&!op)selectOpening(ALL[0]);else showView(t)});
 }
 function weakInfo(id){if(!S.ana||!S.ana.stats)return null;const s=S.ana.stats[id];if(!s||s.n<3)return null;return (s.w+s.d/2)/s.n<0.45?s:null}
@@ -1975,13 +1982,14 @@ $("rvBest").onclick=()=>{const R=game&&game.review;if(!R||game.vari)return;const
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&game&&game.vari&&mode==="replay"&&!$("v-train").hidden)exitVari()});
 
 /* ---- Partie per Link oder PGN analysieren ---- */
+function famOfMoves(moves){let bestN=3,fam="Unbekannte Eröffnung";ALL.forEach(o=>{if(o.g==="c"||!o.lines)return;o.lines.forEach(l=>{let i=0;while(i<l.m.length&&i<moves.length&&strip(l.m[i])===strip(moves[i]))i++;if(i>bestN){bestN=i;fam=o.name}})});return fam}
 function anaFromPgn(pgn){
   const H=k=>pgnHeader(pgn,k);const moves=pgnMoves(pgn);if(!moves.length)return null;if(H("FEN")&&H("SetUp")!=="0")return null;
   const W=H("White")||"Weiß",B=H("Black")||"Schwarz",res=H("Result");const u=(CH.user||"").toLowerCase();
   const color=B.toLowerCase()===u&&u?"b":"w";const r=res==="1/2-1/2"?"draw":res==="1-0"?(color==="w"?"win":"loss"):res==="0-1"?(color==="b"?"win":"loss"):"draw";
   const url=H("Link")||(/^https?:/.test(H("Site"))?H("Site"):"");
   let h=0;const key=W+B+H("Date")+moves.join("");for(let i=0;i<key.length;i++)h=(h*31+key.charCodeAt(i))|0;
-  let fam=famFromName(H("Opening"));if(/Unbekannt/.test(fam)){let bestN=3;ALL.forEach(o=>{if(o.g==="c"||!o.lines)return;o.lines.forEach(l=>{let i=0;while(i<l.m.length&&i<moves.length&&strip(l.m[i])===strip(moves[i]))i++;if(i>bestN){bestN=i;fam=o.name}})})}
+  let fam=famFromName(H("Opening"));if(/Unbekannt/.test(fam))fam=famOfMoves(moves);
   return {id:url||("pgn"+h),result:res||"",foreign:!u||(W.toLowerCase()!==u&&B.toLowerCase()!==u),color,res:r,term:"",fam,moves,tc:"",url,opp:color==="w"?B:W,oppR:+H(color==="w"?"BlackElo":"WhiteElo")||null,myR:+H(color==="w"?"WhiteElo":"BlackElo")||null,date:Date.parse((H("UTCDate")||H("Date")).replace(/\./g,"-"))||0,name:color==="w"?W:B,acc:null,white:W,black:B};
 }
 async function analyzeInput(txt,msg){
@@ -2008,7 +2016,7 @@ function wireAnaInput(){const b=$("anaGo");if(!b)return;b.onclick=async()=>{b.di
 const PZ=Object.assign({r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10},store.get("et-tac",{}));
 fixT(PZ,{r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10});fixT(PZ.day,{date:"",n:0});fixT(PZ.streak,{last:"",n:0,best:0});if(PZ.streak.last==="")PZ.streak.last=null;PZ.hist=PZ.hist.filter(x=>x&&typeof x==="object");PZ.fails=PZ.fails.filter(x=>x&&x.p);for(const k in PZ.paths)if(!PZ.paths[k]||typeof PZ.paths[k]!=="object")delete PZ.paths[k];
 let pzCache=store.get("et-pzcache",[]);
-const savePZ=()=>{store.set("et-tac",PZ);savedAt=Date.now();store.set("et-savedAt",savedAt)};
+const savePZ=()=>{store.set("et-tac",PZ);savedAt=Date.now();store.set("et-savedAt",savedAt);cloudDirty()};
 const savePzCache=()=>store.set("et-pzcache",pzCache.slice(-400));
 const DIFF=[["easiest",-600],["easier",-300],["normal",0],["harder",300],["hardest",600]];
 const diffFor=r=>DIFF.reduce((b,d)=>Math.abs(1500+d[1]-r)<Math.abs(1500+b[1]-r)?d:b)[0];
@@ -2281,6 +2289,392 @@ async function autoSync(force){
 /* ---- Eröffnungskopf am Handy antippen: Beschreibung ein-/ausklappen ---- */
 document.querySelector(".ph").addEventListener("click",e=>{e.currentTarget.classList.toggle("open")});
 
+/* ================= Konten & Online-Partien (Firebase) ================= */
+/* Öffentliche Web-Konfiguration des Firebase-Projekts (kein Geheimnis – Zugriff regeln die Firestore-Regeln) */
+const FB_CONFIG={apiKey:"AIzaSyCMZYnRlqrBRpo7B_IisxsVI25WyPGsHx0",authDomain:"eroeffnungstrainer.firebaseapp.com",projectId:"eroeffnungstrainer",storageBucket:"eroeffnungstrainer.firebasestorage.app",messagingSenderId:"381956179164",appId:"1:381956179164:web:522a91bd64d8a9cfe7a019"};
+const FB_VER="10.12.2";
+const START_FEN=new Chess().fen();
+const onlineReady=()=>!!(window.__MOCKNET||FB_CONFIG);
+let NET=null,netLoading=null;
+function netInit(){if(NET)return Promise.resolve(NET);if(!netLoading)netLoading=(window.__MOCKNET?Promise.resolve(mockNet()):fbNet()).then(n=>NET=n).catch(e=>{netLoading=null;throw e});return netLoading}
+async function fbNet(){
+  const B=new URL(`lib/firebase/${FB_VER}/`,location.href).href;
+  const [A,U,F]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]);
+  const app=A.initializeApp(FB_CONFIG),auth=U.getAuth(app),db=F.getFirestore(app);const ref=p=>F.doc(db,p);
+  const uo=u=>u?{uid:u.uid,email:u.email||""}:null;
+  return {
+    onAuth:cb=>U.onAuthStateChanged(auth,u=>cb(uo(u))),
+    signUp:async(e,p)=>uo((await U.createUserWithEmailAndPassword(auth,e,p)).user),
+    signIn:async(e,p)=>uo((await U.signInWithEmailAndPassword(auth,e,p)).user),
+    signOut:()=>U.signOut(auth),
+    resetPw:e=>U.sendPasswordResetEmail(auth,e),
+    delUser:()=>auth.currentUser.delete(),
+    get:async p=>{const s=await F.getDoc(ref(p));return s.exists()?s.data():null},
+    set:(p,d,merge)=>F.setDoc(ref(p),d,merge?{merge:true}:{}),
+    del:p=>F.deleteDoc(ref(p)),
+    add:async(c,d)=>(await F.addDoc(F.collection(db,c),d)).id,
+    watch:(p,cb)=>F.onSnapshot(ref(p),s=>cb(s.exists()?s.data():null),e=>cb(null,e)),
+    watchQ:(c,f,op,v,cb)=>F.onSnapshot(F.query(F.collection(db,c),F.where(f,op,v)),q=>cb(q.docs.map(x=>Object.assign({id:x.id},x.data()))),e=>cb(null,e)),
+    tx:(p,fn)=>F.runTransaction(db,async t=>{const r=ref(p);const s=await t.get(r);const u=fn(s.exists()?s.data():null);if(!u)return false;t.set(r,u,{merge:true});return true})
+  };
+}
+/* Test-Attrappe: gleiche Schnittstelle, Daten in localStorage, Live-Updates über BroadcastChannel */
+function mockNet(){
+  const K="mocknet-db",KU="mocknet-users",bc=window.BroadcastChannel?new BroadcastChannel("mocknet"):null;
+  const rd=()=>{try{return JSON.parse(localStorage.getItem(K)||"{}")}catch(e){return {}}};
+  const subs=new Set();const fire=()=>subs.forEach(f=>f());if(bc)bc.onmessage=()=>fire();
+  const wr=D=>{localStorage.setItem(K,JSON.stringify(D));if(bc)bc.postMessage(1);setTimeout(fire,0)};
+  const delay=v=>new Promise(r=>setTimeout(()=>r(v),15));const cl=o=>o==null?null:JSON.parse(JSON.stringify(o));
+  const merge=(a,b)=>{const o=Object.assign({},a);for(const k in b){const v=b[k];o[k]=(v&&typeof v==="object"&&!Array.isArray(v)&&o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k]))?merge(o[k],v):v}return o};
+  let user=null;try{user=JSON.parse(sessionStorage.getItem("mock-user")||"null")}catch(e){}const acbs=[];
+  const setU=u=>{user=u;sessionStorage.setItem("mock-user",JSON.stringify(u));acbs.forEach(c=>c(u))};
+  const users=()=>{try{return JSON.parse(localStorage.getItem(KU)||"{}")}catch(e){return {}}};const err=c=>{const e=new Error(c);e.code=c;return e};
+  return {
+    onAuth:cb=>{acbs.push(cb);setTimeout(()=>cb(user),5);return()=>{}},
+    signUp:async(e,p)=>{await delay();const U=users();if(U[e])throw err("auth/email-already-in-use");if(!/@/.test(e))throw err("auth/invalid-email");if(p.length<6)throw err("auth/weak-password");const u={uid:"u"+Math.random().toString(36).slice(2,10),email:e};U[e]={pw:p,uid:u.uid};localStorage.setItem(KU,JSON.stringify(U));setU(u);return u},
+    signIn:async(e,p)=>{await delay();const x=users()[e];if(!x||x.pw!==p)throw err("auth/invalid-credential");const u={uid:x.uid,email:e};setU(u);return u},
+    signOut:async()=>setU(null),resetPw:async()=>{await delay()},
+    delUser:async()=>{const U=users();for(const k in U)if(U[k].uid===user.uid)delete U[k];localStorage.setItem(KU,JSON.stringify(U));setU(null)},
+    get:async p=>{await delay();const v=rd()[p];return v===undefined?null:cl(v)},
+    set:async(p,d,m)=>{await delay();const D=rd();D[p]=m&&D[p]?merge(D[p],cl(d)):cl(d);wr(D)},
+    del:async p=>{await delay();const D=rd();delete D[p];wr(D)},
+    add:async(c,d)=>{await delay();const id=Math.random().toString(36).slice(2,12);const D=rd();D[c+"/"+id]=cl(d);wr(D);return id},
+    watch:(p,cb)=>{let last;const f=()=>{const v=rd()[p];const s=JSON.stringify(v===undefined?null:v);if(s!==last){last=s;cb(v===undefined?null:cl(v))}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
+    watchQ:(c,fld,op,v,cb)=>{let last;const f=()=>{const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")!==0||k.split("/").length!==2)continue;const x=D[k];if(op==="array-contains"?(x[fld]||[]).indexOf(v)>=0:x[fld]===v)out.push(Object.assign({id:k.slice(c.length+1)},x))}const s=JSON.stringify(out);if(s!==last){last=s;cb(cl(out))}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
+    tx:async(p,fn)=>{await delay();const D=rd();const u=fn(D[p]===undefined?null:cl(D[p]));if(!u)return false;D[p]=D[p]?merge(D[p],cl(u)):cl(u);wr(D);return true}
+  };
+}
+function netErr(e){const c=String(e&&(e.code||e.message)||e);
+  return {"auth/email-already-in-use":"Zu dieser E-Mail gibt es schon ein Konto. Melde dich an.","auth/invalid-email":"Die E-Mail-Adresse ist ungültig.","auth/weak-password":"Das Passwort braucht mindestens 6 Zeichen.",
+    "auth/invalid-credential":"E-Mail oder Passwort stimmt nicht.","auth/wrong-password":"E-Mail oder Passwort stimmt nicht.","auth/user-not-found":"E-Mail oder Passwort stimmt nicht.","auth/invalid-login-credentials":"E-Mail oder Passwort stimmt nicht.",
+    "auth/too-many-requests":"Zu viele Versuche – warte kurz und versuch es dann erneut.","auth/network-request-failed":"Keine Verbindung zum Server.","auth/requires-recent-login":"Melde dich zur Sicherheit neu an und versuch es dann noch einmal.",
+    "permission-denied":"Keine Berechtigung (Firestore-Regeln prüfen).","unavailable":"Der Server ist gerade nicht erreichbar.","auth/operation-not-allowed":"Die Anmeldung mit E-Mail ist im Firebase-Projekt noch nicht eingeschaltet.",
+    "auth/unauthorized-domain":"Diese Seite ist im Firebase-Projekt noch nicht als autorisierte Domain eingetragen.","auth/configuration-not-found":"Die Anmeldung ist im Firebase-Projekt noch nicht eingeschaltet (Authentication → E-Mail/Passwort).","auth/admin-restricted-operation":"Die Registrierung ist im Firebase-Projekt gesperrt.","not-found":"Die Firestore-Datenbank ist noch nicht angelegt.","failed-precondition":"Die Firestore-Datenbank ist noch nicht bereit.","auth/missing-password":"Bitte gib ein Passwort ein.","auth/invalid-api-key":"Die Firebase-Konfiguration ist ungültig."}[c]||("Fehler: "+c)}
+
+/* ---- Zustand ---- */
+const ON={user:null,profile:null,games:[],seen:{},badge:0,gid:null,g:null,color:"w",unsubG:null,unsubL:null,unsubP:null,pendingJoin:null,syncAt:0,syncT:null,authKnown:false,tab:"play",busy:false,tick:null,claimT:0,tc:store.get("et-ontc","10+0"),col:store.get("et-oncol","r")};
+const myName=()=>ON.profile&&ON.profile.name||"Ich";
+const oppUid=g=>(g.players||[]).find(u=>u!==ON.user.uid)||null;
+const oppName=g=>{const o=oppUid(g);return o?(g.names&&g.names[o])||"Gegner":"(wartet)"};
+const myColorIn=g=>g.white===ON.user.uid?"w":g.black===ON.user.uid?"b":null;
+const tcTxt=tc=>tc?`${tc.m}+${tc.i}`:"ohne Uhr";
+const resTxt=(g,me)=>{if(!g.result||g.result==="-")return g.reason||"abgebrochen";if(g.result==="1/2-1/2")return "Remis";const w=g.result==="1-0"?"w":"b";return me?(w===me?"Gewonnen":"Verloren"):(w==="w"?"Weiß gewinnt":"Schwarz gewinnt")};
+
+/* ---- Anmeldung ---- */
+async function onlineBoot(){
+  if(!onlineReady()||ON.booted)return;ON.booted=true;
+  let n;try{n=await netInit()}catch(e){ON.netErr=true;if(curView==="online")renderOnline();return}
+  n.onAuth(async u=>{
+    ON.authKnown=true;if(ON.unsubL){ON.unsubL();ON.unsubL=null}if(ON.unsubP){ON.unsubP();ON.unsubP=null}
+    ON.user=u;ON.profile=null;ON.games=[];
+    if(u){
+      ON.unsubP=n.watch("users/"+u.uid,p=>{ON.profile=p;if(curView==="online")renderOnline();if(mode==="online")renderChrome()});
+      ON.unsubL=n.watchQ("games","players","array-contains",u.uid,list=>{if(!list)return;gamesChanged(list)});
+      cloudPull();
+    }
+    if(curView==="online")renderOnline();renderTabbar();
+    if(u&&ON.pendingJoin){const id=ON.pendingJoin;ON.pendingJoin=null;openOnlineGame(id)}
+  });
+}
+const NAME_RE=/^[A-Za-z0-9ÄÖÜäöüß_-]{3,20}$/;
+async function claimName(name){
+  const low=name.toLowerCase();
+  const ok=await NET.tx("usernames/"+low,d=>d?null:{uid:ON.user.uid});
+  if(!ok){const d=await NET.get("usernames/"+low);if(!d||d.uid!==ON.user.uid)throw new Error("name-taken")}
+  await NET.set("users/"+ON.user.uid,{name,nameLower:low,created:Date.now(),friends:[],w:0,d:0,l:0},true);
+}
+async function doRegister(name,email,pw,msg){
+  name=name.trim();email=email.trim();
+  if(!NAME_RE.test(name)){msg("Der Benutzername braucht 3–20 Zeichen (Buchstaben, Ziffern, _ oder -).");return}
+  try{if(await NET.get("usernames/"+name.toLowerCase())){msg("Dieser Benutzername ist schon vergeben.");return}}catch(e){/* vor der Anmeldung evtl. nicht lesbar */}
+  try{await NET.signUp(email,pw)}catch(e){msg(netErr(e));return}
+  try{await waitUser();await claimName(name);toast(`Willkommen, ${name}!`);cloudPush(true)}
+  catch(e){msg(String(e.message)==="name-taken"?"Dieser Benutzername ist schon vergeben – wähle einen anderen.":netErr(e))}
+}
+function waitUser(){return new Promise(r=>{const t0=Date.now();const f=()=>{if(ON.user&&ON.user.uid)return r();if(Date.now()-t0>8000)return r();setTimeout(f,50)};f()})}
+async function doLogin(email,pw,msg){try{await NET.signIn(email.trim(),pw)}catch(e){msg(netErr(e))}}
+async function doReset(email,msg){if(!email.trim()){msg("Trag zuerst deine E-Mail-Adresse ein.");return}try{await NET.resetPw(email.trim());msg("Wir haben dir eine E-Mail zum Zurücksetzen geschickt.")}catch(e){msg(netErr(e))}}
+async function doLogout(){await cloudPush(true);ON.synced=false;try{await NET.signOut()}catch(e){}toast("Abgemeldet")}
+async function doDeleteAccount(msg){
+  const u=ON.user;if(!u)return;const low=ON.profile&&ON.profile.nameLower;
+  try{if(low)await NET.del("usernames/"+low);await NET.del("users/"+u.uid+"/private/progress");await NET.del("users/"+u.uid);await NET.delUser();try{localStorage.removeItem("et-cloud-uid")}catch(e){}ON.synced=false;toast("Dein Konto wurde gelöscht.")}catch(e){msg(netErr(e))}
+}
+
+/* ---- Fortschritt in der Cloud ---- */
+function cloudDirty(){try{if(!ON.user||!NET||!ON.synced)return}catch(e){return}clearTimeout(ON.syncT);ON.syncT=setTimeout(()=>cloudPush(),5000)}
+async function cloudPush(now){
+  if(!ON.user||!NET||!ON.synced)return;clearTimeout(ON.syncT);
+  try{await NET.set("users/"+ON.user.uid+"/private/progress",{savedAt,data:JSON.stringify(exportData())});ON.syncAt=Date.now();if(curView==="online"&&ON.tab==="account")renderOnline()}catch(e){if(now)toast("Cloud-Speicherung fehlgeschlagen: "+netErr(e))}
+}
+const hasLocalProgress=()=>Object.keys(S.prog).length>0||Object.keys(S.srs).length>0||PZ.n>0||S.custom.w.length+S.custom.b.length>0;
+function cloudImport(r){const d=JSON.parse(r.data);importData(d);store.set("et-savedAt",r.savedAt||Date.now());store.set("et-cloud-uid",ON.user.uid);toast("Fortschritt aus deinem Konto geladen – die Seite lädt neu.");setTimeout(()=>location.reload(),900)}
+async function cloudPull(){
+  const uid=ON.user.uid;ON.synced=false;
+  let r=null;try{r=await NET.get("users/"+uid+"/private/progress")}catch(e){return}
+  if(!ON.user||ON.user.uid!==uid)return;
+  const linked=store.get("et-cloud-uid","")===uid;
+  if(r&&r.data){
+    if(linked){if((r.savedAt||0)>savedAt+1000){cloudImport(r);return}}
+    else if(!hasLocalProgress()){cloudImport(r);return}
+    else{askCloudChoice(r);return}
+  }
+  store.set("et-cloud-uid",uid);ON.synced=true;await cloudPush();
+}
+/* Erstes Anmelden in einem Browser, der schon eigenen Fortschritt hat */
+function askCloudChoice(r){
+  const ov=document.createElement("div");ov.className="onb";const when=r.savedAt?new Date(r.savedAt).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"früher";
+  ov.innerHTML=`<div class="onb-box" role="dialog" aria-modal="true" aria-label="Fortschritt wählen"><h2 style="font-size:20px">Welchen Fortschritt behalten?</h2><p class="hint">In deinem Konto ist schon ein Trainingsstand gespeichert (zuletzt ${esc(when)}). Auch dieser Browser hat eigenen Fortschritt.</p>
+  <div class="btnrow onb-act" style="flex-direction:column;align-items:stretch"><button class="btn grn" data-c="cloud">Stand aus dem Konto laden</button><button class="btn" data-c="local">Diesen Browser behalten und ins Konto speichern</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('[data-c="cloud"]').onclick=()=>{ov.remove();cloudImport(r)};
+  ov.querySelector('[data-c="local"]').onclick=async()=>{ov.remove();store.set("et-cloud-uid",ON.user.uid);ON.synced=true;await cloudPush(true);toast("Dieser Stand ist jetzt in deinem Konto gespeichert.")};
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&ON.syncT)cloudPush()});
+
+/* ---- Partienliste & Benachrichtigungen ---- */
+function gamesChanged(list){
+  const me=ON.user.uid;const prev=ON.seen;const next={};
+  list.forEach(g=>{const key=g.status+"|"+(g.moves||[]).length+"|"+(g.drawOffer||"")+"|"+(g.rematch?g.rematch.id:"");next[g.id]=key;
+    if(prev[g.id]===key||!ON.listInit)return;
+    const viewing=mode==="online"&&ON.gid===g.id&&curView==="train";
+    if(g.status==="waiting"&&g.invite===me&&!prev[g.id]&&!viewing)toast(`${g.names&&g.names[g.creator]||"Jemand"} fordert dich heraus (${tcTxt(g.tc)})`);
+    else if(g.status==="active"&&!viewing){const c=new Chess(g.fen||START_FEN);if(c.turn()===myColorIn(g)&&(g.moves||[]).length)toast(`${oppName(g)} hat gezogen – du bist am Zug`);else if(prev[g.id]&&prev[g.id].indexOf("waiting")===0)toast(`${oppName(g)} ist der Partie beigetreten`)}
+    else if(g.status==="over"&&prev[g.id]&&prev[g.id].indexOf("over")!==0&&!viewing)toast(`Partie gegen ${oppName(g)}: ${resTxt(g,myColorIn(g))}`);
+    if(g.status==="over")countResult(g);
+  });
+  ON.seen=next;ON.listInit=true;ON.games=list.sort((a,b)=>(b.updated||0)-(a.updated||0));
+  ON.badge=list.filter(g=>(g.status==="waiting"&&g.invite===me)||(g.status==="active"&&new Chess(g.fen||START_FEN).turn()===myColorIn(g))).length;
+  renderTabbar();if(curView==="online")renderOnline();
+}
+function countResult(g){
+  const ck="et-oncount-"+ON.user.uid;const done=store.get(ck,[]);if(done.indexOf(g.id)>=0||!g.result||g.result==="-"||!ON.profile)return;
+  const me=myColorIn(g);if(!me)return;done.push(g.id);store.set(ck,done.slice(-300));
+  const k=g.result==="1/2-1/2"?"d":(g.result==="1-0")===(me==="w")?"w":"l";
+  NET.set("users/"+ON.user.uid,{[k]:(ON.profile[k]||0)+1},true).catch(()=>{});st.online=(st.online||0)+1;saveStats();
+}
+
+/* ---- Partien anlegen, beitreten, Revanche ---- */
+function parseTc(s){if(s==="none")return null;const m=String(s).match(/^(\d+)\+(\d+)$/);return m?{m:+m[1],i:+m[2]}:null}
+function newGameDoc(tc,myCol,friend){
+  const me=ON.user.uid,now=Date.now();const col=myCol==="r"?(Math.random()<.5?"w":"b"):myCol;const other=col==="w"?"b":"w";
+  const d={players:friend?[me,friend.uid]:[me],creator:me,invite:friend?friend.uid:null,white:null,black:null,names:{[me]:myName()},status:"waiting",tc:tc||null,moves:[],fen:START_FEN,
+    times:tc?{w:tc.m*60000,b:tc.m*60000}:null,lastAt:0,result:null,reason:"",drawOffer:null,rematch:null,created:now,updated:now};
+  d[col==="w"?"white":"black"]=me;if(friend){d[other==="w"?"white":"black"]=friend.uid;d.names[friend.uid]=friend.name}
+  return d;
+}
+async function createGame(friend){
+  if(!ON.profile){toast("Lege zuerst deinen Benutzernamen fest.");return null}
+  try{const id=await NET.add("games",newGameDoc(parseTc(ON.tc),ON.col,friend));openOnlineGame(id);if(!friend)shareInvite(id);return id}catch(e){toast(netErr(e));return null}
+}
+function inviteLink(id){return location.origin+location.pathname+"#play="+id}
+function shareInvite(id){const link=inviteLink(id);
+  if(navigator.share){navigator.share({title:"Schach gegen mich",text:`${myName()} lädt dich zu einer Partie ein`,url:link}).catch(e=>{if(!e||e.name!=="AbortError")linkBox(link)})}
+  else if(navigator.clipboard){navigator.clipboard.writeText(link).then(()=>toast("Einladungslink kopiert – schick ihn deinem Freund.")).catch(()=>linkBox(link))}else linkBox(link)}
+async function joinGame(id,d){
+  const me=ON.user.uid,now=Date.now();
+  return NET.tx("games/"+id,x=>{if(!x||x.status!=="waiting")return null;
+    if(x.invite){if(x.invite!==me)return null;return {status:"active",lastAt:now,updated:now,names:{[me]:myName()}}}
+    if((x.players||[]).length!==1||x.players[0]===me)return null;
+    const free=x.white?"black":"white";return {players:[x.players[0],me],[free]:me,names:{[me]:myName()},status:"active",lastAt:now,updated:now}});
+}
+async function gameAct(fn){if(!ON.gid)return false;try{const ok=await NET.tx("games/"+ON.gid,fn);if(!ok)toast("Das geht gerade nicht – die Partie hat sich geändert.");return ok}catch(e){toast(netErr(e));return false}}
+const otherCol=c=>c==="w"?"b":"w";
+const winRes=c=>c==="w"?"1-0":"0-1";
+function onResign(){const c=ON.color;gameAct(d=>d&&d.status==="active"?{status:"over",result:winRes(otherCol(c)),reason:"Aufgabe",updated:Date.now(),drawOffer:null}:null)}
+function onAbort(){gameAct(d=>d&&(d.status==="active"&&(d.moves||[]).length<2)?{status:"over",result:"-",reason:"Partie abgebrochen",updated:Date.now()}:d&&d.status==="waiting"?{status:"cancelled",updated:Date.now()}:null)}
+function onOfferDraw(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.drawOffer?{drawOffer:me,updated:Date.now()}:null).then(ok=>{if(ok)toast("Remis angeboten")})}
+function onDrawAnswer(acc){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&d.drawOffer&&d.drawOffer!==me?(acc?{status:"over",result:"1/2-1/2",reason:"Remis vereinbart",drawOffer:null,updated:Date.now()}:{drawOffer:null,updated:Date.now()}):null)}
+async function onDecline(){const me=ON.user.uid;await gameAct(d=>d&&d.status==="waiting"&&d.invite===me?{status:"declined",updated:Date.now()}:null);leaveOnline()}
+async function onRematch(){
+  const g=ON.g;if(!g)return;const me=ON.user.uid;
+  if(g.rematch&&g.rematch.by!==me){const id=g.rematch.id;const d=await NET.get("games/"+id).catch(()=>null);if(d&&d.status==="waiting"){await joinGame(id,d).catch(()=>{});}openOnlineGame(id);return}
+  if(g.rematch&&g.rematch.by===me){openOnlineGame(g.rematch.id);return}
+  const opp=oppUid(g);if(!opp)return;
+  const d=newGameDoc(g.tc,otherCol(ON.color),{uid:opp,name:oppName(g)});
+  try{const id=await NET.add("games",d);await NET.tx("games/"+ON.gid,x=>x&&!x.rematch?{rematch:{by:me,id},updated:Date.now()}:null);openOnlineGame(id);toast("Revanche angeboten")}catch(e){toast(netErr(e))}
+}
+function leaveOnline(){if(ON.unsubG){ON.unsubG();ON.unsubG=null}ON.gid=null;ON.g=null;stopOnTick();showView("online")}
+
+/* ---- Partie auf dem Brett ---- */
+async function openOnlineGame(id){
+  if(!onlineReady()){toast("Online-Partien sind noch nicht eingerichtet.");return}
+  await netInit().catch(()=>{});
+  if(!ON.user){ON.pendingJoin=id;showView("online");toast("Melde dich an, um der Partie beizutreten.");return}
+  if(ON.unsubG){ON.unsubG();ON.unsubG=null}
+  stopEngine();sess=null;game=null;drill=null;puz=null;flipped=false;
+  ON.gid=id;ON.g=null;ON.joinTried=false;
+  resetBoard();mode="online";op={id:"__online",g:"c",side:"w",name:"Online-Partie",eco:"Online",d:"",plan:[],lines:[]};
+  showView("train");buildSquares();renderChrome();render();setStatus("view","Partie wird geladen …","");
+  ON.unsubG=NET.watch("games/"+id,d=>{if(ON.gid!==id)return;
+    if(!d){setStatus("bad","Partie nicht gefunden","Der Link ist ungültig oder die Partie wurde gelöscht.");return}
+    const me=ON.user.uid;
+    if(d.status==="waiting"&&!d.invite&&(d.players||[]).length===1&&d.players[0]!==me&&!ON.joinTried){ON.joinTried=true;joinGame(id,d).then(ok=>{if(!ok)toast("Beitreten nicht möglich.")}).catch(e=>toast(netErr(e)))}
+    applyGame(d);
+  });
+}
+function applyGame(d,force){
+  const prevStatus=ON.g&&ON.g.status;ON.g=d;if(mode!=="online")return;
+  const col=myColorIn(d);const newCol=col||"w";if(newCol!==ON.color||!op||op.side!==newCol){ON.color=newCol;op.side=newCol;buildSquares()}
+  ON.spect=!col;
+  const ms=d.moves||[];const wasLive=live();
+  const same=!force&&ms.length>=hist.length&&hist.every((m,i)=>m===ms[i]);
+  let last=null;
+  if(same){for(let i=hist.length;i<ms.length;i++){try{last=commit(ms[i],"g")}catch(e){force=true;break}}}
+  if(!same||force){resetBoard();mode="online";for(const m of ms){try{last=commit(m,"g")}catch(e){break}}view=hist.length;shown=new Chess(fens[view]);render();last=null}
+  else if(last){if(wasLive){view=hist.length;shown=new Chess(fens[view]);render(ms.length-hist.length===0?{fwd:last}:null);if(last.color!==ON.color)playSound(last)}else render()}
+  else render();
+  if(d.status==="over"&&prevStatus&&prevStatus!=="over"){sfx(d.result&&d.result!=="-"&&d.result!=="1/2-1/2"&&(d.result==="1-0")===(ON.color==="w")?"done":"wrong")}
+  renderChrome();onlineStatus();startOnTick();
+}
+function onCanMove(){const g=ON.g;return !!g&&g.status==="active"&&!ON.spect&&live()&&shown.turn()===ON.color&&!ON.busy}
+function gameEndOf(c){if(c.in_checkmate())return {result:winRes(otherCol(c.turn())),reason:"Schachmatt"};if(c.in_stalemate())return {result:"1/2-1/2",reason:"Patt"};if(c.insufficient_material())return {result:"1/2-1/2",reason:"zu wenig Material"};if(c.in_threefold_repetition())return {result:"1/2-1/2",reason:"Stellungswiederholung"};if(c.in_draw())return {result:"1/2-1/2",reason:"50-Züge-Regel"};return null}
+async function onlineMove(mv,animate){
+  if(!onCanMove())return;
+  const r=commit(mv,"g");view=hist.length;shown=new Chess(fens[view]);sel=null;render(animate?{fwd:r}:null);playSound(r);
+  ON.busy=true;onlineStatus();const now=Date.now(),myC=ON.color,n=hist.length-1;
+  let ok=false;
+  try{ok=await NET.tx("games/"+ON.gid,d=>{
+    if(!d||d.status!=="active"||(d.moves||[]).length!==n)return null;
+    const c=new Chess();for(const m of d.moves)c.move(m);if(c.turn()!==myC)return null;
+    const m=c.move(r.san);if(!m)return null;
+    const upd={moves:d.moves.concat(m.san),fen:c.fen(),lastAt:now,updated:now,drawOffer:null};
+    if(d.tc&&d.times&&d.moves.length>=2){const left=d.times[myC]-(now-d.lastAt);if(left<=0)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};upd.times={w:d.times.w,b:d.times.b};upd.times[myC]=left+d.tc.i*1000}
+    const end=gameEndOf(c);if(end)Object.assign(upd,{status:"over",result:end.result,reason:end.reason});
+    return upd})}catch(e){toast(netErr(e))}
+  ON.busy=false;if(!ok&&ON.g)applyGame(ON.g,true);else onlineStatus();
+}
+/* Uhren */
+function clockLeft(g,c){if(!g.tc||!g.times)return null;let t=g.times[c];const running=g.status==="active"&&(g.moves||[]).length>=2&&new Chess(g.fen||START_FEN).turn()===c;if(running)t-=Date.now()-(g.lastAt||Date.now());return t}
+const fmtClock=ms=>{if(ms==null)return "";ms=Math.max(0,ms);const s=ms/1000;if(s<20)return (Math.floor(s*10)/10).toFixed(1);const m=Math.floor(s/60),ss=Math.floor(s%60);return m+":"+String(ss).padStart(2,"0")};
+function onlineClocks(){
+  const g=ON.g;const yc=$("youClock"),oc=$("oppClock");if(!g){yc.textContent=oc.textContent="";return}
+  const me=ON.color,op2=otherCol(me);const turn=new Chess(g.fen||START_FEN).turn();const act=g.status==="active";
+  if(g.tc){const a=clockLeft(g,me),b=clockLeft(g,op2);yc.textContent=fmtClock(a);oc.textContent=fmtClock(b);yc.classList.toggle("low",a<20000);oc.classList.toggle("low",b<20000)}
+  else{yc.textContent=act?(turn===me?"Am Zug":"Wartet"):g.status==="waiting"?"Wartet":"Ende";oc.textContent=act?(turn===op2?"Denkt …":"Wartet"):g.status==="waiting"?"–":"Ende"}
+  yc.classList.toggle("on",act&&turn===me);oc.classList.toggle("on",act&&turn===op2);
+}
+function startOnTick(){stopOnTick();if(!ON.g||ON.g.status!=="active"||!ON.g.tc)return;ON.tick=setInterval(()=>{if(mode!=="online"||!ON.g){stopOnTick();return}onlineClocks();checkFlag()},200)}
+function stopOnTick(){clearInterval(ON.tick);ON.tick=null}
+function checkFlag(){
+  const g=ON.g;if(!g||g.status!=="active"||!g.tc||(g.moves||[]).length<2||ON.spect)return;const turn=new Chess(g.fen).turn();const left=clockLeft(g,turn);
+  const grace=turn===ON.color?0:2000;if(left>-grace||Date.now()-ON.claimT<3000)return;ON.claimT=Date.now();const now=Date.now();
+  NET.tx("games/"+ON.gid,d=>{if(!d||d.status!=="active"||!d.tc)return null;const t=new Chess(d.fen).turn();if(d.times[t]-(now-d.lastAt)>-grace)return null;return {status:"over",result:winRes(otherCol(t)),reason:"Zeit abgelaufen",updated:now}}).catch(()=>{});
+}
+/* Kopf, Spielerleisten, Knöpfe */
+function onlineChrome(){
+  const g=ON.g;const me=ON.color,oc=otherCol(me);
+  $("eco").textContent="Online-Partie"+(g?" · "+tcTxt(g.tc):"");$("title").textContent=g?`${(g.names&&g.white&&g.names[g.white])||"Weiß"} – ${(g.names&&g.black&&g.names[g.black])||"Schwarz"}`:"Online-Partie";
+  $("desc").textContent=g?(g.status==="over"?`${resTxt(g,ON.spect?null:me)} · ${g.reason||""}`:g.status==="waiting"?"Wartet auf den Gegner":"Läuft"):"";
+  $("phIcon").innerHTML=NI.online;
+  const av=$("oppAv");av.className="avatar you2";av.innerHTML=ICON.face;
+  const nm=c=>{if(!g)return "";const u=c==="w"?g.white:g.black;return u?(g.names&&g.names[u])||"Spieler":"wartet …"};
+  $("oppName").textContent=nm(oc);$("youName").textContent=ON.spect?nm(me):nm(me)+" (du)";$("oppTag").textContent=oc==="w"?"(Weiß)":"(Schwarz)";$("youTag").textContent=me==="w"?"(Weiß)":"(Schwarz)";
+  const box=$("actsOn");box.hidden=false;let h="";const myU=ON.user&&ON.user.uid;
+  if(!g){h=""}
+  else if(ON.spect){h=`<button class="btn" data-on="leave">Zurück</button>`}
+  else if(g.status==="waiting"){h=g.invite===myU?`<button class="btn grn" data-on="accept">Annehmen</button><button class="btn" data-on="decline">Ablehnen</button>`:`<button class="btn grn" data-on="share">${g.invite?"Wartet auf Zusage":"Link teilen"}</button><button class="btn" data-on="abort">Abbrechen</button>`}
+  else if(g.status==="active"){const n=(g.moves||[]).length;
+    if(g.drawOffer&&g.drawOffer!==myU)h=`<button class="btn grn" data-on="drawyes">Remis annehmen</button><button class="btn" data-on="drawno">Ablehnen</button>`;
+    else h=`${n<2?`<button class="btn" data-on="abort">Abbrechen</button>`:`<button class="btn" data-on="draw" ${g.drawOffer?"disabled":""}>${g.drawOffer?"Remis angeboten":"Remis anbieten"}</button>`}<button class="btn red" data-on="resign">Aufgeben</button>`}
+  else{const rm=g.rematch;h=`<button class="btn grn" data-on="analyze">Partie analysieren</button><button class="btn ${rm&&rm.by!==myU?"grn":""}" data-on="rematch">${rm?(rm.by===myU?"Revanche angeboten":"Revanche annehmen"):"Revanche"}</button>`;if(g.result==="-")h=`<button class="btn" data-on="leave">Zur Übersicht</button><button class="btn" data-on="rematch">Neue Partie</button>`}
+  box.innerHTML=h;box.className="acts two";
+  box.querySelectorAll("[data-on]").forEach(b=>b.onclick=()=>{const a=b.dataset.on;
+    if(a==="resign"){if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich aufgeben?";setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent="Aufgeben"}},3000);return}onResign()}
+    else if(a==="abort")onAbort();else if(a==="draw")onOfferDraw();else if(a==="drawyes")onDrawAnswer(true);else if(a==="drawno")onDrawAnswer(false);
+    else if(a==="share")shareInvite(ON.gid);else if(a==="accept")joinGame(ON.gid).catch(e=>toast(netErr(e)));else if(a==="decline")onDecline();
+    else if(a==="analyze")analyzeOnline();else if(a==="rematch")onRematch();else if(a==="leave")leaveOnline()});
+}
+function onlineStatus(){
+  const g=ON.g;if(!g||mode!=="online")return;const me=ON.color,myU=ON.user&&ON.user.uid;const opn=oppName(g);
+  if(!live()){setStatus("view",`Du siehst Zug ${Math.ceil(view/2)}`,"Blättere mit → zurück zur aktuellen Stellung.",true);return}
+  if(g.status==="waiting"){if(g.invite===myU)setStatus("turn",`${g.names[g.creator]||"Jemand"} fordert dich heraus`,`Bedenkzeit ${tcTxt(g.tc)} · du spielst ${me==="w"?"Weiß":"Schwarz"}.`,true);else setStatus("view","Warte auf deinen Gegner",g.invite?`${opn} muss die Herausforderung noch annehmen.`:"Schick den Einladungslink an deinen Freund. Die Partie startet, sobald er beitritt.",true);return}
+  if(g.status==="over"){const r=resTxt(g,ON.spect?null:me);setStatus(r==="Gewonnen"?"done":r==="Verloren"?"bad":"view",r==="Gewonnen"?"Du hast gewonnen!":r==="Verloren"?"Du hast verloren":r,`${g.reason||""}${g.result&&g.result!=="-"?" · "+g.result:""}. ${g.result!=="-"?"Mit »Partie analysieren« siehst du die Bewertung jedes Zugs.":""}`,true);return}
+  if(ON.spect){setStatus("view","Du schaust zu",`${(g.moves||[]).length} Halbzüge gespielt.`,true);return}
+  const turn=new Chess(g.fen).turn();
+  if(g.drawOffer&&g.drawOffer!==myU){setStatus("turn",`${opn} bietet Remis an`,"Nimm an oder spiel einfach weiter.",true);return}
+  if(ON.busy){setStatus("view","Zug wird gesendet …","",true);return}
+  if(turn===me)setStatus("turn","Du bist am Zug",(g.moves||[]).length<2?"Die Uhr startet nach dem ersten Zug beider Seiten.":"",true);else setStatus("view",`${opn} denkt …`,g.drawOffer===myU?"Du hast Remis angeboten.":"",true);
+}
+function analyzeOnline(){
+  const g=ON.g;if(!g||!(g.moves||[]).length){toast("Es wurden noch keine Züge gespielt.");return}
+  const me=ON.spect?"w":ON.color;const res=g.result==="1/2-1/2"||g.result==="-"?"draw":(g.result==="1-0")===(me==="w")?"win":"loss";
+  const wn=g.names[g.white]||"Weiß",bn=g.names[g.black]||"Schwarz";
+  reviewGame({id:"on-"+ON.gid,color:me,res,result:g.result||"",term:g.reason||"",fam:famOfMoves(g.moves),moves:g.moves.slice(),tc:"",url:"",opp:me==="w"?bn:wn,oppR:null,myR:null,date:g.created||Date.now(),name:me==="w"?wn:bn,acc:null,white:wn,black:bn,foreign:ON.spect});
+}
+
+/* ---- Ansicht „Online“ ---- */
+function renderOnline(){
+  const v=$("v-online");if(!v)return;
+  if(!onlineReady()){v.innerHTML=`<div class="hero"><span class="ic" style="background:#3E6FB0">${NI.online}</span><div><h2>Online spielen</h2><p>Konten und Partien gegen Freunde werden gerade eingerichtet. Sobald das Firebase-Projekt verbunden ist, kannst du dich hier anmelden.</p></div></div>`;return}
+  if(!ON.booted)onlineBoot();
+  if(ON.netErr){v.innerHTML=`<div class="hero"><span class="ic" style="background:#3E6FB0">${NI.online}</span><div><h2>Online spielen</h2><p>Der Server ist gerade nicht erreichbar. Prüfe deine Internetverbindung.</p></div></div><button class="btn" id="onRetry" style="align-self:flex-start;padding:10px 16px">Erneut versuchen</button>`;$("onRetry").onclick=()=>{ON.netErr=false;ON.booted=false;renderOnline()};return}
+  if(!ON.authKnown){v.innerHTML=`<div class="card">${SKEL}</div>`;return}
+  if(!ON.user){renderAuth(v);return}
+  if(!ON.profile){v.innerHTML=`<div class="card"><h3>Wähle deinen Benutzernamen</h3><p class="hint">So finden dich deine Freunde. Er lässt sich später nicht ändern.</p><input class="txt" id="onName" maxlength="20" placeholder="z. B. Springer_Max" autocapitalize="off"><div class="btnrow" style="margin-top:10px"><button class="btn grn" id="onNameGo">Speichern</button><button class="btn" id="onOut">Abmelden</button><span class="hint" id="onMsg"></span></div></div>`;
+    $("onNameGo").onclick=async()=>{const n=$("onName").value.trim();if(!NAME_RE.test(n)){$("onMsg").textContent="3–20 Zeichen: Buchstaben, Ziffern, _ oder -.";return}try{await claimName(n)}catch(e){$("onMsg").textContent=String(e.message)==="name-taken"?"Schon vergeben.":netErr(e)}};$("onOut").onclick=doLogout;return}
+  const P=ON.profile,me=ON.user.uid;const G=ON.games;
+  const inv=G.filter(g=>g.status==="waiting"&&g.invite===me);const mine=G.filter(g=>g.status==="waiting"&&g.creator===me);
+  const act=G.filter(g=>g.status==="active");const over=G.filter(g=>g.status==="over"&&g.result!=="-").slice(0,20);
+  const row=(g,extra)=>{const c=myColorIn(g);const turn=g.status==="active"?new Chess(g.fen||START_FEN).turn():null;const mine2=turn&&turn===c;
+    return `<div class="onrow"><button class="onopen" data-og="${esc(g.id)}"><span class="kchip ${c||"w"}"></span><span class="onn"><b>${esc(oppName(g))}</b><small>${tcTxt(g.tc)} · ${g.status==="over"?esc(resTxt(g,c))+" · "+esc(g.reason||""):g.status==="active"?((g.moves||[]).length+" Halbzüge"):g.invite?"Herausforderung":"Einladungslink"} · ${fmtDate(g.updated||g.created)}</small></span>${mine2?'<span class="onturn">Am Zug</span>':""}</button>${extra||""}</div>`};
+  const tcs=[["1+0","1 Min"],["3+2","3 | 2"],["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["30+0","30 Min"],["none","Ohne Uhr"]];
+  const friends=(P.friends||[]);
+  v.innerHTML=`<div class="onhead"><span class="onav">${esc(P.name[0].toUpperCase())}</span><div><h2>${esc(P.name)}</h2><small>${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>
+  <div class="subtabs">${[["play","Spielen"],["friends","Freunde"],["account","Konto"]].map(t=>`<button data-ot="${t[0]}" aria-pressed="${ON.tab===t[0]}">${t[1]}${t[0]==="play"&&ON.badge?` <span class="dotn2">${ON.badge}</span>`:""}</button>`).join("")}</div>
+  ${ON.tab==="play"?`
+  ${inv.length?`<div class="card"><h3>Herausforderungen</h3>${inv.map(g=>row(g,`<span class="onbtns"><button class="btn grn" data-acc="${esc(g.id)}">Annehmen</button><button class="btn" data-dec="${esc(g.id)}">Ablehnen</button></span>`)).join("")}</div>`:""}
+  <div class="card"><h3>Neue Partie</h3>
+    <div class="fld">Bedenkzeit</div><div class="filters" style="margin:6px 0 12px">${tcs.map(t=>`<button class="chip${ON.tc===t[0]?" on":""}" data-tc="${t[0]}">${t[1]}</button>`).join("")}</div>
+    <div class="fld">Deine Farbe</div><div class="seg" style="margin:6px 0 14px">${[["w","Weiß"],["r","Zufall"],["b","Schwarz"]].map(c=>`<button data-col="${c[0]}" aria-pressed="${ON.col===c[0]}">${c[1]}</button>`).join("")}</div>
+    <div class="btnrow"><button class="btn grn" id="onLink" style="padding:11px 16px">Einladungslink erstellen</button>${friends.length?`<select id="onFr" class="txt" style="width:auto;flex:1;min-width:120px">${friends.map(f=>`<option value="${esc(f.uid)}">${esc(f.name)}</option>`).join("")}</select><button class="btn" id="onChal" style="padding:11px 16px">Herausfordern</button>`:`<span class="hint">Füge unter „Freunde“ Freunde hinzu, um sie direkt herauszufordern.</span>`}</div></div>
+  ${act.length?`<div class="card"><h3>Laufende Partien</h3>${act.map(g=>row(g)).join("")}</div>`:""}
+  ${mine.length?`<div class="card"><h3>Offene Einladungen</h3>${mine.map(g=>row(g,`<span class="onbtns"><button class="btn" data-shr="${esc(g.id)}">Teilen</button><button class="btn" data-can="${esc(g.id)}">Löschen</button></span>`)).join("")}</div>`:""}
+  ${over.length?`<div class="card"><h3>Beendete Partien</h3>${over.map(g=>row(g)).join("")}</div>`:""}`:""}
+  ${ON.tab==="friends"?`<div class="card"><h3>Freund hinzufügen</h3><div class="btnrow"><input class="txt" id="frName" placeholder="Benutzername" autocapitalize="off" style="flex:1;width:auto;min-width:140px"><button class="btn grn" id="frAdd" style="padding:10px 16px">Hinzufügen</button></div><p class="hint" id="frMsg" style="margin:8px 0 0">Dein Benutzername: <b>${esc(P.name)}</b> – gib ihn deinen Freunden.</p></div>
+    <div class="card"><h3>Deine Freunde</h3>${friends.length?friends.map(f=>`<div class="onrow"><span class="onn" style="padding:8px 4px"><b>${esc(f.name)}</b></span><span class="onbtns"><button class="btn grn" data-chf="${esc(f.uid)}">Herausfordern</button><button class="btn" data-rmf="${esc(f.uid)}">Entfernen</button></span></div>`).join(""):'<p class="hint" style="margin:0">Noch keine Freunde.</p>'}</div>`:""}
+  ${ON.tab==="account"?`<div class="card"><h3>Konto</h3><p class="hint" style="margin:0 0 10px">Angemeldet als <b>${esc(ON.user.email)}</b>. Dein Trainingsfortschritt (Varianten, Wiederholungen, Taktik, Einstellungen) wird automatisch in deinem Konto gesichert und ist auf allen Geräten gleich.</p>
+    <p class="hint" style="margin:0 0 12px">${ON.syncAt?"Zuletzt gesichert: "+new Date(ON.syncAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"Noch nicht gesichert."}</p>
+    <div class="btnrow"><button class="btn" id="onSync">Jetzt sichern</button><button class="btn" id="onOut">Abmelden</button></div></div>
+    <div class="card"><h3>Konto löschen</h3><p class="hint" style="margin:0 0 10px">Löscht dein Profil, deinen Benutzernamen und den Cloud-Fortschritt. Dein Fortschritt in diesem Browser bleibt erhalten.</p><div class="btnrow"><button class="btn red" id="onDel">Konto löschen</button><span class="hint" id="onDelMsg"></span></div></div>`:""}`;
+  v.querySelectorAll("[data-ot]").forEach(b=>b.onclick=()=>{ON.tab=b.dataset.ot;renderOnline()});
+  v.querySelectorAll("[data-og]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.og));
+  v.querySelectorAll("[data-tc]").forEach(b=>b.onclick=()=>{ON.tc=b.dataset.tc;store.set("et-ontc",ON.tc);renderOnline()});
+  v.querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{ON.col=b.dataset.col;store.set("et-oncol",ON.col);renderOnline()});
+  v.querySelectorAll("[data-acc]").forEach(b=>b.onclick=async()=>{const id=b.dataset.acc;try{await joinGame(id)}catch(e){toast(netErr(e))}openOnlineGame(id)});
+  v.querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>{const id=b.dataset.dec;NET.tx("games/"+id,d=>d&&d.status==="waiting"&&d.invite===me?{status:"declined",updated:Date.now()}:null).catch(e=>toast(netErr(e)))});
+  v.querySelectorAll("[data-shr]").forEach(b=>b.onclick=()=>shareInvite(b.dataset.shr));
+  v.querySelectorAll("[data-can]").forEach(b=>b.onclick=()=>{const id=b.dataset.can;NET.tx("games/"+id,d=>d&&d.status==="waiting"?{status:"cancelled",updated:Date.now()}:null).catch(e=>toast(netErr(e)))});
+  const fr=id=>friends.find(f=>f.uid===id);
+  if($("onLink"))$("onLink").onclick=()=>createGame(null);
+  if($("onChal"))$("onChal").onclick=()=>{const f=fr($("onFr").value);if(f)createGame(f)};
+  v.querySelectorAll("[data-chf]").forEach(b=>b.onclick=()=>{const f=fr(b.dataset.chf);if(f){ON.tab="play";createGame(f)}});
+  v.querySelectorAll("[data-rmf]").forEach(b=>b.onclick=()=>{NET.set("users/"+me,{friends:friends.filter(f=>f.uid!==b.dataset.rmf)},true).catch(e=>toast(netErr(e)))});
+  if($("frAdd"))$("frAdd").onclick=async()=>{const n=$("frName").value.trim();const msg=t=>$("frMsg").textContent=t;if(!n)return;
+    try{const u=await NET.get("usernames/"+n.toLowerCase());if(!u){msg(`„${n}“ gibt es nicht.`);return}if(u.uid===me){msg("Das bist du selbst.");return}if(friends.some(f=>f.uid===u.uid)){msg("Ist schon in deiner Liste.");return}
+      const p=await NET.get("users/"+u.uid);await NET.set("users/"+me,{friends:friends.concat({uid:u.uid,name:(p&&p.name)||n})},true);toast(`${(p&&p.name)||n} hinzugefügt`)}catch(e){msg(netErr(e))}};
+  if($("onOut"))$("onOut").onclick=doLogout;
+  if($("onSync"))$("onSync").onclick=()=>cloudPush(true).then(()=>toast("Fortschritt gesichert"));
+  if($("onDel"))$("onDel").onclick=()=>{const b=$("onDel");if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich endgültig löschen?";return}doDeleteAccount(t=>$("onDelMsg").textContent=t)};
+}
+function renderAuth(v){
+  const reg=ON.authMode==="reg";
+  v.innerHTML=`<div class="hero"><span class="ic" style="background:#3E6FB0">${NI.online}</span><div><h2>Online spielen</h2><p>Mit einem kostenlosen Konto spielst du live gegen deine Freunde, und dein Trainingsfortschritt wird auf allen Geräten synchronisiert.</p></div></div>
+  <div class="card"><div class="seg" style="margin-bottom:14px"><button data-am="login" aria-pressed="${!reg}">Anmelden</button><button data-am="reg" aria-pressed="${reg}">Registrieren</button></div>
+  <form id="authForm" class="authf">${reg?`<label class="fld">Benutzername<input id="auName" maxlength="20" autocomplete="username" autocapitalize="off" placeholder="So sehen dich andere" required></label>`:""}
+  <label class="fld">E-Mail<input id="auMail" type="email" autocomplete="email" autocapitalize="off" required></label>
+  <label class="fld">Passwort<input id="auPw" type="password" autocomplete="${reg?"new-password":"current-password"}" minlength="6" required></label>
+  <div class="btnrow"><button class="btn grn" type="submit" style="padding:11px 18px">${reg?"Konto erstellen":"Anmelden"}</button>${reg?"":`<button class="btn" type="button" id="auReset">Passwort vergessen?</button>`}</div>
+  <p class="hint" id="auMsg" style="margin:0"></p></form>
+  <p class="hint" style="margin:12px 0 0">Gespeichert werden nur dein Benutzername, deine E-Mail-Adresse (für die Anmeldung), deine Partien und dein Trainingsfortschritt. Du kannst dein Konto jederzeit löschen.</p></div>`;
+  v.querySelectorAll("[data-am]").forEach(b=>b.onclick=()=>{ON.authMode=b.dataset.am;renderAuth(v)});
+  const msg=t=>$("auMsg").textContent=t;
+  $("authForm").onsubmit=async e=>{e.preventDefault();const bt=e.target.querySelector("[type=submit]");bt.disabled=true;msg("");
+    try{if(reg)await doRegister($("auName").value,$("auMail").value,$("auPw").value,msg);else await doLogin($("auMail").value,$("auPw").value,msg)}finally{if(bt.isConnected)bt.disabled=false}};
+  if($("auReset"))$("auReset").onclick=()=>doReset($("auMail").value,msg);
+}
+/* Einladungslink, während die Seite schon offen ist */
+window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#play=([A-Za-z0-9_-]+)/);if(m){history.replaceState(null,"",location.pathname);openOnlineGame(m[1])}});
+
 /* ================= Start ================= */
 applySettings();
 st.badges=BADGES.filter(b=>{try{return b.ok()}catch(e){return false}}).map(b=>b.id);saveStats();
@@ -2289,7 +2683,9 @@ try{
   op=byId(last)||ALL[0];
   if(!checkShareHash()){
     const hv={"#analyse":"chess","#chess":"chess","#quiz":"quiz","#statistik":"profile","#profil":"profile","#partien":"games","#lernen":"learn","#eroeffnungen":"openings","#einstellungen":"profile"}[location.hash];
-    if(location.hash==="#taeglich")startSession("daily");
+    const pm=location.hash.match(/^#play=([A-Za-z0-9_-]+)/);
+    if(pm){selectOpening(op);history.replaceState(null,"",location.pathname);openOnlineGame(pm[1])}
+    else if(location.hash==="#taeglich")startSession("daily");
     else{selectOpening(op);showView(hv||"learn")}
   }
 }catch(err){window.__showErr(String(err&&err.stack||err))}
@@ -2298,5 +2694,6 @@ renderTabbar();
 const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
 if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
-window.__ET={autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+if(onlineReady())setTimeout(onlineBoot,600);
+window.__ET={ON,openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();

@@ -19,6 +19,11 @@ Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline
 - Partien gegen Stockfish (auch nach einer Eröffnung oder im Endspiel): Aufgeben, Revanche und anschließende Partieanalyse
 - »Bester Zug«, »Nochmal versuchen«, eigene Varianten direkt auf dem Brett mit Live-Bewertung und den drei besten Stockfish-Linien
 
+## Konten & Online-Partien (Firebase)
+- Registrierung mit Benutzername, E-Mail und Passwort; Passwort vergessen; Konto löschen
+- Trainingsfortschritt wird im Konto gespeichert und auf allen Geräten synchronisiert
+- Live-Partien gegen Freunde per Einladungslink oder direkter Herausforderung, Freundesliste, Bedenkzeiten mit Uhr, Remis, Aufgeben, Abbrechen, Revanche, Zuschauen und anschließende Partieanalyse
+
 ## Komfort
 - Startseite „Weitermachen“ mit letzter Eröffnung, fälligen Wiederholungen und Tagesziel; Ersteinrichtung beim ersten Öffnen
 - Handy-Layout mit Knöpfen direkt unter dem Brett, Zugliste als Streifen, Tab-Leiste blendet sich beim Scrollen aus
@@ -32,4 +37,5 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt.
 - [chess.js](https://github.com/jhlywa/chess.js) (BSD-2)
 - [Stockfish.js 17.1 lite](https://github.com/nmrugg/stockfish.js) (GPLv3, siehe `engine/COPYING.txt`)
 - Figuren: „Klassisch“ von Colin M.L. Burnett (GPLv2+), „Staunty“ aus lichess (CC BY-NC-SA 4.0)
+- [Firebase JS SDK](https://github.com/firebase/firebase-js-sdk) 10.12.2 (Apache-2.0), lokal unter `lib/firebase`
 - Daten: öffentliche APIs von Chess.com und Lichess (Opening Explorer, Meisterdatenbank)
