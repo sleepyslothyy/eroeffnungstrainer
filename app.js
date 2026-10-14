@@ -266,7 +266,7 @@ function pickTarget(){
   return rnd(pool);
 }
 function resetBoard(fen){
-  clearTimeout(timer);stopBlitz();cancelAuto();if(wrongT){clearTimeout(wrongT);wrongT=null;wrongRevert=null}const g=new Chess(fen||undefined);startFen=fen||null;
+  sfEnd=null;clearTimeout(timer);stopBlitz();cancelAuto();if(wrongT){clearTimeout(wrongT);wrongT=null;wrongRevert=null}const g=new Chess(fen||undefined);startFen=fen||null;
   hist=[];fens=[g.fen()];mvs=[];flags=[];view=0;shown=g;target=null;done=false;mistakes=0;usedHelp=false;hintLvl=0;sel=null;busy=false;lock=false;badge=null;sfEval=null;tried=new Set();peeked=false;evalCp=null;
   marks.a.clear();marks.c.clear();
 }
@@ -316,7 +316,7 @@ function trainMove(mv,animate,help){
   if(!tried.has(view)&&!help){tried.add(view);posReview(op.id,h,ok&&hintLvl===0?5:1)}
   if(!ok){wrongMove(mv,animate,h);return}
   stopBlitz();
-  if(!live()){clearTimeout(timer);busy=false;truncate(view);done=false;target=null;mistakes++}
+  if(!live()){clearTimeout(timer);busy=false;truncate(view);done=false;target=null;mistakes++;if(sfEnd){sfEnd=null;renderChrome()}}
   const r=commit(mv,"u");view=hist.length;shown=new Chess(fens[view]);sel=null;hintLvl=0;
   if(help)opStat(op.id).err++;else opStat(op.id).mv++;
   badge={ply:view,sq:r.to,type:"book"};
@@ -459,7 +459,7 @@ $("blindBtn").onclick=()=>{if(sess&&sess.blind){peeked=true;usedHelp=true;docume
 /* ================= Stockfish-Partie ================= */
 let sfToken=0;
 async function startEngine(fromEnd){
-  if(!op)return;mode="engine";done=false;sel=null;view=hist.length;shown=new Chess(fens[view]);sfStart=fromEnd?0:hist.length;sfEval=null;badge=null;
+  if(!op)return;sfEnd=null;evalCp=null;mode="engine";done=false;sel=null;view=hist.length;shown=new Chess(fens[view]);sfStart=fromEnd?0:hist.length;sfEval=null;badge=null;
   renderChrome();render();setStatus("sf","Stockfish wird geladen …","Beim ersten Mal lädt die Engine (ca. 7 MB).");
   const tok=++sfToken;
   try{await loadSF()}catch(e){if(tok!==sfToken)return;mode="train";done=true;renderChrome();render();setStatus("bad","Stockfish konnte nicht geladen werden","Prüfe die Internetverbindung und versuch es erneut.");return}
@@ -485,15 +485,30 @@ function engineUserMove(mv,animate){const r=commit(mv,"p");view=hist.length;show
 function gameOverCheck(){
   const g=new Chess(fens[hist.length]);if(!g.game_over())return false;
   let t,s;
-  if(g.in_checkmate()){const winner=g.turn()==="w"?"b":"w";t=winner===op.side?"Matt – du hast gewonnen!":"Matt – Stockfish gewinnt";s=winner===op.side?"Stark gespielt.":"Schau dir mit ← an, wo es kippte."}
-  else{t="Remis";s=g.in_stalemate()?"Patt.":g.insufficient_material()?"Zu wenig Material.":"Stellungswiederholung oder 50-Züge-Regel."}
+  let res,why;
+  if(g.in_checkmate()){const winner=g.turn()==="w"?"b":"w";res=winner===op.side?"win":"loss";why="Schachmatt";t=res==="win"?"Matt – du hast gewonnen!":"Matt – Stockfish gewinnt";s=res==="win"?"Stark gespielt! Mit »Partie analysieren« siehst du deine besten Züge.":"Mit »Partie analysieren« siehst du, wo es kippte."}
+  else{res="draw";why=g.in_stalemate()?"Patt":g.insufficient_material()?"zu wenig Material":g.in_threefold_repetition()?"Stellungswiederholung":"50-Züge-Regel";t="Remis";s=why+". Mit »Partie analysieren« siehst du die Bewertung jedes Zugs."}
   if(op.endId){st.ends[op.endId]=true;saveStats()}
-  endEngine();setStatus("done",t,s);return true;
+  endEngine(res,why);setStatus(res==="win"?"done":res==="draw"?"view":"bad",t,s);return true;
 }
-function endEngine(){if(mode!=="engine")return;if(hist.length-sfStart>=8){st.engine++;saveStats();checkBadges()}if(op.endId){st.ends[op.endId]=true;saveStats();checkBadges()}sfToken++;busy=false;mode="train";done=true;renderChrome();render()}
+let sfEnd=null;
+function endEngine(res,why){if(mode!=="engine")return;sfEnd={res:res||"loss",why:why||"Aufgabe",id:"sf-"+Date.now(),n:hist.length};if(hist.length-sfStart>=8){st.engine++;saveStats();checkBadges()}if(op.endId){st.ends[op.endId]=true;saveStats();checkBadges()}sfToken++;busy=false;mode="train";done=true;renderChrome();render()}
 function stopEngine(){if(mode==="engine"){sfToken++;busy=false;try{sfW&&sfW.postMessage("stop")}catch(e){}}}
 $("sfBtn").onclick=()=>startEngine();
-$("sfStop").onclick=()=>{endEngine();setStatus("done","Partie beendet","Du kannst die Züge mit ← und → nachspielen.")};
+$("sfStop").onclick=()=>{const b=$("sfStop");if(mode!=="engine")return;
+  if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich aufgeben?";clearTimeout(b._t);b._t=setTimeout(()=>{delete b.dataset.sure;b.textContent="Aufgeben"},3000);return}
+  delete b.dataset.sure;b.textContent="Aufgeben";clearTimeout(b._t);
+  endEngine("loss","Aufgabe");setStatus("bad","Du hast aufgegeben","Stockfish gewinnt. Mit »Partie analysieren« siehst du, wo es kippte.")};
+$("sfAna").onclick=()=>analyzeSfGame();
+$("sfAgain").onclick=()=>{if(!sfEnd)return;if(op.endId){const e=ENDGAMES.find(x=>x.id===op.endId);if(e){startEndgame(e);return}}
+  truncate(Math.min(sfStart,hist.length));view=hist.length;shown=new Chess(fens[view]);sfEnd=null;badge=null;startEngine()};
+/* Beendete Stockfish-Partie (inkl. Eröffnung) im Game Review analysieren */
+function analyzeSfGame(){
+  if(!sfEnd)return;if(!sfEnd.n){toast("In dieser Partie wurde noch kein Zug gespielt.");return}const me=op.side,sfN=`${sfName||"Stockfish"} (Stufe ${S.set.sf})`;
+  const moves=hist.slice(0,sfEnd.n);const res=sfEnd.res;
+  const result=res==="draw"?"1/2-1/2":(res==="win")===(me==="w")?"1-0":"0-1";
+  reviewGame({id:sfEnd.id,fen:startFen||null,color:me,res,result,term:sfEnd.why,fam:op.endId?"Endspiel: "+op.name:op.name,moves,tc:"",url:"",opp:sfN,oppR:null,myR:null,date:Date.now(),name:"Du",acc:null,white:me==="w"?"Du":sfN,black:me==="w"?sfN:"Du"});
+}
 $("sfUndo").onclick=()=>{
   if(mode!=="engine"||busy)return;let n=0;
   while(hist.length>sfStart&&n<2){truncate(hist.length-1);n++;if(new Chess(fens[hist.length]).turn()===op.side)break}
@@ -756,7 +771,9 @@ function updateEvalBar(){
   const bar=$("evalBar");const R=game&&game.review;
   const on=S.set.evalbar||mode==="engine"||(mode==="replay"&&R);
   $("evalBtn").setAttribute("aria-pressed",String(!!S.set.evalbar));bar.hidden=!on;if(!on)return;
-  const setBar=cp=>{const w=winPct(cp);const top=orient()==="w";$("evalFill").style.height=(top?w:100-w)+"%";$("evalFill").style.bottom=top?"0":"auto";$("evalFill").style.top=top?"auto":"0";$("evalTxt").textContent=Math.abs(cp)>=9000?"M":(Math.abs(cp)/100).toFixed(1);bar.classList.toggle("wadv",(cp>=0)===top)};
+  // Weißer Anteil = Gewinnchance von Weiß; er liegt immer auf der Seite, auf der Weiß am Brett sitzt
+  const setBar=cp=>{const w=winPct(cp);const wBottom=orient()==="w";const f=$("evalFill");f.style.height=w+"%";f.style.bottom=wBottom?"0":"auto";f.style.top=wBottom?"auto":"0";
+    $("evalTxt").textContent=Math.abs(cp)>=9000?"M"+mateN(cp):(Math.abs(cp)/100).toFixed(1);bar.classList.toggle("wlead",cp>=0);bar.classList.toggle("txtbot",(cp>=0)===wBottom);bar.title=`Bewertung: ${fmtEv(cp)} (${cp>=0?"Weiß":"Schwarz"} steht besser)`};
   if(R&&R.evals[view]!=null&&(!game.vari||view<=game.vari.base)){setBar(R.evals[view]);return}
   if(evCache.has(fens[view])){setBar(evCache.get(fens[view]));return}
   if(mode==="engine"&&live()&&evalCp!=null){setBar(evalCp);return}
@@ -808,8 +825,9 @@ function render(anim,extra){
   $("hintBtn").disabled=$("showBtn").disabled=!canAct;$("backBtn").disabled=!(mode==="train"&&!drill&&!lock&&!op.endId&&flags.indexOf("u")>=0);renderMaterial();$("restartBtn").disabled=mode==="puzzle"&&!done;
   $("navFirst").disabled=$("navPrev").disabled=view===0;
   $("navNext").disabled=$("navLast").disabled=live();
-  $("actsDone").hidden=!(mode==="train"&&done&&!op.endId&&((target!==null&&op.lines&&op.lines.length)||drill));
-  $("actsTrain").hidden=!(mode==="train"||mode==="puzzle")||($("actsDone").hidden===false)||!!op.endId;
+  $("actsDone").hidden=!!sfEnd||!(mode==="train"&&done&&!op.endId&&((target!==null&&op.lines&&op.lines.length)||drill));
+  $("actsTrain").hidden=!(mode==="train"||mode==="puzzle")||($("actsDone").hidden===false)||!!op.endId||!!sfEnd;
+  $("actsSfEnd").hidden=!(sfEnd&&mode==="train");
   $("sfUndo").disabled=busy||hist.length<=sfStart;
   $("moveInput").disabled=false;updateRevActs();
 }
@@ -830,7 +848,8 @@ function renderChrome(){
   else if(mode==="replay"&&game){av.className="avatar bookav";av.innerHTML=ICON.crown}
   else if(mode==="edit"){av.className="avatar bookav";av.innerHTML=ICON.pen;$("oppName").textContent="Gegenseite"}
   else if(mode==="puzzle"){av.className="avatar bookav";av.innerHTML=ICON.puzzle;$("oppName").textContent="Gegner"}
-  else{av.className="avatar bookav";av.innerHTML=ICON.bookL;$("oppName").textContent=op.endId?"Stockfish":"Eröffnungsbuch"}
+  else if(sfEnd||op.endId){av.className="avatar sfav";av.innerHTML=ICON.cpu;$("oppName").textContent=(sfName||"Stockfish")+" · Stufe "+S.set.sf}
+  else{av.className="avatar bookav";av.innerHTML=ICON.bookL;$("oppName").textContent="Eröffnungsbuch"}
   if(mode==="replay"&&game){const pl=(game.players||" – ").split(" – ");const o=orient();$("youName").textContent=(o==="w"?pl[0]:pl[1])||"";$("oppName").textContent=(o==="w"?pl[1]:pl[0])||"";$("youTag").textContent="";$("oppTag").textContent=""}
   else{$("youName").textContent="Du";const ys=mode==="edit"?$("edSide").value:op.side;$("youTag").textContent=ys==="w"?"(Weiß)":"(Schwarz)";$("oppTag").textContent=ys==="w"?"(Schwarz)":"(Weiß)"}
   const d=dueKeys().length;$("footInfo").textContent=d?d+" fällig":"";
@@ -842,7 +861,7 @@ function renderBars(){
   if(mode==="replay"){$("youClock").textContent=game&&game.review?"Review":"Partie";$("oppClock").textContent=game&&game.review?"Review":"Partie";return}
   if(mode==="edit"){$("youClock").textContent=(tm==="w"?"Weiß":"Schwarz")+" zieht";$("oppClock").textContent="Editor";return}
   $("youClock").textContent=done?"Fertig":yourTurn?"Am Zug":live()?"Wartet":"Ansicht";
-  $("oppClock").textContent=mode==="engine"?(busy?"Denkt …":"Stockfish"):oppTurn?"Denkt …":mode==="puzzle"?"Rätsel":"Buch";
+  $("oppClock").textContent=mode==="engine"?(busy?"Denkt …":"Stockfish"):oppTurn?"Denkt …":mode==="puzzle"?"Rätsel":sfEnd||op.endId?"Stockfish":"Buch";
 }
 function renderMoves(){
   const m=$("moves");m.innerHTML="";const R=game&&game.review;
@@ -1674,13 +1693,13 @@ function renderChGames(el){
 async function reviewGame(g){
   const R={evals:[],cls:[],best:[],doneN:0,acc:null,engine:""};
   const cached=REV[g.id];if(cached&&cached.n===g.moves.length&&cached.v===REV_V){Object.assign(R,cached,{doneN:g.moves.length})}
-  const gm={id:"rv-"+g.id,title:`${g.white} – ${g.black}`,players:`${g.white}${g.color==="w"&&g.myR?" ("+g.myR+")":g.color==="b"&&g.oppR?" ("+g.oppR+")":""} – ${g.black}${g.color==="b"&&g.myR?" ("+g.myR+")":g.color==="w"&&g.oppR?" ("+g.oppR+")":""}`,year:g.date?fmtDate(g.date):"",moves:g.moves,url:g.url,orient:g.color,d:`${g.fam} · ${g.foreign?"Ergebnis "+(g.result||"–"):g.res==="win"?"gewonnen":g.res==="loss"?"verloren":"Remis"}${g.term?" ("+g.term+")":""}`,review:R};
+  const gm={fen:g.fen||null,id:"rv-"+g.id,title:`${g.white} – ${g.black}`,players:`${g.white}${g.color==="w"&&g.myR?" ("+g.myR+")":g.color==="b"&&g.oppR?" ("+g.oppR+")":""} – ${g.black}${g.color==="b"&&g.myR?" ("+g.myR+")":g.color==="w"&&g.oppR?" ("+g.oppR+")":""}`,year:g.date?fmtDate(g.date):"",moves:g.moves,url:g.url,orient:g.color,d:`${g.fam} · ${g.foreign?"Ergebnis "+(g.result||"–"):g.res==="win"?"gewonnen":g.res==="loss"?"verloren":"Remis"}${g.term?" ("+g.term+")":""}`,review:R};
   openGame(gm);
-  if(R.doneN>=g.moves.length){setStatus("view","Game Review",`Genauigkeit: Weiß ${R.acc.w.toFixed(1)} · Schwarz ${R.acc.b.toFixed(1)}`,true);return}
+  if(R.doneN>=g.moves.length&&R.acc){setStatus("view","Game Review",`Genauigkeit: Weiß ${R.acc.w.toFixed(1)} · Schwarz ${R.acc.b.toFixed(1)}`,true);return}
   setStatus("view","Game Review läuft …","Stockfish bewertet jeden Zug. Du kannst schon blättern.",true);
   let res;try{res=await reviewCore(g,R,i=>{if(game===gm&&(i%3===0))render()},()=>game===gm)}catch(e){if(game===gm)setStatus("bad","Stockfish konnte nicht geladen werden","Ohne Engine ist kein Review möglich.");return}
   if(!res)return;
-  if(game===gm){render();if(view>0||gm.vari){replayStatus()}else{const N=playerNames();setStatus("view","Game Review fertig",g.foreign?`Genauigkeit: ${N.w} ${R.acc.w.toFixed(1)} · ${N.b} ${R.acc.b.toFixed(1)}. Mit → oder »Moment ▶« durch die Partie.`:`Deine Genauigkeit: ${R.acc[g.color].toFixed(1)} % (≈ ${estRating(R.acc[g.color])} Elo). ${res.added?res.added+" Fehler wurden als Übung gespeichert (Lernen → Deine Fehler).":"Keine groben Fehler – stark!"}`,true)}}
+  if(game===gm){render();if(view>0||gm.vari){replayStatus()}else{const N=playerNames();setStatus("view","Game Review fertig",g.foreign?`Genauigkeit: ${N.w} ${R.acc.w.toFixed(1)} · ${N.b} ${R.acc.b.toFixed(1)}. Mit → oder »Moment ▶« durch die Partie.`:`Deine Genauigkeit: ${R.acc[g.color].toFixed(1)} % (≈ ${estRating(R.acc[g.color])} Elo). ${res.added?res.added+(res.added===1?" Fehler wurde":" Fehler wurden")+" als Übung gespeichert (Lernen → Deine Fehler).":"Keine groben Fehler – stark!"}`,true)}}
   renderTabbar();
 }
 /* Bewertet eine Partie mit Stockfish (ohne Brett), klassifiziert jeden Zug wie ein Game Review
@@ -1689,7 +1708,7 @@ async function reviewGame(g){
 const REV_V=2;
 async function reviewCore(g,R,onStep,alive){
   R=R||{};Object.assign(R,{evals:[],cls:[],best:[],pv:[],alt:[],drops:[],doneN:0,acc:null,engine:"",v:REV_V});
-  const c0=new Chess();const F=[c0.fen()],M=[];
+  const c0=new Chess(g.fen||undefined);const F=[c0.fen()],M=[];R.fen=g.fen||null;
   for(const m of g.moves){const mv=findMove(c0,m);if(!mv)break;M.push(c0.move(mv.san));F.push(c0.fen())}
   const n=M.length,sans=M.map(m=>m.san);R.n=n;
   await loadSF();R.engine=sfName;const ms=S.set.revMs||300;
@@ -1704,7 +1723,7 @@ async function reviewCore(g,R,onStep,alive){
   }
   const accOf=s=>{const a=[];R.drops.forEach((d,i)=>{if((i%2===0?"w":"b")===s&&R.cls[i]!=="book"&&R.cls[i]!=="forced")a.push(moveAcc(d))});return a.length?a.reduce((x,y)=>x+y,0)/a.length:100};
   R.acc={w:accOf("w"),b:accOf("b")};R.phase=phaseAcc(R,F);R.doneN=n;
-  REV[g.id]={n,v:REV_V,evals:R.evals,cls:R.cls,best:R.best,pv:R.pv,alt:R.alt,drops:R.drops,acc:R.acc,phase:R.phase,engine:R.engine};
+  REV[g.id]={n,v:REV_V,fen:R.fen,evals:R.evals,cls:R.cls,best:R.best,pv:R.pv,alt:R.alt,drops:R.drops,acc:R.acc,phase:R.phase,engine:R.engine};
   const ks=Object.keys(REV);if(ks.length>30)delete REV[ks[0]];store.set("et-reviews",REV);
   let added=0;if(!g.foreign)R.cls.forEach((k,i)=>{if((k==="mist"||k==="blun"||k==="miss")&&(i%2===0?"w":"b")===g.color&&R.best[i]){const key="rv:"+g.id+":"+i;if(S.puz.some(p=>p.key===key))return;
     const bm=new Chess(F[i]).moves({verbose:true}).find(m=>m.from+m.to+(m.promotion||"")===R.best[i]);if(!bm)return;
@@ -1781,7 +1800,7 @@ function classifyMove(R,F,M,sans,k){
   const before=sw(R.evals[k]),after=sw(R.evals[k+1]);const drop=Math.max(0,before-after);R.drops[k]=drop;
   const uci=mv.from+mv.to+(mv.promotion||"");
   if(new Chess(F[k]).moves().length===1)return "forced";
-  if(k<30&&anyBook(sans.slice(0,k+1)))return "book";
+  if(!R.fen&&k<30&&anyBook(sans.slice(0,k+1)))return "book";
   const isBest=uci===R.best[k];
   // Brillant: bester (oder gleichwertiger) Zug, der echt Material opfert – und die Stellung bleibt gut
   const mates=(side==="w"?R.evals[k+1]:-R.evals[k+1])>=9000;

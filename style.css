@@ -392,7 +392,8 @@ textarea.code{width:100%;min-height:80px;background:var(--panel-2);border:1px so
 .evalbar{width:16px;flex:none;border-radius:3px;overflow:hidden;background:#3B3936;position:relative}
 .evalbar i{position:absolute;left:0;right:0;bottom:0;background:#F2F1EC;transition:height .35s ease;height:50%}
 .evalbar span{position:absolute;left:0;right:0;font-size:9px;font-weight:800;text-align:center;font-family:var(--mono);z-index:2;writing-mode:vertical-rl;transform:rotate(180deg);top:4px;color:#F2F1EC}
-.evalbar.wadv span{top:auto;bottom:4px;color:#3B3936}
+.evalbar.txtbot span{top:auto;bottom:4px}
+.evalbar.wlead span{color:#3B3936}
 .blind .pcs#pcs .pc{opacity:0}
 .blind.peek .pcs#pcs .pc{opacity:1}
 .mvin{display:flex;gap:6px;padding:10px 12px 0;flex:none}

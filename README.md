@@ -16,6 +16,7 @@ Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline
 - Partien aus Chess.com/Lichess, per Link oder als PGN – Stockfish 17.1 bewertet jeden Zug
 - Zugbewertungen wie auf Chess.com: Brillant, Großartig, Bester Zug, Exzellent, Gut, Buchzug, Ungenauigkeit, Fehler, Verpasst, Patzer, Erzwungen
 - Coach-Erklärung zu jedem Zug (was er verliert, erlaubtes Matt, bessere Fortsetzung), Genauigkeit und geschätzte Elo pro Spieler, Genauigkeit nach Partiephase, Bewertungsgraph, wichtige Momente
+- Partien gegen Stockfish (auch nach einer Eröffnung oder im Endspiel): Aufgeben, Revanche und anschließende Partieanalyse
 - »Bester Zug«, »Nochmal versuchen«, eigene Varianten direkt auf dem Brett mit Live-Bewertung und den drei besten Stockfish-Linien
 
 ## Komfort
