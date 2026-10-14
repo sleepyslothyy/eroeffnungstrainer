@@ -3,25 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#21201D">
-<meta name="description" content="Schach-Eröffnungen trainieren: 59 Eröffnungen, Wiederholung nach Lernkurve, Stockfish 17, Game Review und Chess.com-/Lichess-Analyse.">
+<meta name="theme-color" content="#1B1A18">
+<meta name="description" content="Zugzwang – Schach-Eröffnungen lernen, Taktik trainieren, online gegen Freunde spielen und Partien mit Stockfish 17 analysieren. Kostenlos und ohne Werbung.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Eröffnungen">
+<meta name="apple-mobile-web-app-title" content="Zugzwang">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<title>Eröffnungstrainer</title>
+<title>Zugzwang – Schach trainieren</title>
+<link rel="preload" href="lib/fonts/inter-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="pieces.css">
 <script>window.__showErr=function(m){var sp=document.getElementById("splash");if(sp)sp.remove();var s=document.getElementById("stTitle");if(s){s.textContent="Fehler beim Laden";document.getElementById("stText").textContent=m}};window.addEventListener("error",function(e){window.__showErr((e.message||"Unbekannter Fehler")+(e.lineno?" (Zeile "+e.lineno+")":""))});</script>
 </head>
-<body>
-<div class="splash" id="splash" aria-hidden="true"><div class="splash-in"><span class="logo"><svg width="34" height="34" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a3 3 0 0 0-1.6 5.5L8 9v2h2.2c-.3 2.4-1.4 4.6-3.2 6.2V19h10v-1.8c-1.8-1.6-2.9-3.8-3.2-6.2H16V9l-2.4-1.5A3 3 0 0 0 12 2zM6 20h12v2H6z"/></svg></span><b>Eröffnungstrainer</b></div></div>
+<body class="acc-violet">
+<div class="splash" id="splash" aria-hidden="true"><div class="splash-in"><span class="logo"><svg class="lg" width="76" height="76" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" style="fill:var(--acc)"/><g fill="#fff" opacity=".2"><rect x="12" y="26" width="12" height="12" rx="2.5"/><rect x="40" y="26" width="12" height="12" rx="2.5"/></g><path d="M16 18h32L16 46h32" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/></svg></span><b>Zugzwang</b></div></div>
 <div class="app">
   <aside class="side" id="side" aria-label="Eröffnungen">
-    <div class="brand"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a3 3 0 0 0-1.6 5.5L8 9v2h2.2c-.3 2.4-1.4 4.6-3.2 6.2V19h10v-1.8c-1.8-1.6-2.9-3.8-3.2-6.2H16V9l-2.4-1.5A3 3 0 0 0 12 2zM6 20h12v2H6z"/></svg></span><h1>Eröffnungstrainer</h1></div>
-    <div class="side-scroll">
+    <div class="brand"><svg class="lg" width="32" height="32" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" style="fill:var(--acc)"/><g fill="#fff" opacity=".2"><rect x="12" y="26" width="12" height="12" rx="2.5"/><rect x="40" y="26" width="12" height="12" rx="2.5"/></g><path d="M16 18h32L16 46h32" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/></svg><h1>Zugzwang</h1></div>
+    <nav class="sidenav" id="sideNav" aria-label="Bereiche"></nav>
+    <div class="side-scroll" id="sideOps">
+      <div class="side-h">Eröffnungen</div>
       <div class="sidebar-tools">
         <input id="search" class="search" type="search" placeholder="Name, ECO oder Züge (1.d4 Sf6)" aria-label="Eröffnung oder Züge suchen">
         <button class="tog-rep" id="repOnly" aria-pressed="false" title="Nur mein Repertoire zeigen" aria-label="Nur mein Repertoire zeigen"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg></button>
@@ -32,6 +35,7 @@
   </aside>
 
   <main class="main">
+    <nav class="subnav" id="subnav" aria-label="Unterbereiche" hidden></nav>
     <!-- Brett: Training, Stockfish, Partien, Review, Rätsel, Editor -->
     <div class="train view" id="v-train">
       <div class="board-col">
@@ -62,7 +66,7 @@
         <div class="sessbar" id="sessBar" hidden><b id="sessTitle"></b><div class="prog"><i id="sessProg"></i></div><small id="sessCount"></small><button id="sessEnd">Beenden</button></div>
         <div class="ph">
           <span class="bookicon" id="phIcon"></span>
-          <div style="min-width:0"><div class="ph-eco" id="eco"></div><h2 id="title">Eröffnungstrainer</h2><p id="desc"></p></div>
+          <div style="min-width:0"><div class="ph-eco" id="eco"></div><h2 id="title">Zugzwang</h2><p id="desc"></p></div>
         </div>
         <div class="coach" id="coach" data-k="turn" aria-live="polite">
           <span class="face" id="face"></span>
@@ -110,8 +114,18 @@
           <button class="nb" id="navNext" aria-label="Zug vor"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.6 4.6 16 12l-7.4 7.4L7.2 18l6-6-6-6z"/></svg></button>
           <button class="nb" id="navLast" aria-label="Zur aktuellen Stellung"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zm-1.5 7L6 18.5v-13z"/></svg></button>
           <button class="nb" id="flipBtn" aria-label="Brett drehen" title="Brett drehen (F)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3 3 7l4 4V8h10V6H7zm10 10v3H7v2h10v3l4-4z"/></svg></button>
-          <button class="nb" id="evalBtn" aria-pressed="false" aria-label="Bewertungsbalken" title="Bewertungsbalken (Stockfish)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 3h4v18h-4zM4 13h4v8H4zm12-6h4v14h-4z"/></svg></button>
-          <button class="nb" id="blindBtn" aria-pressed="false" aria-label="Blind-Modus" title="Blind-Modus: Figuren ausblenden"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 5.3 3.3 4 20 20.7 18.7 22l-3.1-3.1A11 11 0 0 1 12 19.5C6.5 19.5 2.7 15 1.5 12a12 12 0 0 1 4-5zM12 4.5c5.5 0 9.3 4.5 10.5 7.5a12.3 12.3 0 0 1-3.3 4.5l-3-3A4.5 4.5 0 0 0 10.5 7.8L8.4 5.6A10.7 10.7 0 0 1 12 4.5z"/></svg></button>
+          <button class="nb" id="blindBtn" aria-pressed="false" aria-label="Blind-Modus" title="Blind-Modus: Figuren ausblenden" hidden><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 5.3 3.3 4 20 20.7 18.7 22l-3.1-3.1A11 11 0 0 1 12 19.5C6.5 19.5 2.7 15 1.5 12a12 12 0 0 1 4-5zM12 4.5c5.5 0 9.3 4.5 10.5 7.5a12.3 12.3 0 0 1-3.3 4.5l-3-3A4.5 4.5 0 0 0 10.5 7.8L8.4 5.6A10.7 10.7 0 0 1 12 4.5z"/></svg></button>
+          <span class="morew"><button class="nb" id="moreBtn" aria-label="Weitere Optionen" aria-haspopup="menu" aria-expanded="false" aria-controls="bMenu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></svg></button>
+          <div class="bmenu" id="bMenu" role="menu" hidden>
+            <button role="menuitemcheckbox" id="evalBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 3h4v18h-4zM4 13h4v8H4zm12-6h4v14h-4z"/></svg><span>Bewertungsbalken</span><i class="tg"></i></button>
+            <button role="menuitemcheckbox" id="ideaBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 12h12.2l-4.6-4.6L13 6l7 7-7 7-1.4-1.4 4.6-4.6H4z"/></svg><span>Ideen-Pfeile</span><i class="tg"></i></button>
+            <button role="menuitemcheckbox" id="coordBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h2v16h16v2H3zm5 4h2v2H8zm0 4h2v2H8zm4-4h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/></svg><span>Koordinaten</span><i class="tg"></i></button>
+            <button role="menuitemcheckbox" id="sndBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9h4l5-4v14l-5-4H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg><span>Ton</span><i class="tg"></i></button>
+            <button role="menuitem" id="blindMi"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 5.3 3.3 4 20 20.7 18.7 22l-3.1-3.1A11 11 0 0 1 12 19.5C6.5 19.5 2.7 15 1.5 12a12 12 0 0 1 4-5zM12 4.5c5.5 0 9.3 4.5 10.5 7.5a12.3 12.3 0 0 1-3.3 4.5l-3-3A4.5 4.5 0 0 0 10.5 7.8L8.4 5.6A10.7 10.7 0 0 1 12 4.5z"/></svg><span>Blind-Modus</span></button>
+            <button role="menuitem" id="anaBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.1 5.1-1.4 1.4-5.1-5.1A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span>Im Analysebrett öffnen</span></button>
+            <button role="menuitem" id="fenBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z"/></svg><span>Stellung kopieren (FEN)</span></button>
+            <button role="menuitem" id="setBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg><span>Brett-Einstellungen</span></button>
+          </div></span>
         </div>
         <button class="big" id="nextBtn">Nächste Variante</button>
         <div class="tabs" role="tablist">
@@ -132,16 +146,20 @@
       </section>
     </div>
 
-    <section class="page view" id="v-learn" hidden aria-label="Lernen"></section>
+    <section class="page view" id="v-home" hidden aria-label="Start"></section>
+    <section class="page view" id="v-learn" hidden aria-label="Training"></section>
     <section class="page view" id="v-tactics" hidden aria-label="Taktik"></section>
     <section class="page view" id="v-online" hidden aria-label="Online"></section>
     <section class="page view" id="v-openings" hidden aria-label="Eröffnungen"></section>
-    <section class="page view" id="v-chess" hidden aria-label="Chess.com"></section>
+    <section class="page view" id="v-chess" hidden aria-label="Chess.com und Lichess"></section>
     <section class="page view" id="v-profile" hidden aria-label="Profil"></section>
     <section class="page view" id="v-quiz" hidden aria-label="Quiz"></section>
     <section class="page view" id="v-games" hidden aria-label="Musterpartien"></section>
     <section class="page view" id="v-import" hidden aria-label="Repertoire importieren"></section>
     <section class="page view" id="v-end" hidden aria-label="Endspiele"></section>
+    <section class="page view" id="v-bots" hidden aria-label="Gegen den Computer"></section>
+    <section class="page view" id="v-analyse" hidden aria-label="Partie analysieren"></section>
+    <section class="page view" id="v-legal" hidden aria-label="Rechtliches"></section>
   </main>
 </div>
 <nav class="tabbar" id="tabbar" aria-label="Bereiche"></nav>

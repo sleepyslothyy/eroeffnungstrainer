@@ -1,21 +1,43 @@
 {
-  "name": "Eröffnungstrainer",
-  "short_name": "Eröffnungen",
-  "description": "Schach-Eröffnungen trainieren mit Wiederholung, Stockfish, Quiz und Partien-Analyse.",
+  "name": "Zugzwang – Schach trainieren",
+  "short_name": "Zugzwang",
+  "description": "Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien mit Stockfish analysieren.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#302E2B",
-  "theme_color": "#21201D",
+  "background_color": "#1B1A18",
+  "theme_color": "#1B1A18",
   "icons": [
-    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
-    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    {"name": "Tagestraining", "url": "./#taeglich"},
-    {"name": "Quiz", "url": "./#quiz"},
-    {"name": "Partien-Analyse", "url": "./#analyse"}
+    {
+      "name": "Tagestraining",
+      "url": "./#taeglich"
+    },
+    {
+      "name": "Online spielen",
+      "url": "./#online"
+    },
+    {
+      "name": "Partie analysieren",
+      "url": "./#analyse"
+    }
   ]
 }

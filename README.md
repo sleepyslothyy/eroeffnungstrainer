@@ -1,16 +1,17 @@
-# Eröffnungstrainer
+# Zugzwang
 
-Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline nutzbar.
+Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analysieren – im Browser, als App installierbar und offline nutzbar.
 
 **Live:** https://sleepyslothyy.github.io/eroeffnungstrainer/
 
-## Bereiche (Tab-Balken unten)
-- **Brett** – Training gegen das Eröffnungsbuch mit Erklärungen, Variantenbaum, Lichess-Datenbank, Bewertungsbalken, Zugeingabe per Tastatur, Blind-Modus und Stockfish 17.1 nach dem Buchende
-- **Taktik** – Millionen echter Lichess-Rätsel (CC0): Taktik-Wertung, Levels und Ränge, Tagesziel mit Serie, 27 Themen-Pfade mit Sternen und Freischaltung, Taktik-Sprint (3 Minuten, 3 Leben), Fehler wiederholen, Taktik aus deinen Eröffnungen, Wertungsverlauf
-- **Lernen** – Tagestraining mit Serie, Wiederholung nach Lernkurve (pro Variante und pro Stellung), deine eigenen Fehler, Fallen, Blitz-Drill, Blind-Training, Quiz, Endspiele, Musterpartien und Meisterpartien, eigene Varianten, Repertoire-Import (PGN / Lichess-Studie) und Teilen-Link
-- **Eröffnungen** – 59 Eröffnungen mit 236 geprüften Varianten, Filter und Zugsuche („1.d4 Sf6 2.c4“)
-- **Chess.com** (oder Lichess) – Profil und Wertungen, Wertungsverlauf, alle Partien mit Game Review (Genauigkeit, Zugbewertung, bessere Züge), schwache Eröffnungen mit typischen Abweichungen, Lücken im Repertoire, was Gegner gegen dich spielen, persönlicher Eröffnungsbaum, Tages- und Zufallsrätsel, Trainingsplan aus Schwächen
-- **Profil** – Statistik, 28 Abzeichen, Einstellungen (Hell/Dunkel, Brett, Figuren, Stockfish-Stärke, Komfort, Schriftgröße), Sync über privates GitHub-Gist, Export/Import
+## Bereiche (fünf Tabs, am Computer in der Seitenleiste)
+- **Start** – Begrüßung, Weitermachen, „Heute“ mit Tagestraining, Taktik-Ziel und Wiederholungen, Hinweise auf laufende Online-Partien, Schnellstart und dein Stand
+- **Training** – Übersicht mit Sammlungen (Eröffnungen, Taktik, Drills, Endspiele & Partien, Repertoire), dazu Eröffnungen, Taktik, Endspiele, Quiz und Musterpartien
+  - 59 Eröffnungen mit 236 geprüften Varianten, Wiederholung nach Lernkurve, schwache Stellungen, Fallen, Blitz- und Blind-Drill
+  - Millionen echter Lichess-Rätsel (CC0) mit Wertung, Levels, Themen-Pfaden und Taktik-Sprint
+- **Spielen** – Online gegen Freunde (Einladungslink oder Herausforderung, Uhren, Remis, Revanche), gegen den Computer in sechs Stufen (auch ab einer Eröffnung) und Live-Partien zum Zuschauen
+- **Analyse** – Game Review per Link oder PGN, Analysebrett mit FEN, zuletzt analysierte Partien und die Chess.com-/Lichess-Zentrale
+- **Profil** – Statistik, Abzeichen, Bestenliste, Freunde, Einstellungen (Akzentfarbe Lila/Rot/Grün, Hell/Dunkel, Brett, Figuren, Komfort), Konto, Daten und Rechtliches
 
 ## Partieanalyse (Game Review)
 - Partien aus Chess.com/Lichess, per Link oder als PGN – Stockfish 17.1 bewertet jeden Zug
@@ -33,8 +34,12 @@ Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline
 - Chess.com/Lichess beim Öffnen automatisch abgleichen, neue Partien im Hintergrund analysieren
 - Querformat und Tablets, Schriftgröße, „Weniger Animationen“
 
+## Rechtliches
+Datenschutzerklärung, Impressum und Lizenzen stehen in der App unter Profil → Rechtliches (auch per `#datenschutz` und `#impressum`). Die Angaben fürs Impressum stehen in `IMPRESSUM` am Anfang von Teil 12 in `app.js`.
+
 ## Technik
 Reines HTML/CSS/JavaScript ohne Build-Schritt.
+- Schrift: [Inter](https://rsms.me/inter/) (SIL OFL 1.1), lokal unter `lib/fonts` – keine Anfragen an Google Fonts
 - [chess.js](https://github.com/jhlywa/chess.js) (BSD-2)
 - [Stockfish.js 17.1 lite](https://github.com/nmrugg/stockfish.js) (GPLv3, siehe `engine/COPYING.txt`)
 - Figuren: „Klassisch“ von Colin M.L. Burnett (GPLv2+), „Staunty“ aus lichess (CC BY-NC-SA 4.0)

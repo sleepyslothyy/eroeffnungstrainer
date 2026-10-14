@@ -52,6 +52,17 @@ const NI={
   edit:SV('<path d="M3 17.3V21h3.7L17.8 9.9l-3.7-3.7zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8 3.7 3.7z"/>'),
   import:SV('<path d="M5 20h14v-2H5zM19 9h-4V3H9v6H5l7 7z"/>'),
   share:SV('<path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7l-6.7 3.4a3 3 0 1 0 0 3.2L15 17a3 3 0 1 0 3-1z"/>'),
+  book:SV('<path d="M12 6.5C10 5 7 4.5 3 5v13c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5V5c-4-.5-7 0-9 1.5z"/>'),
+  home:SV('<path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3z"/>'),
+  swords:SV('<path d="M12 2a3 3 0 0 0-1.6 5.5L8 9v2h2.2c-.3 2.4-1.4 4.6-3.2 6.2V19h10v-1.8c-1.8-1.6-2.9-3.8-3.2-6.2H16V9l-2.4-1.5A3 3 0 0 0 12 2zM6 20h12v2H6z"/>'),
+  search:SV('<path d="M10 3a7 7 0 0 1 5.6 11.2l5.1 5.1-1.4 1.4-5.1-5.1A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/>'),
+  bot:SV('<path d="M11 2h2v3h4a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h4zM8.5 10a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM8 15v2h8v-2zM1 10h2v5H1zm20 0h2v5h-2z"/>'),
+  legal:SV('<path d="M6 2h9l5 5v15H6zm8 1.5V8h4.5zM8 11v2h10v-2zm0 4v2h10v-2zm0-8v2h4V7z"/>'),
+  more:SV('<circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/>'),
+  flip:SV('<path d="M7 3 3 7l4 4V8h10V6H7zm10 10v3H7v2h10v3l4-4z"/>'),
+  sound:SV('<path d="M3 9h4l5-4v14l-5-4H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/>'),
+  copy:SV('<path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z"/>'),
+  palette:SV('<path d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 9.8C22 5.5 17.5 2 12 2zM6.5 13a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>'),
   settings:SV('<path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/>')
 };
 
@@ -65,10 +76,10 @@ const KEYS=["prog","srs","pos","rep","daily","streak","stats","set","custom","an
 const S={
   prog:store.get("et-prog",{}),srs:store.get("et-srs",{}),pos:store.get("et-pos",{}),rep:store.get("et-rep",[]),daily:store.get("et-daily",null),
   streak:store.get("et-streak",{last:null,n:0,best:0}),stats:store.get("et-stats",{}),
-  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true},store.get("et-set",{})),
+  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet"},store.get("et-set",{})),
   custom:store.get("et-custom",{w:[],b:[]}),ana:store.get("et-ana",null),puz:store.get("et-puz",[])
 };
-{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true};fixT(S.set,SD)}
+{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet"};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
 fixT(S.streak,{last:"",n:0,best:0});if(S.streak.last==="")S.streak.last=null;
 fixT(S.custom,{w:[],b:[]});S.custom.w=S.custom.w.filter(l=>l&&Array.isArray(l.m));S.custom.b=S.custom.b.filter(l=>l&&Array.isArray(l.m));
 S.rep=S.rep.filter(x=>typeof x==="string");S.puz=S.puz.filter(x=>x&&typeof x==="object"&&x.key);
@@ -454,7 +465,7 @@ function startBlitz(){
 }
 
 /* ---- Blind-Modus ---- */
-function applyBlind(){document.body.classList.toggle("blind",!!blindOn&&$("v-train")&&!$("v-train").hidden);$("blindBtn").setAttribute("aria-pressed",String(!!blindOn))}
+function applyBlind(){document.body.classList.toggle("blind",!!blindOn&&$("v-train")&&!$("v-train").hidden);$("blindBtn").setAttribute("aria-pressed",String(!!blindOn));$("blindBtn").hidden=!(blindOn||(sess&&sess.blind))}
 $("blindBtn").onclick=()=>{if(sess&&sess.blind){peeked=true;usedHelp=true;document.body.classList.add("peek");setTimeout(()=>document.body.classList.remove("peek"),1500);toast("Figuren kurz eingeblendet");return}blindOn=!blindOn;applyBlind()};
 
 /* ================= Stockfish-Partie ================= */
@@ -505,7 +516,7 @@ $("sfAgain").onclick=()=>{if(!sfEnd)return;if(op.endId){const e=ENDGAMES.find(x=
   truncate(Math.min(sfStart,hist.length));view=hist.length;shown=new Chess(fens[view]);sfEnd=null;badge=null;startEngine()};
 /* Beendete Stockfish-Partie (inkl. Eröffnung) im Game Review analysieren */
 function analyzeSfGame(){
-  if(!sfEnd)return;if(!sfEnd.n){toast("In dieser Partie wurde noch kein Zug gespielt.");return}const me=op.side,sfN=`${sfName||"Stockfish"} (Stufe ${S.set.sf})`;
+  if(!sfEnd)return;if(!sfEnd.n){toast("In dieser Partie wurde noch kein Zug gespielt.");return}const me=op.side,sfN=`${op.botName||sfName||"Stockfish"} (Stufe ${S.set.sf})`;
   const moves=hist.slice(0,sfEnd.n);const res=sfEnd.res;
   const result=res==="draw"?"1/2-1/2":(res==="win")===(me==="w")?"1-0":"0-1";
   reviewGame({id:sfEnd.id,fen:startFen||null,color:me,res,result,term:sfEnd.why,fam:op.endId?"Endspiel: "+op.name:op.name,moves,tc:"",url:"",opp:sfN,oppR:null,myR:null,date:Date.now(),name:"Du",acc:null,white:me==="w"?"Du":sfN,black:me==="w"?sfN:"Du"});
@@ -723,7 +734,7 @@ async function renderDb(force){
   explorer("masters",h).then(d=>{if(tok!==dbTok||!$("dbM"))return;$("dbM").innerHTML=rowsHtml(d)+(d.topGames&&d.topGames.length?`<div class="exh" style="margin-top:8px"><span>Top-Partien</span></div>`+d.topGames.map(g=>`<div class="mgame" data-mid="${esc(g.id)}" data-t="${esc(g.white.name+" – "+g.black.name)}" data-y="${esc(g.year||"")}"><span>${esc(g.white.name)} (${g.white.rating}) – ${esc(g.black.name)} (${g.black.rating})</span><small>${g.winner==="white"?"1–0":g.winner==="black"?"0–1":"½–½"} · ${esc(g.year||"")}</small></div>`).join(""):"");wireDbRows();
     $("dbM").querySelectorAll("[data-mid]").forEach(x=>x.onclick=()=>loadMasterGame(x.dataset.mid,x.dataset.t,x.dataset.y,h.length))}).catch(e=>{if(tok===dbTok&&$("dbM"))$("dbM").innerHTML=err(e)});
 }
-function wireDbRows(){$("tabDb").querySelectorAll("[data-san]").forEach(x=>x.onclick=()=>{if(mode==="replay"||mode==="edit"||(mode==="train"&&!done&&userTurnShown())){const mv=findMove(shown,x.dataset.san);if(mv&&!tryMove(mv.from,mv.to,true,mv.promotion))toast("Dieser Zug ist hier nicht spielbar.")}else toast("Zum Ausprobieren eignet sich der Editor unter Lernen → Eigene Variante.")})}
+function wireDbRows(){$("tabDb").querySelectorAll("[data-san]").forEach(x=>x.onclick=()=>{if(mode==="replay"||mode==="edit"||(mode==="train"&&!done&&userTurnShown())){const mv=findMove(shown,x.dataset.san);if(mv&&!tryMove(mv.from,mv.to,true,mv.promotion))toast("Dieser Zug ist hier nicht spielbar.")}else toast("Zum Ausprobieren eignet sich der Editor unter Training → Eigene Variante.")})}
 async function loadMasterGame(id,title,year,ply){
   try{const r=await fetch("https://explorer.lichess.ovh/masters/pgn/"+id);if(!r.ok)throw 0;const pgn=await r.text();
     openGame({title:title,players:title,year:year,moves:pgnMoves(pgn,400),d:`Meisterpartie aus der Lichess-Datenbank (${pgnHeader(pgn,"Event")}).`,url:"https://lichess.org/"+id,ops:[op&&op.id],startView:ply})}
@@ -774,7 +785,7 @@ const ownPiece=p=>p&&(mode==="edit"||mode==="replay"?p.color===shown.turn():mode
 function updateEvalBar(){
   const bar=$("evalBar");const R=game&&game.review;
   const onlineLive=mode==="online"&&ON.g&&ON.g.status!=="over";
-  const on=(S.set.evalbar&&!onlineLive)||mode==="engine"||(mode==="replay"&&R);
+  const on=(S.set.evalbar&&!onlineLive)||mode==="engine"||(mode==="replay"&&(R||(game&&game.free)));
   $("evalBtn").setAttribute("aria-pressed",String(!!S.set.evalbar));bar.hidden=!on;if(!on)return;
   // Weißer Anteil = Gewinnchance von Weiß; er liegt immer auf der Seite, auf der Weiß am Brett sitzt
   const setBar=cp=>{const w=winPct(cp);const wBottom=orient()==="w";const f=$("evalFill");f.style.height=w+"%";f.style.bottom=wBottom?"0":"auto";f.style.top=wBottom?"auto":"0";
@@ -844,16 +855,16 @@ function renderChrome(){
   $("nextBtn").hidden=!((mode==="train"&&!op.endId)||(mode==="puzzle"&&sess))||!!(sess&&sess.kind==="sprint");
   $("nextBtn").textContent=sess?(sess.next?"Nächste Aufgabe":sess.idx+1>=sess.queue.length?"Training abschließen":`Weiter (${sess.idx+2}/${sess.queue.length})`):"Nächste Variante";
   const eco=$("eco"),title=$("title"),desc=$("desc");
-  if(mode==="replay"&&game){eco.textContent=(game.review?"Game Review":"Partie")+(game.year?" · "+game.year:"");title.textContent=game.title;desc.textContent=game.players||"";$("phIcon").innerHTML=ICON.crown}
+  if(mode==="replay"&&game){eco.textContent=(game.free?"Analyse":game.review?"Game Review":"Partie")+(game.year?" · "+game.year:"");title.textContent=game.title;desc.textContent=game.players||"";$("phIcon").innerHTML=ICON.crown}
   else if(mode==="edit"){eco.textContent="Editor";title.textContent="Eigene Variante";desc.textContent=op.d;$("phIcon").innerHTML=ICON.pen}
   else if(mode==="puzzle"){eco.textContent=op.eco;title.textContent=op.name;desc.textContent=op.d;$("phIcon").innerHTML=ICON.puzzle}
   else{eco.textContent=op.eco+" · Du spielst "+(op.side==="w"?"Weiß":"Schwarz")+(mode==="engine"?" · gegen "+(sfName||"Stockfish"):"");title.textContent=op.name;desc.textContent=op.d;$("phIcon").innerHTML=op.endId?ICON.crown:ICON.bookL}
   const av=$("oppAv");
-  if(mode==="engine"){av.className="avatar sfav";av.innerHTML=ICON.cpu;$("oppName").textContent=(sfName||"Stockfish")+" · Stufe "+S.set.sf}
+  if(mode==="engine"){av.className="avatar sfav";av.innerHTML=ICON.cpu;$("oppName").textContent=(op.botName||sfName||"Stockfish")+" · Stufe "+S.set.sf}
   else if(mode==="replay"&&game){av.className="avatar bookav";av.innerHTML=ICON.crown}
   else if(mode==="edit"){av.className="avatar bookav";av.innerHTML=ICON.pen;$("oppName").textContent="Gegenseite"}
   else if(mode==="puzzle"){av.className="avatar bookav";av.innerHTML=ICON.puzzle;$("oppName").textContent="Gegner"}
-  else if(sfEnd||op.endId){av.className="avatar sfav";av.innerHTML=ICON.cpu;$("oppName").textContent=(sfName||"Stockfish")+" · Stufe "+S.set.sf}
+  else if(sfEnd||op.endId){av.className="avatar sfav";av.innerHTML=ICON.cpu;$("oppName").textContent=(op.botName||sfName||"Stockfish")+" · Stufe "+S.set.sf}
   else{av.className="avatar bookav";av.innerHTML=ICON.bookL;$("oppName").textContent="Eröffnungsbuch"}
   if(mode==="replay"&&game){const pl=(game.players||" – ").split(" – ");const o=orient();$("youName").textContent=(o==="w"?pl[0]:pl[1])||"";$("oppName").textContent=(o==="w"?pl[1]:pl[0])||"";$("youTag").textContent="";$("oppTag").textContent=""}
   else{$("youName").textContent="Du";const ys=mode==="edit"?$("edSide").value:op.side;$("youTag").textContent=ys==="w"?"(Weiß)":"(Schwarz)";$("oppTag").textContent=ys==="w"?"(Schwarz)":"(Weiß)"}
@@ -865,7 +876,7 @@ function renderBars(){
   const tm=shown.turn();const active=live()&&!done&&mode!=="replay";
   const yourTurn=active&&(mode==="edit"?true:tm===op.side);const oppTurn=active&&!yourTurn;
   $("youClock").classList.toggle("on",!!yourTurn);$("oppClock").classList.toggle("on",!!oppTurn);
-  if(mode==="replay"){$("youClock").textContent=game&&game.review?"Review":"Partie";$("oppClock").textContent=game&&game.review?"Review":"Partie";return}
+  if(mode==="replay"){const t=game&&game.free?"Analyse":game&&game.review?"Review":"Partie";$("youClock").textContent=t;$("oppClock").textContent=t;return}
   if(mode==="edit"){$("youClock").textContent=(tm==="w"?"Weiß":"Schwarz")+" zieht";$("oppClock").textContent="Editor";return}
   $("youClock").textContent=done?"Fertig":yourTurn?"Am Zug":live()?"Wartet":"Ansicht";
   $("oppClock").textContent=mode==="engine"?(busy?"Denkt …":"Stockfish"):oppTurn?"Denkt …":mode==="puzzle"?"Rätsel":sfEnd||op.endId?"Stockfish":"Buch";
@@ -1021,21 +1032,76 @@ boardEl.addEventListener("pointercancel",()=>{swipe=null;if(drag){const d=drag;d
 window.addEventListener("resize",sizeVar);
 if(window.ResizeObserver)new ResizeObserver(sizeVar).observe(boardEl);
 
-/* ================= Ansichten & Tab-Balken ================= */
-let curView="train";
-const VIEW_TAB={online:"online",tactics:"tactics",train:"train",learn:"learn",quiz:"learn",games:"learn",import:"learn",end:"learn",openings:"openings",chess:"chess",profile:"profile"};
-function showView(v){
-  if(v!==curView)cancelAuto();
-  curView=v;document.querySelectorAll(".view").forEach(el=>el.hidden=el.id!=="v-"+v);
-  if(v!=="train"){stopEngine();stopBlitz()}
-  ({tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage}[v]||(()=>{}))();
-  renderTabbar();applyBlind();if(v!=="train")window.scrollTo(0,0);else sizeVar();
+/* ================= Navigation: 5 Bereiche mit Unterbereichen ================= */
+let curView="home";
+const SECTIONS=[["home","Start","home"],["train","Training","learn"],["play","Spielen","swords"],["analyse","Analyse","search"],["me","Profil","profile"]];
+function subnavOf(sec){
+  return {train:[["learn","Übersicht"],["openings","Eröffnungen"],["tactics","Taktik"],["end","Endspiele"],["quiz","Quiz"],["games","Musterpartien"]],
+    play:[["online:play","Online"],["bots","Computer"],["online:live","Live"]],
+    analyse:[["analyse","Partie analysieren"],["chess",siteName()]],
+    me:[["profile:stats","Statistik"],["profile:badges","Abzeichen"],["online:leader","Bestenliste"],["online:friends","Freunde"],["profile:settings","Einstellungen"],["online:account","Konto"],["profile:sync","Daten"]].concat(isAdmin()?[["online:admin","Admin"]]:[],[["legal","Rechtliches"]])}[sec]||[];
 }
-const TABS=[["train","Brett","board"],["learn","Lernen","learn"],["tactics","Taktik","bolt"],["online","Online","online"],["openings","Eröffnungen","list","Eröffn."],["chess","Chess.com","chess","Chess"],["profile","Profil","profile"]];
+/* Zu welchem Bereich gehört die aktuelle Ansicht? Das Brett erbt den Bereich von dem, was gerade läuft */
+function sectionOf(v){
+  v=v||curView;
+  if(v==="home")return "home";
+  if(v==="online")return ["leader","friends","account","admin"].indexOf(ON.tab)>=0?"me":"play";
+  if(v==="bots")return "play";
+  if(v==="analyse"||v==="chess")return "analyse";
+  if(v==="profile"||v==="legal")return "me";
+  if(v==="train"){if(mode==="online")return "play";if(mode==="replay")return game&&(game.review||game.free)?"analyse":"train";if(op&&op.bot)return "play";return "train"}
+  return "train";
+}
+const routeKey=()=>curView==="online"?"online:"+ON.tab:curView==="profile"?"profile:"+profTab:curView;
+/* zuletzt besuchte Unterseite pro Bereich, damit ein Tab-Wechsel dorthin zurückführt */
+const secLast=store.get("et-seclast",{});
+function showView(v){
+  v=String(v||"home");const [base,sub]=v.split(":");
+  if(base==="online"&&sub)ON.tab=sub==="admin"&&!isAdmin()?"play":sub;
+  if(base==="profile"&&sub)profTab=["stats","badges","settings","sync"].indexOf(sub)>=0?sub:"stats";
+  if(base!==curView)cancelAuto();
+  const prev=curView;curView=base;
+  document.querySelectorAll(".view").forEach(el=>{const on=el.id==="v-"+base;el.hidden=!on;if(on&&prev!==base&&!calmNow()){el.classList.remove("enter");void el.offsetWidth;el.classList.add("enter")}});
+  if(base!=="train"){stopEngine();stopBlitz()}
+  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,analyse:renderAnalyse,legal:renderLegal}[base]||(()=>{}))();
+  if(base!=="train"){const sec=sectionOf();secLast[sec]=routeKey();store.set("et-seclast",secLast)}
+  renderTabbar();applyBlind();if(base!=="train")window.scrollTo(0,0);else sizeVar();
+}
+function secBadge(id){
+  if(id==="train"){ensureDaily();const due=dueKeys().length;const open=S.daily.queue.length-S.daily.done.length;return Math.max(open,due)}
+  if(id==="play")return ON.badge||0;
+  if(id==="me")return (typeof SOC!=="undefined"&&SOC.inc&&SOC.inc.length)||0;
+  return 0;
+}
+function goSection(id){
+  if(id==="home"){showView("home");return}
+  const cur=sectionOf();
+  /* nochmal auf den aktiven Tab: zurück zur ersten Unterseite */
+  if(cur===id&&curView!=="train"){const first=(subnavOf(id)[0]||[])[0];if(first&&routeKey()!==first){showView(first);return}}
+  const last=secLast[id];const ok=last&&subnavOf(id).some(x=>x[0]===last||x[0].split(":")[0]===last);
+  showView(ok?last:(subnavOf(id)[0]||["home"])[0]);
+}
 function renderTabbar(){
-  ensureDaily();const due=dueKeys().length;const open=S.daily.queue.length-S.daily.done.length;
-  $("tabbar").innerHTML=TABS.map(([id,t,ic,sh])=>`<button class="tb" data-tab="${id}" aria-label="${t}" aria-current="${VIEW_TAB[curView]===id}">${NI[ic]}<span class="tl">${t}</span>${sh?`<span class="ts">${sh}</span>`:""}${id==="learn"&&(open>0||due>0)?`<span class="dotn">${Math.max(open,due)}</span>`:id==="online"&&ON.badge?`<span class="dotn">${ON.badge}</span>`:""}</button>`).join("");
-  $("tabbar").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{const t=b.dataset.tab;if(t==="train"&&!op)selectOpening(ALL[0]);else showView(t)});
+  const sec=sectionOf();
+  $("tabbar").innerHTML=SECTIONS.map(([id,t,ic])=>{const n=secBadge(id);return `<button class="tb" data-tab="${id}" aria-label="${t}" aria-current="${sec===id}">${NI[ic]}<span class="tl">${t}</span>${n>0?`<span class="dotn">${n>99?"99+":n}</span>`:""}</button>`}).join("");
+  $("tabbar").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>goSection(b.dataset.tab));
+  renderSubnav();renderSideNav();
+}
+function renderSubnav(){
+  const el=$("subnav");if(!el)return;const sec=sectionOf();const items=subnavOf(sec);
+  if(curView==="train"||!items.length){el.hidden=true;el.innerHTML="";return}
+  const rk=routeKey();el.hidden=false;
+  el.innerHTML=`<div class="subnav-in">${items.map(([k,t])=>{const cur=k===rk||(k===curView&&k.indexOf(":")<0);const n=k==="online:play"?ON.badge:k==="online:friends"&&typeof SOC!=="undefined"&&SOC.inc?SOC.inc.length:0;return `<button class="pill" data-go="${k}" aria-current="${cur}">${esc(t)}${n?` <span class="dotn2">${n}</span>`:""}</button>`}).join("")}</div>`;
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));
+  const c=el.querySelector('[aria-current="true"]');if(c&&el.firstChild.scrollWidth>el.clientWidth){const box=el.firstChild;box.scrollLeft=c.offsetLeft-box.clientWidth/2+c.offsetWidth/2}
+}
+function renderSideNav(){
+  const el=$("sideNav");if(!el)return;const sec=sectionOf();const rk=routeKey();
+  el.innerHTML=SECTIONS.map(([id,t,ic])=>{const n=secBadge(id);const on=sec===id;const subs=on?subnavOf(id):[];
+    return `<button class="ni" data-tab="${id}" aria-current="${on}"><span class="ic">${NI[ic]}</span><span class="lbl">${t}</span>${n>0?`<span class="cnt hot">${n}</span>`:""}</button>${subs.length?`<div class="nisub">${subs.map(([k,st])=>`<button data-go="${k}" aria-current="${curView!=="train"&&(k===rk||k===curView)}">${esc(st)}</button>`).join("")}</div>`:""}`}).join("");
+  el.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>goSection(b.dataset.tab));
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));
+  const ops=$("sideOps");if(ops)ops.hidden=sec!=="train";
 }
 function weakInfo(id){if(!S.ana||!S.ana.stats)return null;const s=S.ana.stats[id];if(!s||s.n<3)return null;return (s.w+s.d/2)/s.n<0.45?s:null}
 function parseMoveQuery(q){
@@ -1084,7 +1150,7 @@ function renderOpenings(){
   const F=[["all","Alle"],["rep","Repertoire"],["w","Weiß"],["b","Schwarz"],["x","Gambits & Fallen"],["c","Eigene"],["due","Fällig"],["weak","Schwach"]];
   v.innerHTML=`<div class="hero"><span class="ic">${NI.list}</span><div><h2>Eröffnungen</h2><p>${ALL.length} Eröffnungen mit ${totalLines()} Varianten. Mit dem Stern nimmst du eine Eröffnung in dein Repertoire auf. Die Suche versteht auch Züge wie „1.d4 Sf6 2.c4“.</p></div></div>
   <input class="txt" id="opSearch" type="search" placeholder="Name, ECO oder Züge" value="${esc(opQuery)}" aria-label="Eröffnung suchen">
-  <div class="filters">${F.map(f=>`<button class="chip" data-f="${f[0]}" style="${opFilter===f[0]?"background:var(--green);color:#fff":""}">${f[1]}</button>`).join("")}</div>
+  <div class="filters">${F.map(f=>`<button class="chip${opFilter===f[0]?" on":""}" data-f="${f[0]}">${f[1]}</button>`).join("")}</div>
   <div id="opInfo" class="hint"></div><div class="opgrid" id="opGrid"></div>`;
   const draw=()=>{
     const {items,mf,mq}=filterOpenings(opQuery,opFilter==="rep",["w","b","x","c"].indexOf(opFilter)>=0?opFilter:null);
@@ -1104,44 +1170,38 @@ function renderOpenings(){
 }
 
 /* ---------------- Lernen ---------------- */
-function ringSvg(frac){const r=36,c=2*Math.PI*r;return `<svg class="ring" viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="8"/><circle cx="42" cy="42" r="${r}" fill="none" stroke="#81B64C" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-frac)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" font-size="16" font-weight="800" fill="currentColor">${Math.round(frac*100)}%</text></svg>`}
+function ringSvg(frac){const r=36,c=2*Math.PI*r;return `<svg class="ring" viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="8"/><circle cx="42" cy="42" r="${r}" fill="none" style="stroke:var(--acc)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-frac)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" font-size="16" font-weight="800" fill="currentColor">${Math.round(frac*100)}%</text></svg>`}
+function pageHead(title,sub,ic){return `<header class="hero">${ic?`<span class="ic">${NI[ic]}</span>`:""}<div><h2>${title}</h2>${sub?`<p>${sub}</p>`:""}</div></header>`}
+function emptyState(ic,title,text,act){return `<div class="empty-st"><span class="es-ic">${NI[ic]||""}</span><b>${title}</b>${text?`<p>${text}</p>`:""}${act||""}</div>`}
+/* Training: Sammlungen statt einer langen Kachelwand */
 function renderLearn(){
-  ensureDaily();const v=$("v-learn");const dd=S.daily.done.length,dq=S.daily.queue.length;const due=dueKeys().length;const dp=duePositions().length;const mine=S.puz.filter(p=>!p.solved||p.solved<2).length;
-  const card=(id,ic,col,t,d,meta,hot)=>`<button class="hc" data-act="${id}"><span class="ic" style="background:${col}">${NI[ic]}</span><b>${t}</b><small>${d}</small>${meta!=null?`<span class="meta${hot?" hot":""}">${meta}</span>`:""}</button>`;
-  const lastOp=byId(store.get("et-last",null));const hr=new Date().getHours();const greet=hr<5?"Gute Nacht":hr<11?"Guten Morgen":hr<18?"Hallo":"Guten Abend";
-  const cl=lastOp&&lastOp.lines?lastOp.lines.filter((l,i)=>P(lastOp.id,i)===2).length:0;const tz=pzToday();
-  const chips=[["review","review","Fällig",due,due>0],["tactics","bolt","Taktik heute",tz.n+"/"+PZ.goal,tz.n<PZ.goal],["mine","mistake","Eigene Fehler",mine,mine>0]].map(c=>`<button class="cchip${c[4]?" hot":""}" data-act="${c[0]}">${NI[c[1]]}<span>${c[2]}</span><b>${c[3]}</b></button>`).join("");
-  v.innerHTML=`<div class="greet"><h2>${greet}!</h2><small>${streakNow()?`🔥 ${streakNow()} ${streakNow()===1?"Tag":"Tage"} Serie · `:""}Taktik ${PZ.r}</small></div>
-  ${lastOp&&lastOp.lines&&lastOp.lines.length?`<button class="cont" data-act="continue"><span class="cont-b" id="contBoard"></span><span class="cont-t"><small>Weitermachen</small><b>${esc(lastOp.name)}</b><span>${cl}/${lastOp.lines.length} Varianten fehlerfrei · Du spielst ${lastOp.side==="w"?"Weiß":"Schwarz"}</span><span class="prog"><i style="width:${cl/lastOp.lines.length*100}%"></i></span></span><span class="cont-go">▶</span></button>`:""}
-  <div class="cchips">${chips}</div>
-  <div class="daily-hero">${ringSvg(dq?dd/dq:0)}<div><h2>${dd>=dq?"Heute geschafft!":"Tagestraining"}</h2><p>${dd>=dq?"Super – morgen geht es weiter. Du kannst trotzdem weiter üben.":`${dq-dd} von ${dq} Varianten offen. Zuerst die fälligen, dann neue aus deinem Repertoire.`}</p><div class="btnrow" style="margin-top:10px"><button class="btn grn" data-act="daily">${dd>=dq?"Extra-Training":"Weiter trainieren"}</button></div></div><div class="flame"><span>${streakNow()}</span><small>Tage Serie</small></div></div>
-  <div class="sec-h"><h3>Wiederholen</h3><small>Nach Lernkurve: Fehler kommen öfter</small></div>
-  <div class="hubgrid">
-    ${card("review","review","#C8742E","Fällige Varianten","Komplette Varianten, die laut Wiederholungsplan heute dran sind.",due,due>0)}
-    ${card("positions","target","#B9483C","Schwache Stellungen","Nur die einzelnen Züge, bei denen du oft danebenliegst.",dp,dp>0)}
-    ${card("mine","mistake","#3E6FB0","Deine Fehler","Stellungen aus deinen eigenen Chess.com-Partien, in denen du falsch gespielt hast.",mine,mine>0)}
-    ${card("traps","traps","#B9483C","Fallen-Training","Alle Fallen und Tricks – stellen und vermeiden.",trapKeys().length)}
-  </div>
-  <div class="sec-h"><h3>Trainingsarten</h3><small>Abwechslung macht sicher</small></div>
-  <div class="hubgrid">
-    ${card("analyse","review","#26C2A3","Partie analysieren","Game Review für eine Chess.com-, Lichess- oder PGN-Partie: Zugbewertungen, Genauigkeit, bessere Züge.")}
-    ${card("tactics","bolt","#81B64C","Taktik-Training",`Echte Lichess-Rätsel mit Wertung, Levels und Themen-Pfaden. Deine Wertung: ${PZ.r}.`,pzToday().n+"/"+PZ.goal)}
-    ${card("blitz","bolt","#E6912C","Blitz-Drill",`10 Varianten mit nur ${S.set.blitzSec} Sekunden pro Zug – damit die Züge automatisch kommen.`)}
-    ${card("blind","eye","#5C5A57","Blind-Training","Die Figuren sind unsichtbar, nur die Notation hilft dir.")}
-    ${card("quiz","quiz","#8A63B8","Quiz","Buchzug finden, Eröffnung erkennen und Plan zuordnen.",st.quiz.ok?st.quiz.ok+" ✓":null)}
-    ${card("end","king","#5D9948","Endspiele","Grundmatts, Lucena, Philidor und das Berliner Endspiel gegen Stockfish.",Object.keys(st.ends).length+"/"+ENDGAMES.length)}
-    ${card("games","games","#A88865","Musterpartien","Berühmte Partien und echte Meisterpartien aus der Datenbank.",GAMES.length)}
-  </div>
-  <div class="sec-h"><h3>Dein Repertoire</h3><small>${S.rep.length} Eröffnungen markiert</small></div>
-  <div class="hubgrid">
-    ${card("edit","edit","#4A4744","Eigene Variante","Spiel eine Zugfolge ein und trainiere sie wie jede andere.")}
-    ${card("import","import","#4A4744","Repertoire importieren","PGN-Datei oder Lichess-Studie mit allen Varianten einlesen.")}
-    ${card("share","share","#4A4744","Repertoire teilen","Erzeugt einen Link, mit dem andere dein Repertoire übernehmen.")}
-  </div>`;
-  const cb=$("contBoard");if(cb&&lastOp){try{const g=new Chess();let last=null;lastOp.lines[0].m.slice(0,8).forEach(m=>{last=g.move(m,{sloppy:true})||last});cb.appendChild(staticBoard(g.fen(),lastOp.side,last))}catch(e){}}
+  ensureDaily();const v=$("v-learn");const due=dueKeys().length;const dp=duePositions().length;const mine=S.puz.filter(p=>!p.solved||p.solved<2).length;
+  const tot=totalLines(),cl=cleanCount();const tz=pzToday();const ends=Object.keys(st.ends).length;
+  const item=(act,ic,t,d,meta,hot)=>`<button class="ci" data-act="${act}"><span class="ci-ic">${NI[ic]}</span><span class="ci-t"><b>${t}</b><small>${d}</small></span>${meta!=null&&meta!==""?`<span class="ci-m${hot?" hot":""}">${meta}</span>`:""}<span class="ci-go" aria-hidden="true">›</span></button>`;
+  const coll=(id,ic,t,sub,frac,items)=>`<section class="coll" data-coll="${id}"><div class="coll-h"><span class="coll-ic">${NI[ic]}</span><div><h3>${t}</h3><small>${sub}</small></div>${frac!=null?`<span class="coll-p"><span class="prog"><i style="width:${Math.round(frac*100)}%"></i></span><small>${Math.round(frac*100)} %</small></span>`:""}</div><div class="coll-items">${items}</div></section>`;
+  v.innerHTML=pageHead("Training","Alles zum Üben, nach Themen geordnet. Das Tagestraining findest du auf der Startseite.","learn")+
+  `<div class="colls">`+
+  coll("op","book","Eröffnungen",`${cl} von ${tot} Varianten fehlerfrei · ${S.rep.length} im Repertoire`,tot?cl/tot:0,
+    item("openings","list","Alle Eröffnungen",`${ALL.length} Eröffnungen mit Suche und Filtern`)+
+    item("review","review","Fällige Varianten","Wiederholung nach Lernkurve",due,due>0)+
+    item("positions","target","Schwache Stellungen","Nur die Züge, bei denen du danebenliegst",dp,dp>0)+
+    item("traps","traps","Fallen-Training","Fallen stellen und vermeiden",trapKeys().length))+
+  coll("tac","bolt","Taktik",`Wertung ${PZ.r} · heute ${tz.n} von ${PZ.goal}`,Math.min(1,tz.n/PZ.goal),
+    item("tactics","bolt","Taktik-Training","Rätsel, Sprint, Themen-Pfade und Levels",tz.n+"/"+PZ.goal,tz.n<PZ.goal)+
+    item("mine","mistake","Deine Fehler","Stellungen aus deinen eigenen Partien",mine,mine>0))+
+  coll("drill","daily","Drills","Damit die Züge automatisch kommen",null,
+    item("blitz","bolt","Blitz-Drill",`10 Varianten, ${S.set.blitzSec} Sekunden pro Zug`)+
+    item("blind","eye","Blind-Training","Figuren unsichtbar, nur die Notation hilft")+
+    item("quiz","quiz","Quiz","Buchzug, Eröffnung und Plan erkennen",st.quiz.ok?st.quiz.ok+" ✓":null))+
+  coll("end","king","Endspiele & Partien",`${ends} von ${ENDGAMES.length} Endspielen gespielt`,ENDGAMES.length?ends/ENDGAMES.length:0,
+    item("end","king","Endspiele","Grundmatts, Lucena, Philidor gegen Stockfish",ends+"/"+ENDGAMES.length)+
+    item("games","games","Musterpartien","Berühmte Partien und Meisterpartien",GAMES.length))+
+  coll("rep","edit","Dein Repertoire","Eigene Varianten, Import und Teilen",null,
+    item("edit","edit","Eigene Variante","Zugfolge einspielen und trainieren")+
+    item("import","import","Repertoire importieren","PGN-Datei oder Lichess-Studie")+
+    item("share","share","Repertoire teilen","Link für Freunde erzeugen"))+
+  `</div>`;
   v.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const a=b.dataset.act;
-    if(a==="continue"){selectOpening(lastOp);return}
-    if(a==="analyse"){showView("chess");const t=$("anaIn");if(t){t.scrollIntoView({block:"center"});t.focus()}return}
     if(["daily","review","positions","mine","traps","blitz","blind"].indexOf(a)>=0)startSession(a);
     else if(a==="edit")openEditor();else if(a==="share")shareRepertoire();else showView(a)});
 }
@@ -1192,7 +1252,7 @@ function qName(){
 }
 function renderQuizIntro(){
   const v=$("v-quiz");
-  v.innerHTML=`<button class="back" data-back>← Lernen</button><div class="hero"><span class="ic" style="background:#8A63B8;box-shadow:0 4px 0 #5C4180">${NI.quiz}</span><div><h2>Eröffnungs-Quiz</h2><p>Zehn gemischte Fragen: Buchzug finden, Eröffnung erkennen und den passenden Plan zuordnen. ${S.rep.length?"Die Fragen stammen aus deinem Repertoire.":"Markiere Eröffnungen mit einem Stern, damit die Fragen aus deinem Repertoire kommen."}</p></div></div>
+  v.innerHTML=`<div class="hero"><span class="ic">${NI.quiz}</span><div><h2>Eröffnungs-Quiz</h2><p>Zehn gemischte Fragen: Buchzug finden, Eröffnung erkennen und den passenden Plan zuordnen. ${S.rep.length?"Die Fragen stammen aus deinem Repertoire.":"Markiere Eröffnungen mit einem Stern, damit die Fragen aus deinem Repertoire kommen."}</p></div></div>
   <div class="tiles"><div class="tile"><small>Beantwortet</small><b>${st.quiz.n}</b></div><div class="tile win"><small>Richtig</small><b>${st.quiz.ok}</b><span>${st.quiz.n?pct(st.quiz.ok/st.quiz.n):"–"}</span></div><div class="tile gold"><small>Bestes Quiz</small><b>${st.quiz.best||0}/10</b></div><div class="tile"><small>Pool</small><b>${quizPool().length}</b><span>Eröffnungen</span></div></div>
   <button class="big" id="quizGo" style="margin:0">Quiz starten</button>`;
   wireBack(v);$("quizGo").onclick=()=>{quiz={i:0,ok:0,n:10};nextQuestion()};
@@ -1200,7 +1260,7 @@ function renderQuizIntro(){
 function wireBack(v){const b=v.querySelector("[data-back]");if(b)b.onclick=()=>showView("learn")}
 function nextQuestion(){
   if(quiz.i>=quiz.n){st.quiz.best=Math.max(st.quiz.best||0,quiz.ok);saveStats();checkBadges();
-    $("v-quiz").innerHTML=`<div class="hero"><span class="ic" style="background:#8A63B8;box-shadow:0 4px 0 #5C4180">${NI.quiz}</span><div><h2>${quiz.ok} von ${quiz.n} richtig</h2><p>${quiz.ok>=8?"Ausgezeichnet!":quiz.ok>=5?"Gut gemacht – die falschen Fragen kommen beim Training wieder.":"Übung macht den Meister. Trainiere die Eröffnungen und versuch es erneut."}</p></div></div><div class="btnrow"><button class="btn grn" id="qAgain">Neues Quiz</button><button class="btn" id="qBack">Zurück zu Lernen</button></div>`;
+    $("v-quiz").innerHTML=`<div class="hero"><span class="ic">${NI.quiz}</span><div><h2>${quiz.ok} von ${quiz.n} richtig</h2><p>${quiz.ok>=8?"Ausgezeichnet!":quiz.ok>=5?"Gut gemacht – die falschen Fragen kommen beim Training wieder.":"Übung macht den Meister. Trainiere die Eröffnungen und versuch es erneut."}</p></div></div><div class="btnrow"><button class="btn grn" id="qAgain">Neues Quiz</button><button class="btn" id="qBack">Zurück zum Training</button></div>`;
     $("qAgain").onclick=()=>{quiz={i:0,ok:0,n:10};nextQuestion()};$("qBack").onclick=()=>showView("learn");return}
   const type=quiz.i%3;const q=(type===0?qMove():type===1?qName():qPlan())||qMove();quiz.q=q;const v=$("v-quiz");
   v.innerHTML=`<div class="qhead"><h3>${esc(q.prompt)}</h3><span class="qprog">Frage ${quiz.i+1}/${quiz.n} · ${quiz.ok} richtig</span></div>
@@ -1217,7 +1277,7 @@ function nextQuestion(){
 /* ---------------- Musterpartien & Meisterpartien ---------------- */
 function renderGames(){
   const v=$("v-games");const opts=ALL.filter(o=>o.g!=="c").map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("");
-  v.innerHTML=`<button class="back" data-back>← Lernen</button><div class="hero"><span class="ic" style="background:var(--book);box-shadow:0 4px 0 #6E583F">${NI.games}</span><div><h2>Musterpartien</h2><p>Berühmte Partien zeigen, wie die Pläne aus der Eröffnung in der Praxis aussehen. Jeder Zug wird beim Nachspielen erklärt.</p></div></div>
+  v.innerHTML=`<div class="hero"><span class="ic">${NI.games}</span><div><h2>Musterpartien</h2><p>Berühmte Partien zeigen, wie die Pläne aus der Eröffnung in der Praxis aussehen. Jeder Zug wird beim Nachspielen erklärt.</p></div></div>
   <div class="grid3">${GAMES.map(g=>`<div class="gcard">${st.games[g.id]?'<span class="done-tag">Nachgespielt</span>':""}<h4>${esc(g.title)}</h4><div class="sub">${esc(g.players)} · ${esc(g.year)} · ${g.moves.split(" ").length} Halbzüge</div><p>${esc(g.d)}</p><div class="chips">${g.ops.map(id=>byId(id)).filter(Boolean).map(o=>`<button class="chip" data-op="${o.id}">${esc(o.name)}</button>`).join("")}</div><button class="btn grn" data-game="${g.id}">Nachspielen</button></div>`).join("")}</div>
   <div class="card"><h3>Echte Meisterpartien zu einer Eröffnung</h3><p class="hint" style="margin:0 0 10px">Aus der Lichess-Meisterdatenbank (über 2 Millionen Partien von Spielern ab 2200). Gesucht wird nach der Stellung am Ende einer Variante.</p>
   <div class="btnrow"><select class="txt" id="mOp" style="max-width:320px">${opts}</select><select class="txt" id="mLine" style="max-width:320px"></select><button class="btn grn" id="mGo">Suchen</button></div><div id="mRes" style="margin-top:10px"></div></div>`;
@@ -1237,7 +1297,7 @@ function renderGames(){
 /* ---------------- Endspiele ---------------- */
 function renderEndPage(){
   const v=$("v-end");
-  v.innerHTML=`<button class="back" data-back>← Lernen</button><div class="hero"><span class="ic" style="background:#5D9948">${NI.king}</span><div><h2>Endspiele</h2><p>Grundtechniken und ein typisches Eröffnungs-Endspiel. Du spielst gegen Stockfish – stell die Stärke unter Profil → Einstellungen ein.</p></div></div>
+  v.innerHTML=`<div class="hero"><span class="ic">${NI.king}</span><div><h2>Endspiele</h2><p>Grundtechniken und ein typisches Eröffnungs-Endspiel. Du spielst gegen Stockfish – stell die Stärke unter Profil → Einstellungen ein.</p></div></div>
   <div class="grid3">${ENDGAMES.map(e=>{return `<div class="gcard">${st.ends[e.id]?'<span class="done-tag">Gespielt</span>':""}<h4>${esc(e.t)}</h4><div id="eb-${e.id}"></div><p>${esc(e.goal)}</p><button class="btn grn" data-end="${e.id}">Gegen Stockfish spielen (${e.side==="w"?"Weiß":"Schwarz"})</button></div>`}).join("")}</div>`;
   wireBack(v);
   ENDGAMES.forEach(e=>{const fen=e.fen||(()=>{const g=new Chess();e.moves.split(" ").forEach(m=>g.move(m));return g.fen()})();$("eb-"+e.id).appendChild(staticBoard(fen,e.side))});
@@ -1263,7 +1323,7 @@ function pgnLines(text){
 }
 function renderImport(){
   const v=$("v-import");
-  v.innerHTML=`<button class="back" data-back>← Lernen</button><div class="hero"><span class="ic" style="background:#4A4744">${NI.import}</span><div><h2>Repertoire importieren</h2><p>Lies dein bestehendes Repertoire mit allen Nebenvarianten ein – aus einer PGN-Datei (z. B. aus ChessBase, Chessable-Export oder Lichess) oder direkt aus einer öffentlichen Lichess-Studie.</p></div></div>
+  v.innerHTML=`<button class="back" data-back>← Training</button><div class="hero"><span class="ic">${NI.import}</span><div><h2>Repertoire importieren</h2><p>Lies dein bestehendes Repertoire mit allen Nebenvarianten ein – aus einer PGN-Datei (z. B. aus ChessBase, Chessable-Export oder Lichess) oder direkt aus einer öffentlichen Lichess-Studie.</p></div></div>
   <div class="card"><div class="form" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
     <label class="wide">Name des Ordners<input id="imName" placeholder="z. B. Mein Caro-Kann" maxlength="40"></label>
     <label>Ich trainiere<select id="imSide"><option value="w">Weiß</option><option value="b">Schwarz</option></select></label>
@@ -1327,9 +1387,8 @@ function checkShareHash(){
 let profTab="stats";
 function renderProfile(){
   const v=$("v-profile");
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.profile}</span><div><h2>Profil</h2><p>Dein Fortschritt, deine Abzeichen und alle Einstellungen.</p></div></div>
-  <div class="subtabs"><button data-pt="stats" aria-pressed="${profTab==="stats"}">Statistik</button><button data-pt="badges" aria-pressed="${profTab==="badges"}">Abzeichen</button><button data-pt="settings" aria-pressed="${profTab==="settings"}">Einstellungen</button><button data-pt="sync" aria-pressed="${profTab==="sync"}">Sichern & Sync</button></div><div id="profBody" class="page" style="max-width:none"></div>`;
-  v.querySelectorAll("[data-pt]").forEach(b=>b.onclick=()=>{profTab=b.dataset.pt;renderProfile()});
+  const H={stats:["Statistik","Dein Fortschritt im Training.","chess"],badges:["Abzeichen",`${st.badges.length} von ${BADGES.length} gesammelt.`,"medal2"],settings:["Einstellungen","Aussehen, Brett, Training und Komfort.","settings"],sync:["Daten","Sichern, übertragen und teilen.","import"]}[profTab];
+  v.innerHTML=pageHead(H[0],H[1],H[2]==="medal2"?"games":H[2])+`<div id="profBody" class="page" style="max-width:none"></div>`;
   ({stats:renderStats,badges:renderBadges,settings:renderSettings,sync:renderSync}[profTab])($("profBody"));
 }
 function renderStats(v){
@@ -1353,20 +1412,21 @@ function renderStats(v){
 }
 function renderBadges(v){
   checkBadges();
-  v.innerHTML=`<div class="sec-h"><h3>Abzeichen</h3><small>${st.badges.length} von ${BADGES.length}</small></div><div class="badges">${BADGES.map(b=>`<div class="bdg${st.badges.indexOf(b.id)>=0?" got":""}"><span class="md">${ICON.medal}</span><span><b>${esc(b.t)}</b><small>${esc(b.d)}</small></span></div>`).join("")}</div>`;
+  v.innerHTML=`<div class="badges">${BADGES.map(b=>`<div class="bdg${st.badges.indexOf(b.id)>=0?" got":""}"><span class="md">${ICON.medal}</span><span><b>${esc(b.t)}</b><small>${esc(b.d)}</small></span></div>`).join("")}</div>`;
 }
 const THEMES=[["green","Grün","#EBECD0","#739552"],["brown","Holz","#F0D9B5","#B58863"],["blue","Blau","#DEE3E6","#8CA2AD"],["gray","Marmor","#E2E2DE","#9E9E98"]];
 const PSETS=[["cburnett","Klassisch"],["staunty","Staunty"]];
 function applySettings(){
   document.body.classList.remove("bt-green","bt-brown","bt-blue","bt-gray","ps-cburnett","ps-staunty","theme-light");
   document.body.classList.add("bt-"+S.set.theme,"ps-"+S.set.pieces);if(S.set.design==="light")document.body.classList.add("theme-light");
+  document.body.classList.remove("acc-violet","acc-red","acc-green");document.body.classList.add("acc-"+(S.set.accent||"violet"));
   document.body.classList.toggle("nocoords",!S.set.coords);document.body.classList.toggle("calm",!!S.set.calm);
   document.documentElement.style.setProperty("--fz",String((S.set.font||100)/100));
-  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=S.set.design==="light"?"#F1EFEA":"#21201D";
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=S.set.design==="light"?"#F4F3F0":"#1B1A18";
 }
 function renderSettings(v){
   const sw=(id,on,t,d)=>`<div class="setrow"><span><b>${t}</b><small>${d}</small></span><button class="switch" id="${id}" aria-pressed="${on}" aria-label="${t}"></button></div>`;
-  v.innerHTML=`<div class="card"><h3>Design</h3><div class="seg"><button data-design="dark" aria-pressed="${S.set.design!=="light"}">Dunkel</button><button data-design="light" aria-pressed="${S.set.design==="light"}">Hell</button></div></div>
+  v.innerHTML=`<div class="card"><h3>Aussehen</h3><div class="setrow"><span><b>Akzentfarbe</b><small>Farbe für Knöpfe und Hervorhebungen</small></span></div>${accentPicker()}<div class="setrow" style="margin-top:6px"><span><b>Modus</b><small>Dunkel schont abends die Augen</small></span><span class="seg"><button data-design="dark" aria-pressed="${S.set.design!=="light"}">Dunkel</button><button data-design="light" aria-pressed="${S.set.design==="light"}">Hell</button></span></div></div>
   <div class="card"><h3>Brett</h3><div class="opts">${THEMES.map(t=>`<button class="optc" data-theme="${t[0]}" aria-pressed="${S.set.theme===t[0]}"><span class="mini-board">${[0,1,2,3,4,5,6,7].map(i=>`<i style="background:${((i+(i>3?1:0))%2)?t[3]:t[2]}"></i>`).join("")}</span>${t[1]}</button>`).join("")}</div></div>
   <div class="card"><h3>Figuren</h3><div class="opts">${PSETS.map(p=>`<button class="optc pv-${p[0]}" data-pset="${p[0]}" aria-pressed="${S.set.pieces===p[0]}"><span class="piece-prev">${["wk","wq","wn","bk","bq","bn"].map(x=>`<span class="pp ${x}"></span>`).join("")}</span>${p[1]}</button>`).join("")}</div><p class="hint" style="margin-top:8px">„Klassisch“: Colin M.L. Burnett (GPLv2+). „Staunty“: lichess-Set, CC BY-NC-SA 4.0.</p></div>
   <div class="card"><h3>Training</h3>
@@ -1389,9 +1449,11 @@ function renderSettings(v){
     <div class="setrow"><span><b>Ersteinrichtung</b><small>Spielstärke, Farbe und Chess.com-Name neu wählen</small></span><button class="btn" id="onbAgain" style="padding:8px 12px">Starten</button></div>
   </div>
   <div class="card"><h3>Lichess-Token (optional)</h3><p class="hint" style="margin:0 0 8px">Nur nötig, falls Lichess die Datenbank ohne Anmeldung sperrt. Erstelle einen Token ohne besondere Rechte auf <a href="https://lichess.org/account/oauth/token/create?description=Eroeffnungstrainer" target="_blank" rel="noopener">lichess.org</a> und füge ihn hier ein. Er bleibt nur in diesem Browser.</p><input class="txt" id="liTok" placeholder="lip_…" value="${esc(S.set.liToken)}" autocomplete="off"></div>
+  <div class="card"><h3>Rechtliches</h3><p class="hint" style="margin:0 0 10px">Datenschutzerklärung, Impressum und verwendete Open-Source-Software.</p><div class="btnrow"><button class="btn" data-go="legal">Datenschutz & Impressum</button></div></div>
   <div class="card"><h3>App installieren</h3><p class="hint" style="margin:0">iPhone: In Safari auf Teilen → „Zum Home-Bildschirm“. Android/Chrome: Menü → „App installieren“. Danach funktioniert das Training auch offline.</p></div>
   <div class="card"><h3>Zurücksetzen</h3><p class="hint" style="margin:0 0 10px">Löscht Fortschritt, Wiederholungsplan, Statistik und Abzeichen in diesem Browser. Einstellungen und eigene Varianten bleiben.</p><div class="btnrow"><button class="btn red" id="resetBtn">Fortschritt zurücksetzen</button><span class="hint" id="resetMsg"></span></div></div>`;
   v.querySelectorAll("[data-design]").forEach(b=>b.onclick=()=>{S.set.design=b.dataset.design;save("set");applySettings();renderProfile()});
+  wireAccent(v,()=>renderProfile());v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));
   v.querySelectorAll("[data-theme]").forEach(b=>b.onclick=()=>{S.set.theme=b.dataset.theme;save("set");applySettings();renderProfile()});
   v.querySelectorAll("[data-pset]").forEach(b=>b.onclick=()=>{S.set.pieces=b.dataset.pset;save("set");applySettings();renderProfile()});
   const tg=(id,key)=>$(id).onclick=()=>{S.set[key]=!S.set[key];save("set");applySettings();$(id).setAttribute("aria-pressed",String(S.set[key]));if(op&&curView==="train")render()};
@@ -1579,7 +1641,7 @@ function finishLoad(games,label){
   const stats={};R.list.forEach(G=>{if(G.id){const s=stats[G.id]||(stats[G.id]={n:0,w:0,d:0,l:0});s.n+=G.n;s.w+=G.w;s.d+=G.d;s.l+=G.l}});
   if(games[0]&&games[0].name)CH.user=games[0].name;
   S.ana={user:CH.user,src:CH.src,date:Date.now(),stats,label};save("ana");st.anaRuns++;saveStats();
-  const np=collectBookPuzzles(R);if(np)toast(np+" neue Übungen aus deinen Partien unter Lernen → Deine Fehler");
+  const np=collectBookPuzzles(R);if(np)toast(np+" neue Übungen aus deinen Partien unter Training → Deine Fehler");
   checkBadges();renderList();renderTabbar();
 }
 
@@ -1594,12 +1656,11 @@ function renderChess(){
   if(CH.user&&(!P0||(!P0.name&&!P0.error))){if(!P0){CH.profile={};loadProfile().then(()=>{if(curView==="chess")renderChess()})}
     v.innerHTML=`<div class="hero"><span class="ic">${NI.chess}</span><div><h2>${siteName()}-Zentrale</h2><p>Lade das Profil von ${esc(CH.user)} …</p></div></div><div class="card">${SKEL}</div><div class="card">${SKEL}</div>`;return}
   const linked=!!CH.user&&P0&&!!P0.name;
-  v.innerHTML=`<div class="hero"><span class="ic" style="background:${CH.src==="lichess"?"#5C5A57":"#81B64C"}">${NI.chess}</span><div><h2>${siteName()}-Zentrale</h2><p>Verknüpfe dein Konto über den Benutzernamen (kein Passwort nötig). Du bekommst deine Wertungen, alle Partien mit Game Review, die Eröffnungen, in denen du verlierst, deinen persönlichen Eröffnungsbaum und Übungen aus deinen eigenen Fehlern.</p></div></div>
+  v.innerHTML=`<div class="hero"><span class="ic">${NI.chess}</span><div><h2>${siteName()}-Zentrale</h2><p>Verknüpfe dein Konto über den Benutzernamen (kein Passwort nötig). Du bekommst deine Wertungen, alle Partien mit Game Review, die Eröffnungen, in denen du verlierst, deinen persönlichen Eröffnungsbaum und Übungen aus deinen eigenen Fehlern.</p></div></div>
   ${linked?prof:`<div class="card"><form class="form" id="chForm" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto"><label>Plattform${srcSeg}</label><label class="wide" for="chUser">Benutzername<input id="chUser" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="dein ${siteName()}-Name" value="${esc(CH.user)}" required></label><button class="btn grn" type="submit" style="padding:12px 18px">Verknüpfen</button></form>${P0&&P0.error?`<div class="err" style="margin-top:10px">${P0.error==="notfound"?`Den Benutzer gibt es auf ${siteName()} nicht.`:`${siteName()} ist gerade nicht erreichbar. Prüfe die Internetverbindung.`}</div>`:""}</div>`}
   ${linked?`<div class="card"><div class="btnrow"><label class="fld" style="flex:1;min-width:140px">Zeitraum<select id="chMonths">${[1,3,6,12].map(m=>`<option value="${m}" ${CH.months===m?"selected":""}>${m===1?"Letzter Monat":m+" Monate"}</option>`).join("")}</select></label><label class="fld" style="flex:1;min-width:140px">Partien<select id="chType">${[["all","Alle"],["bullet","Bullet"],["blitz","Blitz"],["rapid","Schnellschach"],["daily","Täglich"]].map(t=>`<option value="${t[0]}" ${CH.type===t[0]?"selected":""}>${t[1]}</option>`).join("")}</select></label><button class="btn grn" id="chLoad" style="align-self:flex-end;padding:12px 18px">${CH.games.length?"Partien neu laden":"Partien laden & analysieren"}</button></div>
     <details class="alt"><summary>Oder PGN-Datei hochladen</summary><p>${siteName()}: Archiv herunterladen und hier auswählen.</p><input type="file" id="pgnFile" accept=".pgn,text/plain"></details>
     <div class="status" id="chStatus" hidden style="margin-top:12px"><b id="chStT"></b><div class="prog"><i id="chBar"></i></div><small id="chStX"></small></div><div id="chErr" class="err" hidden style="margin-top:10px"></div></div>`:""}
-  ${anaInputHtml()}
   ${linked&&CH.games.length?`<div class="subtabs">${[["overview","Übersicht"],["games","Partien"],["tree","Eröffnungsbaum"],["puzzle","Rätsel"]].map(t=>`<button data-ct="${t[0]}" aria-pressed="${CH.tab===t[0]}">${t[1]}</button>`).join("")}</div><div id="chBody" class="page" style="max-width:none"></div>`:linked?`<div class="subtabs"><button data-ct="puzzle" aria-pressed="true">Rätsel</button></div><div id="chBody" class="page" style="max-width:none"></div>`:""}`;
   wireAnaInput();
   v.querySelectorAll("[data-src]").forEach(b=>b.onclick=()=>{CH.src=b.dataset.src;store.set("et-anasrc",CH.src);CH.profile=null;renderChess()});
@@ -1643,7 +1704,7 @@ function ratingChart(tc){
   <svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${ticks.map(r=>`<line x1="${p}" x2="${W}" y1="${Y(r)}" y2="${Y(r)}" stroke="var(--line)" stroke-width="1"/><text x="2" y="${Y(r)+4}" font-size="11" fill="var(--muted)">${r}</text>`).join("")}
   <path d="${d} L${X(last.date)} ${H-22} L${X(first.date)} ${H-22}Z" fill="rgba(129,182,76,.15)"/><path d="${d}" fill="none" stroke="#81B64C" stroke-width="2.2"/><circle cx="${X(last.date)}" cy="${Y(last.myR)}" r="4" fill="#81B64C"/>
   <text x="${p}" y="${H-5}" font-size="11" fill="var(--muted)">${fmtDate(first.date)}</text><text x="${W-4}" y="${H-5}" font-size="11" fill="var(--muted)" text-anchor="end">${fmtDate(last.date)}</text></svg>
-  <div class="chips" style="margin-top:6px">${["bullet","blitz","rapid","daily"].filter(t=>CH.games.filter(g=>g.tc===t).length>=3).map(t=>`<button class="chip" data-rtc="${t}" style="${t===tc?"background:var(--green);color:#fff":""}">${{bullet:"Bullet",blitz:"Blitz",rapid:"Schnell",daily:"Täglich"}[t]}</button>`).join("")}</div></div>`;
+  <div class="chips" style="margin-top:6px">${["bullet","blitz","rapid","daily"].filter(t=>CH.games.filter(g=>g.tc===t).length>=3).map(t=>`<button class="chip${t===tc?" on":""}" data-rtc="${t}">${{bullet:"Bullet",blitz:"Blitz",rapid:"Schnell",daily:"Täglich"}[t]}</button>`).join("")}</div></div>`;
 }
 function renderChOverview(el){
   const R=CH.result;const T=R.tot;
@@ -1664,7 +1725,7 @@ function renderChOverview(el){
       return `<div class="wkc"><div class="wkc-top"><span class="kchip ${G.color}"></span><div style="min-width:0"><h4>${esc(G.name)}</h4><div class="sub">Mit ${G.color==="w"?"Weiß":"Schwarz"} · ${G.n} Partien${G.alias&&G.alias!==G.name?" · "+esc(G.alias):""}</div></div><div class="pct">${pct(G.score)}<small>Punkte</small></div></div>
       ${wdl(G)}<div class="wdl-t"><span>${G.w} S</span><span>${G.d} R</span><span>${G.l} N</span></div>${trendHtml(G)}
       ${G.topDev?`<div class="dev">${devText(G.topDev)}</div>`:""}
-      ${o?`<button class="btn grn" data-train="${G.id}" data-line="${G.focusLine===null?"":G.focusLine}">${G.focusLine!==null?"Üben: "+esc(o.lines[G.focusLine].n):"Jetzt üben"}</button>`:`<div class="hint">Für diese Eröffnung gibt es noch keine Übung. Importiere sie unter Lernen → Repertoire importieren.</div>`}</div>`}).join("")}</div>`;
+      ${o?`<button class="btn grn" data-train="${G.id}" data-line="${G.focusLine===null?"":G.focusLine}">${G.focusLine!==null?"Üben: "+esc(o.lines[G.focusLine].n):"Jetzt üben"}</button>`:`<div class="hint">Für diese Eröffnung gibt es noch keine Übung. Importiere sie unter Training → Repertoire importieren.</div>`}</div>`}).join("")}</div>`;
   }else html+=`<div class="card">Keine Eröffnung mit mindestens 3 Partien unter 50 % – stark!</div>`;
   if(gaps.length)html+=`<div class="sec-h"><h3>Lücken in deinem Repertoire</h3><small>${S.rep.length?"Häufige Züge deiner Gegner ohne Antwort im Repertoire":"Markiere Eröffnungen mit Stern, um Lücken zu sehen"}</small></div><div class="grid3">${gaps.slice(0,6).map(({c,O})=>{const sg=suggestFor(c,O.mv);const sc=(O.w+O.d/2)/O.n;return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px"><b>${c==="w"?"Mit Weiß":"Mit Schwarz"}: ${esc(fmtMoves(O.mv))}</b><span class="sub">${O.n} Partien · ${pct(sc)}</span></div>${wdl(O)}${sg.length?`<div class="chips" style="margin-top:8px">${sg.map(o=>`<button class="chip" data-star2="${o.id}" title="Zum Repertoire hinzufügen und üben">☆ ${esc(o.name)}</button>`).join("")}</div>`:`<p class="hint" style="margin:6px 0 0">Keine passende Übung – importiere eine.</p>`}</div>`}).join("")}</div>`;
   html+=`<div class="sec-h"><h3>Was deine Gegner gegen dich spielen</h3><small>Häufigste Antworten und passende Übungen</small></div><div class="grid3">`;
@@ -1690,13 +1751,16 @@ const REV=store.get("et-reviews",{});
 function renderChGames(el){
   const F=[["all","Alle"],["win","Siege"],["loss","Niederlagen"],["draw","Remis"],["w","Mit Weiß"],["b","Mit Schwarz"]];
   const list=CH.games.filter(g=>CH.gFilter==="all"||g.res===CH.gFilter||g.color===CH.gFilter).slice(0,150);
-  el.innerHTML=`<div class="filters">${F.map(f=>`<button class="chip" data-gf="${f[0]}" style="${CH.gFilter===f[0]?"background:var(--green);color:#fff":""}">${f[1]}</button>`).join("")}</div>
+  el.innerHTML=`<div class="filters">${F.map(f=>`<button class="chip${CH.gFilter===f[0]?" on":""}" data-gf="${f[0]}">${f[1]}</button>`).join("")}</div>
   <p class="hint" style="margin:0">Tippe auf eine Partie für das Game Review: Stockfish bewertet jeden Zug (von Brillant bis Patzer), zeigt bessere Züge, deine Genauigkeit und geschätzte Elo. Mit eigenen Zügen auf dem Brett analysierst du Varianten.</p>
   <div class="glist">${list.map((g,i)=>{const rv=REV[g.id];return `<button class="gi" data-gi="${CH.games.indexOf(g)}"><span class="res ${g.res}">${g.res==="win"?"S":g.res==="loss"?"N":"½"}</span><span style="min-width:0"><b>${g.color==="w"?"♔":"♚"} gegen ${esc(g.opp)}${g.oppR?` (${g.oppR})`:""}</b><small>${esc(g.fam)} · ${{bullet:"Bullet",blitz:"Blitz",rapid:"Schnell",daily:"Täglich"}[g.tc]||g.tc}${g.term?" · "+esc(g.term):""} · ${g.date?fmtDate(g.date):""}</small></span><span class="acc">${rv&&rv.acc?rv.acc[g.color].toFixed(1)+" %":g.acc!=null?g.acc.toFixed(1)+" %":""}</span><span class="mini">Review</span></button>`}).join("")||'<div class="card">Keine Partien.</div>'}</div>`;
   el.querySelectorAll("[data-gf]").forEach(b=>b.onclick=()=>{CH.gFilter=b.dataset.gf;renderChGames(el)});
   el.querySelectorAll("[data-gi]").forEach(b=>b.onclick=()=>reviewGame(CH.games[+b.dataset.gi]));
 }
+const ANAH=store.get("et-anahist",[]).filter(x=>x&&x.id&&Array.isArray(x.moves));
+function anaHistPush(g){const i=ANAH.findIndex(x=>x.id===g.id);if(i>=0)ANAH.splice(i,1);ANAH.unshift(Object.assign({},g,{seenAt:Date.now()}));ANAH.length=Math.min(ANAH.length,20);store.set("et-anahist",ANAH)}
 async function reviewGame(g){
+  if(g&&g.moves&&g.moves.length)anaHistPush(g);
   const R={evals:[],cls:[],best:[],doneN:0,acc:null,engine:""};
   const cached=REV[g.id];if(cached&&cached.n===g.moves.length&&cached.v===REV_V){Object.assign(R,cached,{doneN:g.moves.length})}
   const gm={fen:g.fen||null,id:"rv-"+g.id,title:`${g.white} – ${g.black}`,players:`${g.white}${g.color==="w"&&g.myR?" ("+g.myR+")":g.color==="b"&&g.oppR?" ("+g.oppR+")":""} – ${g.black}${g.color==="b"&&g.myR?" ("+g.myR+")":g.color==="w"&&g.oppR?" ("+g.oppR+")":""}`,year:g.date?fmtDate(g.date):"",moves:g.moves,url:g.url,orient:g.color,d:`${g.fam} · ${g.foreign?"Ergebnis "+(g.result||"–"):g.res==="win"?"gewonnen":g.res==="loss"?"verloren":"Remis"}${g.term?" ("+g.term+")":""}`,review:R};
@@ -1705,7 +1769,7 @@ async function reviewGame(g){
   setStatus("view","Game Review läuft …","Stockfish bewertet jeden Zug. Du kannst schon blättern.",true);
   let res;try{res=await reviewCore(g,R,i=>{if(game===gm&&(i%3===0))render()},()=>game===gm)}catch(e){if(game===gm)setStatus("bad","Stockfish konnte nicht geladen werden","Ohne Engine ist kein Review möglich.");return}
   if(!res)return;
-  if(game===gm){render();if(view>0||gm.vari){replayStatus()}else{const N=playerNames();setStatus("view","Game Review fertig",g.foreign?`Genauigkeit: ${N.w} ${R.acc.w.toFixed(1)} · ${N.b} ${R.acc.b.toFixed(1)}. Mit → oder »Moment ▶« durch die Partie.`:`Deine Genauigkeit: ${R.acc[g.color].toFixed(1)} % (≈ ${estRating(R.acc[g.color])} Elo). ${res.added?res.added+(res.added===1?" Fehler wurde":" Fehler wurden")+" als Übung gespeichert (Lernen → Deine Fehler).":"Keine groben Fehler – stark!"}`,true)}}
+  if(game===gm){render();if(view>0||gm.vari){replayStatus()}else{const N=playerNames();setStatus("view","Game Review fertig",g.foreign?`Genauigkeit: ${N.w} ${R.acc.w.toFixed(1)} · ${N.b} ${R.acc.b.toFixed(1)}. Mit → oder »Moment ▶« durch die Partie.`:`Deine Genauigkeit: ${R.acc[g.color].toFixed(1)} % (≈ ${estRating(R.acc[g.color])} Elo). ${res.added?res.added+(res.added===1?" Fehler wurde":" Fehler wurden")+" als Übung gespeichert (Training → Deine Fehler).":"Keine groben Fehler – stark!"}`,true)}}
   renderTabbar();
 }
 /* Bewertet eine Partie mit Stockfish (ohne Brett), klassifiziert jeden Zug wie ein Game Review
@@ -1877,6 +1941,7 @@ function reviewMoveInfo(k){
 /* Coach-Blase im Review */
 function paintCoach(c){const co=$("coach");co.style.setProperty("--k",REV_COL[c]);const f=$("face");f.innerHTML=`<b style="font-size:${CLS[c][2].length>1?13:16}px;color:#fff">${CLS[c][2]}</b>`;f.style.background=REV_COL[c]}
 function replayStatus(){
+  if(game&&game.free){freeStatus();return}
   const R=game&&game.review;
   if(game&&game.vari&&view>game.vari.base){if(game.lastJudge&&game.lastJudge.ply===view){const j=game.lastJudge;setStatus("view",j.t,j.s,true);if(j.c)paintCoach(j.c)}else setStatus("view","Eigene Analyse",`Zug ${view-game.vari.base} der Variante. »Zur Partie« bringt dich zurück.`,true);return}
   if(R&&view>0&&R.cls[view-1]){const I=reviewMoveInfo(view-1);if(I){setStatus("view",I.title,I.text,true);paintCoach(I.c);return}}
@@ -1935,7 +2000,7 @@ function wireReviewPanel(el){
 
 /* ---- Eigene Züge im Review: Analyse-Variante, Nochmal versuchen, Bester Zug ---- */
 function anaMove(mv,animate){
-  const G=game;if(!G)return;
+  const G=game;if(!G)return;if(G.free){freeMove(mv,animate);return}
   if(G.vari&&view<G.vari.base)exitVari(true);
   if(!G.vari)G.vari={base:view,main:{hist:hist.slice(),fens:fens.slice(),mvs:mvs.slice(),flags:flags.slice()}};
   truncate(view);const r=commit(mv,"v");view=hist.length;shown=new Chess(fens[view]);sel=null;
@@ -1965,7 +2030,7 @@ async function judgeVariMove(k){
   G.lastJudge={ply,t,s,c};if(view===ply){setStatus("view",t,s,true);paintCoach(c)}
 }
 function updateRevActs(){
-  const box=$("actsRev");if(!box)return;const R=game&&game.review;const on=mode==="replay"&&!!game;box.hidden=!on;if(!on)return;
+  const box=$("actsRev");if(!box)return;const R=game&&game.review;const on=mode==="replay"&&!!game&&!game.free;box.hidden=!on;if(!on)return;
   const inV=!!game.vari;const k=view-1;const c=R&&k>=0&&inMainMove(k)?R.cls[k]:null;
   const keys=R?R.cls.map((x,i)=>KEY_CLS.indexOf(x)>=0?i+1:-1).filter(i=>i>0):[];const cur=inV?game.vari.base:view;
   $("rvPrev").disabled=!keys.some(i=>i<cur);$("rvNext").disabled=!keys.some(i=>i>cur);
@@ -2008,7 +2073,7 @@ async function analyzeInput(txt,msg){
   if(!g){msg("Das sieht nicht nach einer gültigen PGN oder einem Partie-Link aus.");return}
   msg("");reviewGame(g);
 }
-function anaInputHtml(){return `<div class="card"><h3>Partie analysieren</h3><p class="hint" style="margin:0 0 8px">Chess.com- oder Lichess-Link einfügen oder die PGN einer beliebigen Partie. Stockfish bewertet jeden Zug wie im Game Review.</p><textarea class="code" id="anaIn" placeholder="https://www.chess.com/game/live/… oder [Event &quot;…&quot;] 1. e4 e5 …" autocapitalize="off" spellcheck="false"></textarea><div class="btnrow" style="margin-top:8px"><button class="btn grn" id="anaGo">Analysieren</button><span class="hint" id="anaMsg"></span></div></div>`}
+function anaInputHtml(){return `<div class="card"><h3>Link oder PGN</h3><p class="hint" style="margin:0 0 8px">Chess.com- oder Lichess-Link einfügen oder die PGN einer beliebigen Partie. Stockfish bewertet jeden Zug wie im Game Review.</p><textarea class="code" id="anaIn" placeholder="https://www.chess.com/game/live/… oder [Event &quot;…&quot;] 1. e4 e5 …" autocapitalize="off" spellcheck="false"></textarea><div class="btnrow" style="margin-top:8px"><button class="btn grn" id="anaGo">Analysieren</button><span class="hint" id="anaMsg"></span></div></div>`}
 function wireAnaInput(){const b=$("anaGo");if(!b)return;b.onclick=async()=>{b.disabled=true;try{await analyzeInput($("anaIn").value,t=>{if($("anaMsg"))$("anaMsg").textContent=t})}finally{b.disabled=false}}}
 
 /* ================= Taktik: Lichess-Rätsel mit Fortschrittssystem ================= */
@@ -2173,7 +2238,7 @@ function renderTactics(){
   ${tierHtml}
   <div class="card"><h3>Wertungsverlauf</h3>${tacticChart()}</div>
   ${weakT.length?`<div class="card"><h3>Deine schwächsten Motive</h3>${weakT.map(([k,t])=>`<div class="setrow"><span><b>${TTH[k][0]}</b><small>${t.ok} von ${t.n} gelöst</small></span><span style="display:flex;gap:10px;align-items:center"><b class="${t.ok/t.n<.5?"score-bad":""}">${pct(t.ok/t.n)}</b>${tierUnlocked(TIERS.findIndex(T=>T.keys.indexOf(k)>=0))?`<button class="mini" data-path="${k}">Üben</button>`:""}</span></div>`).join("")}</div>`:""}
-  <div class="card"><h3>Tagesziel</h3><div class="btnrow"><span class="hint">Aufgaben pro Tag:</span>${[5,10,20,30].map(n=>`<button class="chip" data-goal="${n}" style="${PZ.goal===n?"background:var(--green);color:#fff":""}">${n}</button>`).join("")}</div><p class="hint" style="margin:8px 0 0">Die Aufgaben stammen aus der freien Lichess-Rätseldatenbank (CC0). Bereits geladene Aufgaben funktionieren auch offline. Mit einem Lichess-Token (Profil → Einstellungen) bekommst du nur Aufgaben, die du dort noch nicht gesehen hast.</p></div>`;
+  <div class="card"><h3>Tagesziel</h3><div class="btnrow"><span class="hint">Aufgaben pro Tag:</span>${[5,10,20,30].map(n=>`<button class="chip${PZ.goal===n?" on":""}" data-goal="${n}">${n}</button>`).join("")}</div><p class="hint" style="margin:8px 0 0">Die Aufgaben stammen aus der freien Lichess-Rätseldatenbank (CC0). Bereits geladene Aufgaben funktionieren auch offline. Mit einem Lichess-Token (Profil → Einstellungen) bekommst du nur Aufgaben, die du dort noch nicht gesehen hast.</p></div>`;
   v.querySelectorAll("[data-tac]").forEach(b=>b.onclick=()=>tacticSession(b.dataset.tac));
   v.querySelectorAll("[data-path]").forEach(b=>b.onclick=()=>{if(b.disabled)return;const k=b.dataset.path;if(pathOf(k).step>=PATH_STEPS){pathOf(k).step=PATH_STEPS-1;pathOf(k).n=0;toast("Pfad wird auf der höchsten Stufe wiederholt.")}tacticSession("theme",k)});
   v.querySelectorAll("[data-tacop]").forEach(b=>b.onclick=()=>tacticSession("opening",b.dataset.tacop));
@@ -2227,16 +2292,17 @@ function openOnboarding(){
   if(document.querySelector(".onb"))return;
   const ov=document.createElement("div");ov.className="onb";
   ov.innerHTML=`<div class="onb-box" role="dialog" aria-modal="true" aria-labelledby="onbH">
-    <h2 id="onbH">Willkommen!</h2><p class="hint">Drei kurze Fragen, dann stellt die App dein Training zusammen. Alles lässt sich später ändern.</p>
+    <h2 id="onbH">Willkommen bei ${BRAND}!</h2><p class="hint">Ein paar kurze Fragen, dann stellt die App dein Training zusammen. Alles lässt sich später in den Einstellungen ändern.</p>
+    <h3>Deine Farbe</h3>${accentPicker()}
     <h3>Wie stark spielst du?</h3>
-    <div class="seg onb-seg" data-k="lvl"><button data-v="1" aria-pressed="false">Einsteiger<small>unter 1000</small></button><button data-v="2" aria-pressed="true">Fortgeschritten<small>1000–1600</small></button><button data-v="3" aria-pressed="false">Stark<small>über 1600</small></button></div>
+    <div class="seg onb-seg" data-k="lvl"><button data-v="1" aria-pressed="false">Einsteiger<small>unter 1000</small></button><button data-v="2" aria-pressed="true">Mittel<small>1000–1600</small></button><button data-v="3" aria-pressed="false">Stark<small>über 1600</small></button></div>
     <h3>Welche Farbe willst du üben?</h3>
     <div class="seg onb-seg" data-k="col"><button data-v="w" aria-pressed="false">Weiß</button><button data-v="b" aria-pressed="false">Schwarz</button><button data-v="wb" aria-pressed="true">Beide</button></div>
     <h3>Dein Chess.com-Name <small>(optional)</small></h3>
     <input class="txt" id="onbUser" placeholder="z. B. Hikaru" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(CH.user||"")}">
     <div class="btnrow onb-act"><button class="btn grn" id="onbGo">Los geht's</button><button class="btn" id="onbSkip">Überspringen</button></div>
   </div>`;
-  document.body.appendChild(ov);
+  document.body.appendChild(ov);wireAccent(ov);
   const val={lvl:"2",col:"wb"};
   ov.querySelectorAll(".onb-seg").forEach(sg=>sg.querySelectorAll("button").forEach(b=>b.onclick=()=>{val[sg.dataset.k]=b.dataset.v;sg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))}));
   const close=()=>{store.set("et-onb",1);ov.remove()};
@@ -2250,8 +2316,8 @@ function openOnboarding(){
     close();renderList();
     if(ids[0])store.set("et-last",ids[0]);
     if(u){CH.user=u;CH.src="chesscom";CH.profile=null;S.ana=Object.assign({},S.ana||{},{user:u,src:"chesscom"});save("ana");store.set("et-sync",0);autoSync(true)}
-    toast(added.length?`${added.length} Eröffnungen in dein Repertoire gelegt – schau unter Lernen.`:"Alles eingerichtet!");
-    showView("learn");
+    toast(added.length?`${added.length} Eröffnungen in dein Repertoire gelegt – los geht's mit dem Tagestraining.`:"Alles eingerichtet!");
+    showView("home");
   };
 }
 
@@ -2272,7 +2338,7 @@ async function autoSync(force){
     if(curView==="chess")renderChess();
     let added=0,done=0;
     for(const g of neu.slice(0,2)){if(REV[g.id])continue;try{const r=await reviewCore(g,null,null,null);if(r){added+=r.added;done++}}catch(e){break}}
-    toast(`${neu.length} neue ${neu.length===1?"Partie":"Partien"} geladen${done?`, ${done} analysiert`:""}${added?` – ${added} ${added===1?"Fehler":"Fehler"} zum Üben unter Lernen`:""}.`);
+    toast(`${neu.length} neue ${neu.length===1?"Partie":"Partien"} geladen${done?`, ${done} analysiert`:""}${added?` – ${added} ${added===1?"Fehler":"Fehler"} zum Üben unter Training`:""}.`);
     renderTabbar();if(curView==="learn")renderLearn();
   }catch(e){/* offline oder API-Fehler: still ignorieren */}
   syncing=false;
@@ -2498,13 +2564,13 @@ async function onRematch(){
   const d=newGameDoc(g.tc,otherCol(ON.color),{uid:opp,name:oppName(g)});
   try{const id=await NET.add("games",d);await NET.tx("games/"+ON.gid,x=>x&&!x.rematch?{rematch:{by:me,id},updated:Date.now()}:null);openOnlineGame(id);toast("Revanche angeboten")}catch(e){toast(netErr(e))}
 }
-function leaveOnline(){if(ON.unsubG){ON.unsubG();ON.unsubG=null}ON.gid=null;ON.g=null;stopOnTick();showView("online")}
+function leaveOnline(){if(ON.unsubG){ON.unsubG();ON.unsubG=null}ON.gid=null;ON.g=null;stopOnTick();showView("online:play")}
 
 /* ---- Partie auf dem Brett ---- */
 async function openOnlineGame(id){
   if(!onlineReady()){toast("Online-Partien sind noch nicht eingerichtet.");return}
   await netInit().catch(()=>{});
-  if(!ON.user){ON.pendingJoin=id;showView("online");toast("Melde dich an, um der Partie beizutreten.");return}
+  if(!ON.user){ON.pendingJoin=id;showView("online:play");toast("Melde dich an, um der Partie beizutreten.");return}
   if(ON.unsubG){ON.unsubG();ON.unsubG=null}
   stopEngine();sess=null;game=null;drill=null;puz=null;flipped=false;
   ON.gid=id;ON.g=null;ON.joinTried=false;
@@ -2610,9 +2676,9 @@ function analyzeOnline(){
 /* ---- Ansicht „Online“ ---- */
 function renderOnline(){
   const v=$("v-online");if(!v)return;
-  if(!onlineReady()){v.innerHTML=`<div class="hero"><span class="ic" style="background:#3E6FB0">${NI.online}</span><div><h2>Online spielen</h2><p>Konten und Partien gegen Freunde werden gerade eingerichtet. Sobald das Firebase-Projekt verbunden ist, kannst du dich hier anmelden.</p></div></div>`;return}
+  if(!onlineReady()){v.innerHTML=`<div class="hero"><span class="ic">${NI.online}</span><div><h2>Online spielen</h2><p>Konten und Partien gegen Freunde werden gerade eingerichtet. Sobald das Firebase-Projekt verbunden ist, kannst du dich hier anmelden.</p></div></div>`;return}
   if(!ON.booted)onlineBoot();
-  if(ON.netErr){v.innerHTML=`<div class="hero"><span class="ic" style="background:#3E6FB0">${NI.online}</span><div><h2>Online spielen</h2><p>Der Server ist gerade nicht erreichbar. Prüfe deine Internetverbindung.</p></div></div><button class="btn" id="onRetry" style="align-self:flex-start;padding:10px 16px">Erneut versuchen</button>`;$("onRetry").onclick=()=>{ON.netErr=false;ON.booted=false;renderOnline()};return}
+  if(ON.netErr){v.innerHTML=`<div class="hero"><span class="ic">${NI.online}</span><div><h2>Online spielen</h2><p>Der Server ist gerade nicht erreichbar. Prüfe deine Internetverbindung.</p></div></div><button class="btn" id="onRetry" style="align-self:flex-start;padding:10px 16px">Erneut versuchen</button>`;$("onRetry").onclick=()=>{ON.netErr=false;ON.booted=false;renderOnline()};return}
   if(!ON.authKnown){v.innerHTML=`<div class="card">${SKEL}</div>`;return}
   if(!ON.user){renderAuth(v);return}
   if(!ON.profile){v.innerHTML=`<div class="card"><h3>Wähle deinen Benutzernamen</h3><p class="hint">So finden dich deine Freunde. Er lässt sich später nicht ändern.</p><input class="txt" id="onName" maxlength="20" placeholder="z. B. Springer_Max" autocapitalize="off"><div class="btnrow" style="margin-top:10px"><button class="btn grn" id="onNameGo">Speichern</button><button class="btn" id="onOut">Abmelden</button><span class="hint" id="onMsg"></span></div></div>`;
@@ -2624,15 +2690,15 @@ function renderOnline(){
     return `<div class="onrow"><button class="onopen" data-og="${esc(g.id)}"><span class="kchip ${c||"w"}"></span><span class="onn"><b>${esc(oppName(g))}</b><small>${tcTxt(g.tc)} · ${g.status==="over"?esc(resTxt(g,c))+" · "+esc(g.reason||""):g.status==="active"?((g.moves||[]).length+" Halbzüge"):g.invite?"Herausforderung":"Einladungslink"} · ${fmtDate(g.updated||g.created)}</small></span>${mine2?'<span class="onturn">Am Zug</span>':""}</button>${extra||""}</div>`};
   const tcs=[["1+0","1 Min"],["3+2","3 | 2"],["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["30+0","30 Min"],["none","Ohne Uhr"]];
   const friends=(P.friends||[]);
-  v.innerHTML=`<div class="onhead"><span class="onav">${esc(P.name[0].toUpperCase())}</span><div><h2>${esc(P.name)}</h2><small>Wertung ${P.elo||1200} · ${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>
+  const OTH={leader:["Bestenliste","Alle Spieler im Vergleich."],friends:["Freunde","Anfragen, Online-Status und Herausforderungen."],live:["Live","Laufende Partien – tippe zum Zuschauen."],admin:["Admin","Übersicht über Konten und Partien."]}[ON.tab];
+  v.innerHTML=`${OTH?pageHead(OTH[0],OTH[1],ON.tab==="admin"?"settings":ON.tab==="live"?"swords":"online"):`<div class="onhead"><span class="onav">${esc(P.name[0].toUpperCase())}</span><div><h2>${esc(P.name)}</h2><small>Wertung ${P.elo||1200} · ${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>`}
   ${P.banned?`<div class="err">Dein Konto wurde gesperrt. Du kannst keine neuen Partien starten.</div>`:""}
-  <div class="subtabs">${[["play","Spielen"],["leader","Bestenliste"],["friends","Freunde"],["live","Live"],["account","Konto"]].concat(isAdmin()?[["admin","Admin"]]:[]).map(t=>`<button data-ot="${t[0]}" aria-pressed="${ON.tab===t[0]}">${t[1]}${t[0]==="play"&&ON.badge?` <span class="dotn2">${ON.badge}</span>`:t[0]==="friends"&&SOC.inc.length?` <span class="dotn2">${SOC.inc.length}</span>`:""}</button>`).join("")}</div>
   ${ON.tab==="play"?`
   ${inv.length?`<div class="card"><h3>Herausforderungen</h3>${inv.map(g=>row(g,`<span class="onbtns"><button class="btn grn" data-acc="${esc(g.id)}">Annehmen</button><button class="btn" data-dec="${esc(g.id)}">Ablehnen</button></span>`)).join("")}</div>`:""}
   <div class="card"><h3>Neue Partie</h3>
     <div class="fld">Bedenkzeit</div><div class="filters" style="margin:6px 0 12px">${tcs.map(t=>`<button class="chip${ON.tc===t[0]?" on":""}" data-tc="${t[0]}">${t[1]}</button>`).join("")}</div>
     <div class="fld">Deine Farbe</div><div class="seg" style="margin:6px 0 14px">${[["w","Weiß"],["r","Zufall"],["b","Schwarz"]].map(c=>`<button data-col="${c[0]}" aria-pressed="${ON.col===c[0]}">${c[1]}</button>`).join("")}</div>
-    <div class="btnrow"><button class="btn grn" id="onLink" style="padding:11px 16px">Einladungslink erstellen</button>${friends.length?`<select id="onFr" class="txt" style="width:auto;flex:1;min-width:120px">${friends.map(f=>`<option value="${esc(f.uid)}">${esc(f.name)}</option>`).join("")}</select><button class="btn" id="onChal" style="padding:11px 16px">Herausfordern</button>`:`<span class="hint">Füge unter „Freunde“ Freunde hinzu, um sie direkt herauszufordern.</span>`}</div></div>
+    <div class="btnrow"><button class="btn grn" id="onLink" style="padding:11px 16px">Einladungslink erstellen</button>${friends.length?`<select id="onFr" class="txt" style="width:auto;flex:1;min-width:120px">${friends.map(f=>`<option value="${esc(f.uid)}">${esc(f.name)}</option>`).join("")}</select><button class="btn" id="onChal" style="padding:11px 16px">Herausfordern</button>`:`<span class="hint">Füge unter Profil → Freunde Freunde hinzu, um sie direkt herauszufordern.</span>`}</div></div>
   ${act.length?`<div class="card"><h3>Laufende Partien</h3>${act.map(g=>row(g)).join("")}</div>`:""}
   ${mine.length?`<div class="card"><h3>Offene Einladungen</h3>${mine.map(g=>row(g,`<span class="onbtns"><button class="btn" data-shr="${esc(g.id)}">Teilen</button><button class="btn" data-can="${esc(g.id)}">Löschen</button></span>`)).join("")}</div>`:""}
   ${over.length?`<div class="card"><h3>Beendete Partien</h3>${over.map(g=>row(g)).join("")}</div>`:""}`:""}
@@ -2669,14 +2735,15 @@ function renderOnline(){
 }
 function renderAuth(v){
   const reg=ON.authMode==="reg";
-  v.innerHTML=`<div class="hero"><span class="ic" style="background:#3E6FB0">${NI.online}</span><div><h2>Online spielen</h2><p>Mit einem kostenlosen Konto spielst du live gegen deine Freunde, und dein Trainingsfortschritt wird auf allen Geräten synchronisiert.</p></div></div>
+  v.innerHTML=`<div class="hero"><span class="ic">${NI.online}</span><div><h2>${ON.tab==="play"||ON.tab==="live"?"Online spielen":"Anmelden"}</h2><p>Mit einem kostenlosen Konto spielst du live gegen deine Freunde, und dein Trainingsfortschritt wird auf allen Geräten synchronisiert.</p></div></div>
   <div class="card"><div class="seg" style="margin-bottom:14px"><button data-am="login" aria-pressed="${!reg}">Anmelden</button><button data-am="reg" aria-pressed="${reg}">Registrieren</button></div>
   <form id="authForm" class="authf">${reg?`<label class="fld">Benutzername<input id="auName" maxlength="20" autocomplete="username" autocapitalize="off" placeholder="So sehen dich andere" required></label>`:""}
   <label class="fld">E-Mail<input id="auMail" type="email" autocomplete="email" autocapitalize="off" required></label>
   <label class="fld">Passwort<input id="auPw" type="password" autocomplete="${reg?"new-password":"current-password"}" minlength="6" required></label>
   <div class="btnrow"><button class="btn grn" type="submit" style="padding:11px 18px">${reg?"Konto erstellen":"Anmelden"}</button>${reg?"":`<button class="btn" type="button" id="auReset">Passwort vergessen?</button>`}</div>
   <p class="hint" id="auMsg" style="margin:0"></p></form>
-  <p class="hint" style="margin:12px 0 0">Gespeichert werden nur dein Benutzername, deine E-Mail-Adresse (für die Anmeldung), deine Partien und dein Trainingsfortschritt. Du kannst dein Konto jederzeit löschen.</p></div>`;
+  <p class="hint" style="margin:12px 0 0">Gespeichert werden nur dein Benutzername, deine E-Mail-Adresse (für die Anmeldung), deine Partien und dein Trainingsfortschritt. Du kannst dein Konto jederzeit löschen. Mehr dazu in der <a href="#" data-go="legal">Datenschutzerklärung</a>.</p></div>`;
+  v.querySelectorAll("[data-go]").forEach(a=>a.onclick=e=>{e.preventDefault();showView(a.dataset.go)});
   v.querySelectorAll("[data-am]").forEach(b=>b.onclick=()=>{ON.authMode=b.dataset.am;renderAuth(v)});
   const msg=t=>{const m=$("auMsg");if(m)m.textContent=t;else if(t)toast(t)};
   $("authForm").onsubmit=async e=>{e.preventDefault();const bt=e.target.querySelector("[type=submit]");bt.disabled=true;msg("");
@@ -2946,6 +3013,199 @@ setInterval(()=>{try{
   if(gid){const n=(SOC.vList||[]).filter(w=>w.uid!==me&&now-(w.at||0)<60000).length;if(n!==SOC.viewers){SOC.viewers=n;if(mode==="online")onlineChrome()}}
 }catch(e){}},2000);
 
+/* ================= Marke, Startseite, Computer, Analyse, Rechtliches ================= */
+const BRAND="Zugzwang";
+/* Impressum: hier die eigenen Angaben eintragen */
+const IMPRESSUM={name:"[Vorname Nachname]",street:"[Straße Hausnummer]",city:"[PLZ Ort]",country:"Deutschland",mail:"[E-Mail-Adresse]"};
+const LOGO=(s,cls)=>`<svg class="lg${cls?" "+cls:""}" width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" style="fill:var(--acc)"/><g fill="#fff" opacity=".2"><rect x="12" y="26" width="12" height="12" rx="2.5"/><rect x="40" y="26" width="12" height="12" rx="2.5"/></g><path d="M16 18h32L16 46h32" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+
+/* ---- Akzentfarbe ---- */
+const ACCENTS=[["violet","Lila","#8B6CF6"],["red","Rot","#E5484D"],["green","Grün","#81B64C","Chess.com"]];
+function accentPicker(){return `<div class="accp" role="radiogroup" aria-label="Akzentfarbe">${ACCENTS.map(a=>`<button class="accb" data-accent="${a[0]}" role="radio" aria-checked="${S.set.accent===a[0]}" aria-pressed="${S.set.accent===a[0]}" style="--c:${a[2]}"><i></i><span>${a[1]}${a[3]?`<small>${a[3]}</small>`:""}</span></button>`).join("")}</div>`}
+function wireAccent(root){root.querySelectorAll("[data-accent]").forEach(b=>b.onclick=()=>{S.set.accent=b.dataset.accent;save("set");applySettings();root.querySelectorAll("[data-accent]").forEach(x=>{x.setAttribute("aria-pressed",String(x===b));x.setAttribute("aria-checked",String(x===b))})})}
+
+/* ---- Startseite ---- */
+function renderHome(){
+  ensureDaily();const v=$("v-home");if(!v)return;
+  const dd=S.daily.done.length,dq=S.daily.queue.length,due=dueKeys().length,tz=pzToday();
+  const hr=new Date().getHours();const greet=hr<5?"Gute Nacht":hr<11?"Guten Morgen":hr<18?"Hallo":"Guten Abend";
+  const nm=ON.profile&&ON.profile.name;
+  const lastOp=byId(store.get("et-last",null));const cl=lastOp&&lastOp.lines?lastOp.lines.filter((l,i)=>P(lastOp.id,i)===2).length:0;
+  /* Online: wer wartet auf mich? */
+  const me=ON.user&&ON.user.uid;const G=ON.games||[];
+  const myTurn=me?G.filter(g=>{if(g.status!=="active")return false;const c=myColorIn(g);try{return c&&new Chess(g.fen||START_FEN).turn()===c}catch(e){return false}}):[];
+  const inv=me?G.filter(g=>g.status==="waiting"&&g.invite===me):[];
+  const alerts=inv.map(g=>`<button class="alert" data-og="${esc(g.id)}"><span class="al-ic">${NI.swords}</span><span><b>${esc(oppName(g))} fordert dich heraus</b><small>${tcTxt(g.tc)} · antippen zum Annehmen oder Ablehnen</small></span><span class="ci-go">›</span></button>`).concat(myTurn.map(g=>`<button class="alert" data-og="${esc(g.id)}"><span class="al-ic">${NI.swords}</span><span><b>Du bist am Zug gegen ${esc(oppName(g))}</b><small>${tcTxt(g.tc)} · ${(g.moves||[]).length} Halbzüge</small></span><span class="ci-go">›</span></button>`)).join("");
+  const q=(done,t,d,act)=>`<button class="quest${done?" ok":""}" data-act="${act}"><span class="qk">${done?ICON.ok:""}</span><span><b>${t}</b><small>${d}</small></span></button>`;
+  const quests=q(dd>=dq,"Tagestraining",dd>=dq?"Geschafft":`${dd} von ${dq} Varianten`,"daily")+q(tz.n>=PZ.goal,"Taktik-Ziel",`${Math.min(tz.n,PZ.goal)} von ${PZ.goal} Aufgaben`,"tactics")+q(due===0,"Wiederholungen",due?`${due} fällig`:"Alles wiederholt","review");
+  const nq=(dd>=dq)+(tz.n>=PZ.goal)+(due===0);
+  const quick=(act,ic,t,d)=>`<button class="qa" data-act="${act}"><span class="qa-ic">${NI[ic]}</span><b>${t}</b><small>${d}</small></button>`;
+  const tile=(t,b,s)=>`<div class="kpi"><small>${t}</small><b>${b}</b>${s?`<span>${s}</span>`:""}</div>`;
+  v.innerHTML=`<div class="home-h"><div><h2>${greet}${nm?", "+esc(nm):""}!</h2><small>${streakNow()?`${streakNow()} ${streakNow()===1?"Tag":"Tage"} Serie · `:""}${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}</small></div><span class="home-logo">${LOGO(40)}</span></div>
+  ${alerts?`<div class="alerts">${alerts}</div>`:""}
+  ${lastOp&&lastOp.lines&&lastOp.lines.length?`<button class="cont" data-act="continue"><span class="cont-b" id="contBoard"></span><span class="cont-t"><small>Weitermachen</small><b>${esc(lastOp.name)}</b><span>${cl}/${lastOp.lines.length} Varianten fehlerfrei · Du spielst ${lastOp.side==="w"?"Weiß":"Schwarz"}</span><span class="prog"><i style="width:${cl/lastOp.lines.length*100}%"></i></span></span><span class="cont-go">▶</span></button>`:""}
+  <section class="card today"><div class="today-h"><div><h3>Heute</h3><small>${nq} von 3 erledigt</small></div>${ringSvg(nq/3)}</div><div class="quests">${quests}</div>
+    <button class="btn grn wide" data-act="daily">${dd>=dq?"Extra-Training starten":"Tagestraining fortsetzen"}</button></section>
+  <div class="sec-h"><h3>Schnellstart</h3></div>
+  <div class="qas">${quick("online:play","swords","Online spielen","Gegen Freunde")}${quick("bots","bot","Gegen Computer","Stockfish in 6 Stufen")}${quick("analyse","search","Partie analysieren","Game Review")}${quick("tactics","bolt","Taktik",`Wertung ${PZ.r}`)}</div>
+  <div class="sec-h"><h3>Dein Stand</h3><button class="linkb" data-act="profile:stats">Statistik ›</button></div>
+  <div class="kpis">${tile("Serie",streakNow(),`Rekord ${S.streak.best||0}`)}${tile("Varianten",cleanCount(),`von ${totalLines()} fehlerfrei`)}${tile("Taktik",PZ.r,`${PZ.n} Aufgaben`)}${tile("Online",ON.profile?(ON.profile.elo||1200):"–",ON.profile?`${ON.profile.w||0} S · ${ON.profile.d||0} R · ${ON.profile.l||0} N`:"nicht angemeldet")}</div>
+  <p class="foot-links"><button class="linkb" data-act="legal">Datenschutz</button> · <button class="linkb" data-act="legal:imp">Impressum</button></p>`;
+  const cb=$("contBoard");if(cb&&lastOp){try{const g=new Chess();let last=null;lastOp.lines[0].m.slice(0,8).forEach(m=>{last=g.move(m,{sloppy:true})||last});cb.appendChild(staticBoard(g.fen(),lastOp.side,last))}catch(e){}}
+  v.querySelectorAll("[data-og]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.og));
+  v.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const a=b.dataset.act;
+    if(a==="continue"){selectOpening(lastOp);return}
+    if(a==="daily"||a==="review"){if(a==="review"&&!due){showView("learn");return}startSession(a);return}
+    if(a==="legal:imp"){legalTab="imp";showView("legal");return}
+    showView(a)});
+}
+
+/* ---- Gegen den Computer ---- */
+const BOTS=[{lvl:1,name:"Bauer",elo:"ca. 600",d:"Übersieht vieles – ideal zum Reinkommen."},{lvl:4,name:"Springer",elo:"ca. 1000",d:"Spielt solide, macht aber Fehler."},{lvl:7,name:"Läufer",elo:"ca. 1300",d:"Bestraft grobe Fehler."},{lvl:10,name:"Turm",elo:"ca. 1700",d:"Ein starker Vereinsspieler."},{lvl:15,name:"Dame",elo:"ca. 2100",d:"Kaum Fehler, sehr taktisch."},{lvl:20,name:"König",elo:"über 2800",d:"Stockfish mit voller Stärke."}];
+const BOTCFG=Object.assign({lvl:4,col:"r",start:"std",oid:""},store.get("et-bot",{}));
+function renderBots(){
+  const v=$("v-bots");if(!v)return;const rep=S.rep.map(byId).filter(o=>o&&o.lines&&o.lines.length);const pool=rep.length?rep:ALL.filter(o=>o.g!=="c"&&o.lines.length);
+  if(!pool.some(o=>o.id===BOTCFG.oid))BOTCFG.oid=pool[0]?pool[0].id:"";
+  v.innerHTML=pageHead("Gegen den Computer","Wähle einen Gegner. Danach kannst du die Partie im Game Review analysieren.","bot")+
+  `<div class="bots">${BOTS.map(b=>`<button class="botc" data-lvl="${b.lvl}" aria-pressed="${BOTCFG.lvl===b.lvl}"><span class="bot-av">${b.name[0]}</span><span><b>${b.name}</b><small>Stufe ${b.lvl} · ${b.elo}</small><em>${b.d}</em></span></button>`).join("")}</div>
+  <div class="card"><div class="setrow"><span><b>Deine Farbe</b></span><span class="seg">${[["w","Weiß"],["r","Zufall"],["b","Schwarz"]].map(c=>`<button data-bcol="${c[0]}" aria-pressed="${BOTCFG.col===c[0]}">${c[1]}</button>`).join("")}</span></div>
+  <div class="setrow"><span><b>Start</b><small>${BOTCFG.start==="op"?"Die Hauptvariante wird zuerst gespielt, du hast die Farbe der Eröffnung.":"Normale Grundstellung."}</small></span><span class="seg">${[["std","Grundstellung"],["op","Eröffnung"]].map(c=>`<button data-bst="${c[0]}" aria-pressed="${BOTCFG.start===c[0]}">${c[1]}</button>`).join("")}</span></div>
+  ${BOTCFG.start==="op"?`<div class="setrow"><span><b>Eröffnung</b><small>${rep.length?"Aus deinem Repertoire":"Markiere Eröffnungen mit einem Stern, um nur dein Repertoire zu sehen"}</small></span><select class="txt" id="botOp" style="width:auto;max-width:56%">${pool.map(o=>`<option value="${o.id}" ${o.id===BOTCFG.oid?"selected":""}>${esc(o.name)}</option>`).join("")}</select></div>`:""}
+  <button class="big" id="botGo" style="margin:14px 0 0;width:100%">Partie starten</button></div>`;
+  const sv=()=>store.set("et-bot",BOTCFG);
+  v.querySelectorAll("[data-lvl]").forEach(b=>b.onclick=()=>{BOTCFG.lvl=+b.dataset.lvl;sv();v.querySelectorAll("[data-lvl]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
+  v.querySelectorAll("[data-bcol]").forEach(b=>b.onclick=()=>{BOTCFG.col=b.dataset.bcol;sv();renderBots()});
+  v.querySelectorAll("[data-bst]").forEach(b=>b.onclick=()=>{BOTCFG.start=b.dataset.bst;sv();renderBots()});
+  if($("botOp"))$("botOp").onchange=e=>{BOTCFG.oid=e.target.value;sv()};
+  $("botGo").onclick=()=>startBot();
+}
+function startBot(){
+  const b=BOTS.find(x=>x.lvl===BOTCFG.lvl)||BOTS[1];
+  stopEngine();sess=null;game=null;drill=null;puz=null;flipped=false;forced=null;
+  S.set.sf=b.lvl;save("set");
+  const src=BOTCFG.start==="op"?byId(BOTCFG.oid):null;
+  const side=src?src.side:BOTCFG.col==="r"?(Math.random()<.5?"w":"b"):BOTCFG.col;
+  op={id:"__bot",bot:true,botName:b.name,g:"c",side,name:src?src.name+" gegen "+b.name:"Partie gegen "+b.name,eco:"Computer",d:`${b.name} · Stufe ${b.lvl} (${b.elo}). ${b.d}`,plan:[],lines:[]};
+  resetBoard();mode="train";
+  if(src&&src.lines[0]){for(const m of src.lines[0].m){const g=new Chess(fens[hist.length]);const mv=findMove(g,m);if(!mv)break;commit(mv,"b")}view=hist.length;shown=new Chess(fens[view])}
+  showView("train");buildSquares();startEngine(!src);
+}
+
+/* ---- Analyse: Link/PGN, Analysebrett, Verlauf ---- */
+function renderAnalyse(){
+  const v=$("v-analyse");if(!v)return;
+  const list=ANAH.slice(0,12);
+  const row=g=>{const rv=REV[g.id];const acc=rv&&rv.acc?(g.foreign?`${rv.acc.w.toFixed(0)} | ${rv.acc.b.toFixed(0)}`:rv.acc[g.color].toFixed(1)+" %"):"";
+    return `<button class="gi" data-ah="${esc(g.id)}"><span class="res ${g.foreign?"draw":g.res}">${g.foreign?"·":g.res==="win"?"S":g.res==="loss"?"N":"½"}</span><span style="min-width:0"><b>${esc(g.white||"Weiß")} – ${esc(g.black||"Schwarz")}</b><small>${esc(g.fam||"")}${g.result?" · "+esc(g.result):""}${g.date?" · "+fmtDate(g.date):""}</small></span><span class="acc">${acc}</span><span class="mini">${rv?"Öffnen":"Review"}</span></button>`};
+  v.innerHTML=pageHead("Partie analysieren","Game Review mit Stockfish 17: Zugbewertungen, Genauigkeit, bessere Züge.","search")+anaInputHtml()+
+  `<div class="card"><h3>Analysebrett</h3><p class="hint" style="margin:0 0 8px">Untersuche eine beliebige Stellung: Ziehe für beide Seiten, Stockfish zeigt die drei besten Fortsetzungen.</p>
+    <input class="txt" id="abFen" placeholder="FEN einfügen (leer = Grundstellung)" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="btnrow" style="margin-top:8px"><button class="btn grn" id="abGo">Analysebrett öffnen</button><span class="hint" id="abMsg"></span></div></div>
+  <div class="sec-h"><h3>Zuletzt analysiert</h3>${list.length?`<small>${list.length} Partien</small>`:""}</div>
+  ${list.length?`<div class="glist">${list.map(row).join("")}</div>`:emptyState("search","Noch keine Analysen","Füge oben einen Link oder eine PGN ein – oder verknüpfe dein Konto, um alle Partien zu sehen.",`<button class="btn" data-go="chess">${siteName()} verknüpfen</button>`)}`;
+  wireAnaInput();
+  $("abGo").onclick=()=>{const f=$("abFen").value.trim();if(f){const ok=new Chess().validate_fen(f);if(!ok.valid){$("abMsg").textContent="Diese FEN ist ungültig.";return}}openAnaBoard(f||null,[])};
+  v.querySelectorAll("[data-ah]").forEach(b=>b.onclick=()=>{const g=ANAH.find(x=>x.id===b.dataset.ah);if(g)reviewGame(g)});
+  v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));
+}
+function openAnaBoard(fen,moves,at){
+  openGame({id:"__ana",free:true,title:"Analysebrett",players:"Weiß – Schwarz",moves:moves||[],fen:fen||null,startView:at||0,d:"Ziehe für beide Seiten. Stockfish zeigt die besten Fortsetzungen, der Balken die Bewertung."});
+  freeStatus();
+}
+function freeMove(mv,animate){
+  truncate(view);const r=commit(mv,"p");view=hist.length;game.n=hist.length;shown=new Chess(fens[view]);sel=null;
+  render(animate?{fwd:r}:null);playSound(r);renderChrome();freeStatus();
+}
+function freeStatus(){
+  if(!game||!game.free)return;const fen=fens[view];const g=new Chess(fen);
+  if(g.in_checkmate()){setStatus("done","Schachmatt",`${g.turn()==="w"?"Schwarz":"Weiß"} gewinnt.`,true);return}
+  if(g.game_over()){setStatus("view","Remis",g.in_stalemate()?"Patt.":"Keine Gewinnmöglichkeit mehr.",true);return}
+  const t=view?`${Math.ceil(view/2)}${view%2?".":"..."} ${de(mvs[view-1].san)}`:"Analysebrett";const who=g.turn()==="w"?"Weiß":"Schwarz";
+  setStatus("view",t,`${who} am Zug · Bewertung wird berechnet …`,true);
+  evalFen(fen).then(cp=>{if(!game||!game.free||fens[view]!==fen)return;setStatus("view",t,`${who} am Zug · Bewertung ${fmtEv(cp)} (${Math.abs(cp)<30?"ausgeglichen":cp>0?"Weiß steht besser":"Schwarz steht besser"})`,true)}).catch(()=>{});
+}
+
+/* ---- Brett-Menü »⋯« ---- */
+{
+  const bm=$("bMenu"),mb=$("moreBtn");
+  const sync=()=>{$("sndBtn").setAttribute("aria-pressed",String(!!S.set.sound));$("coordBtn").setAttribute("aria-pressed",String(!!S.set.coords));$("ideaBtn").setAttribute("aria-pressed",String(!!S.set.ideas));$("evalBtn").setAttribute("aria-pressed",String(!!S.set.evalbar))};
+  const close=()=>{bm.hidden=true;mb.setAttribute("aria-expanded","false")};
+  mb.onclick=e=>{e.stopPropagation();if(!bm.hidden){close();return}sync();bm.hidden=false;mb.setAttribute("aria-expanded","true");
+    const r=mb.getBoundingClientRect();const up=r.top>innerHeight-r.bottom;bm.style.right=Math.max(8,innerWidth-r.right)+"px";
+    if(up){bm.style.top="auto";bm.style.bottom=(innerHeight-r.top+8)+"px";bm.style.maxHeight=(r.top-16)+"px"}else{bm.style.bottom="auto";bm.style.top=(r.bottom+8)+"px";bm.style.maxHeight=(innerHeight-r.bottom-16)+"px"}const f=bm.querySelector("button");if(f&&!matchMedia("(pointer:coarse)").matches)f.focus()};
+  document.addEventListener("click",e=>{if(!bm.hidden&&!bm.contains(e.target))close()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!bm.hidden){close();mb.focus()}});
+  bm.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;if(!b.hasAttribute("aria-pressed"))close();else setTimeout(sync,0)});
+  $("sndBtn").onclick=()=>{S.set.sound=!S.set.sound;save("set")};
+  $("coordBtn").onclick=()=>{S.set.coords=!S.set.coords;save("set");applySettings()};
+  $("ideaBtn").onclick=()=>{S.set.ideas=!S.set.ideas;save("set");render()};
+  $("fenBtn").onclick=()=>{const f=shown.fen();if(navigator.clipboard)navigator.clipboard.writeText(f).then(()=>toast("FEN kopiert")).catch(()=>linkBox(f));else linkBox(f)};
+  $("anaBtn").onclick=()=>{if(mode==="online"&&ON.g&&ON.g.status!=="over"&&!ON.spect){toast("Während einer laufenden Partie geht das nicht – fair bleiben!");return}const moves=hist.slice();const at=view;openAnaBoard(startFen,moves,at)};
+  $("setBtn").onclick=()=>showView("profile:settings");
+  $("blindMi").onclick=()=>$("blindBtn").click();
+}
+
+/* ---- Besucherseite beim allerersten Öffnen ---- */
+function openLanding(){
+  if(document.querySelector(".landing"))return;
+  const el=document.createElement("div");el.className="landing";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-labelledby","lnH");
+  const f=(ic,t,d)=>`<div class="lf"><span class="lf-ic">${NI[ic]}</span><b>${t}</b><small>${d}</small></div>`;
+  el.innerHTML=`<div class="land-in">
+    <div class="land-top">${LOGO(64)}<h1 id="lnH">${BRAND}</h1><p>Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analysieren.</p><small>Kostenlos · ohne Werbung · funktioniert auch offline</small></div>
+    <div class="lfs">${f("book","Eröffnungen",`${ALL.filter(o=>o.g!=="c").length} Eröffnungen mit Wiederholung nach Lernkurve`)}${f("bolt","Taktik","Echte Lichess-Rätsel mit Wertung und Levels")}${f("swords","Online","Gegen Freunde spielen, Bestenliste, Zuschauen")}${f("search","Analyse","Game Review mit Stockfish 17")}</div>
+    <div class="land-act"><button class="big" id="lnGo">Loslegen</button><button class="btn" id="lnLogin">Ich habe schon ein Konto</button></div>
+    <p class="land-legal"><button class="linkb" data-lg="priv">Datenschutz</button> · <button class="linkb" data-lg="imp">Impressum</button></p></div>`;
+  document.body.appendChild(el);document.body.classList.add("noscroll");
+  const close=()=>{el.classList.add("out");document.body.classList.remove("noscroll");setTimeout(()=>el.remove(),calmNow()?0:260)};
+  $("lnGo").onclick=()=>{close();setTimeout(openOnboarding,calmNow()?0:200)};
+  $("lnLogin").onclick=()=>{close();store.set("et-onb",1);ON.authMode="login";showView("online:account")};
+  el.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{close();legalTab=b.dataset.lg;showView("legal")});
+  setTimeout(()=>{const b=$("lnGo");if(b&&!matchMedia("(pointer:coarse)").matches)b.focus()},50);
+}
+
+/* ---- Datenschutz, Impressum, Lizenzen ---- */
+let legalTab="priv";
+function renderLegal(){
+  const v=$("v-legal");if(!v)return;const I=IMPRESSUM;
+  const H=(t)=>`<h3>${t}</h3>`;
+  const priv=`<article class="legal">
+  <p class="hint">Stand: Oktober 2026</p>
+  ${H("1. Verantwortlicher")}<p>${esc(I.name)}, ${esc(I.street)}, ${esc(I.city)}, ${esc(I.country)}<br>E-Mail: ${esc(I.mail)}</p>
+  ${H("2. Das Wichtigste in Kürze")}<ul><li>${BRAND} lässt sich ohne Konto nutzen. Dann bleibt dein Fortschritt ausschließlich in deinem Browser.</li><li>Es gibt keine Werbung, kein Tracking, keine Analyse- oder Marketing-Cookies und keine Weitergabe zu Werbezwecken.</li><li>Ein Konto brauchst du nur für Online-Partien, Bestenliste, Freunde und die Synchronisierung zwischen Geräten.</li><li>Stockfish rechnet direkt auf deinem Gerät, deine Partien werden dafür nicht hochgeladen.</li></ul>
+  ${H("3. Hosting")}<p>Die App wird über GitHub Pages bereitgestellt (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). Beim Aufruf verarbeitet GitHub technisch notwendige Daten wie deine IP-Adresse, Datum und Uhrzeit sowie die angeforderte Datei, um die Seite auszuliefern und vor Angriffen zu schützen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer sicheren Bereitstellung). GitHub ist unter dem EU-US Data Privacy Framework zertifiziert. Details: <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">Datenschutzerklärung von GitHub</a>.</p>
+  ${H("4. Speicherung auf deinem Gerät")}<p>Fortschritt, Wiederholungsplan, Statistik, Einstellungen, eigene Varianten und zwischengespeicherte Analysen werden im lokalen Speicher deines Browsers (localStorage) abgelegt. Damit die App offline funktioniert, speichert ein Service Worker die Programmdateien. Diese Speicherung ist für die von dir gewünschten Funktionen unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG) und wird nicht an uns übertragen, solange du kein Konto nutzt. Du kannst alles jederzeit löschen: in den Einstellungen unter „Fortschritt zurücksetzen“ oder über die Website-Daten deines Browsers.</p>
+  ${H("5. Konto und Online-Funktionen")}<p>Für Konten nutzen wir Firebase Authentication und Cloud Firestore der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Gespeichert werden:</p><ul><li>E-Mail-Adresse und Passwort zur Anmeldung. Das Passwort wird von Firebase nur verschlüsselt (als Hash) gespeichert und ist für niemanden lesbar, auch nicht für uns.</li><li>dein Benutzername, Registrierungsdatum und der Zeitpunkt, wann du zuletzt online warst</li><li>deine Online-Partien (Züge, Ergebnis, Bedenkzeit), Wertung und Bilanz</li><li>Freundesliste und Freundschaftsanfragen, Zuschauer bei laufenden Partien</li><li>eine Kopie deines Trainingsfortschritts, damit er auf allen Geräten gleich ist</li></ul>
+  <p>Firebase verarbeitet bei der Anmeldung technisch bedingt auch deine IP-Adresse, um Missbrauch zu verhindern. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung der von dir gewünschten Funktionen). Google kann Daten auch in den USA verarbeiten und ist unter dem EU-US Data Privacy Framework zertifiziert; zusätzlich gelten die EU-Standardvertragsklauseln. Mehr dazu: <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Datenschutz bei Firebase</a>.</p>
+  <p><b>Sichtbar für andere Spieler</b> sind dein Benutzername, deine Online-Wertung und -Bilanz, deine laufenden und beendeten Partien sowie, ob du gerade online bist. Taktik-Wertung, gelernte Varianten und Serie kannst du unter Profil → Konto für die Bestenliste ausblenden. Deine E-Mail-Adresse sehen andere Spieler nie.</p>
+  <p><b>Moderation:</b> Um Missbrauch zu verhindern, kann der Betreiber im Admin-Bereich Benutzernamen, E-Mail-Adressen, Partien und Statistiken einsehen, Konten sperren und unangemessene Namen ändern.</p>
+  <p><b>Löschung:</b> Unter Profil → Konto kannst du dein Konto jederzeit selbst löschen. Dabei werden Anmeldedaten (E-Mail und Passwort), Profil, Benutzername und der gespeicherte Fortschritt entfernt. Bereits gespielte Partien und Freundschaftsanfragen bleiben bei deinen Gegnern als Verlauf erhalten und zeigen deinen damaligen Benutzernamen. Auf Wunsch entfernen wir auch diese – schreib uns einfach.</p>
+  ${H("6. Dienste, die nur auf deinen Wunsch aufgerufen werden")}<p>Folgende Dienste werden direkt aus deinem Browser angefragt, und zwar nur, wenn du die jeweilige Funktion benutzt. Dabei erhält der Anbieter deine IP-Adresse und die Anfrage (zum Beispiel einen Benutzernamen oder eine Stellung):</p><ul><li><b>Lichess</b> (lichess.org, Frankreich): Eröffnungsdatenbank, Meisterpartien, Taktik-Rätsel, Studien-Import und Partien per Link</li><li><b>Chess.com</b> (Chess.com, LLC, USA): Profil, Wertungen und Partien des Benutzernamens, den du eingibst, sowie das Tagesrätsel</li><li><b>GitHub</b> (GitHub, Inc., USA): nur wenn du die Synchronisierung über ein privates Gist mit deinem eigenen Token einrichtest</li></ul><p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
+  ${H("7. Deine Rechte")}<p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Schreib dazu einfach an die oben genannte E-Mail-Adresse. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren, zum Beispiel bei der Behörde deines Bundeslandes.</p>
+  ${H("8. Kinder")}<p>Für ein Konto solltest du mindestens 16 Jahre alt sein oder die Erlaubnis deiner Eltern haben. Ohne Konto kann jeder die App nutzen, dabei werden keine Daten an uns übertragen.</p>
+  </article>`;
+  const imp=`<article class="legal">
+  ${H("Angaben gemäß § 5 DDG")}<p>${esc(I.name)}<br>${esc(I.street)}<br>${esc(I.city)}<br>${esc(I.country)}</p>
+  ${H("Kontakt")}<p>E-Mail: ${esc(I.mail)}</p>
+  ${H("Verantwortlich für den Inhalt")}<p>${esc(I.name)}, Anschrift wie oben</p>
+  ${H("Haftung für Links")}<p>Die App verweist auf externe Seiten wie Lichess und Chess.com. Für deren Inhalte sind ausschließlich die jeweiligen Anbieter verantwortlich.</p>
+  ${H("Hinweis")}<p>${BRAND} ist ein privates, nicht-kommerzielles Projekt und steht in keiner Verbindung zu Chess.com oder Lichess.</p></article>`;
+  const lic=`<article class="legal">
+  <p>${BRAND} verwendet folgende freie Software und Inhalte:</p><ul>
+  <li><b>chess.js</b> von Jeff Hlywa – BSD-2-Clause</li>
+  <li><b>Stockfish 17.1</b> (stockfish.js von Nathan Rugg) – GNU GPL v3, Quelltext und Lizenz unter <code>engine/</code></li>
+  <li><b>Firebase JS SDK</b> von Google – Apache License 2.0</li>
+  <li><b>Inter</b> von Rasmus Andersson – SIL Open Font License 1.1</li>
+  <li>Figuren „Klassisch“ von Colin M. L. Burnett – GPLv2+; „Staunty“ aus Lichess – CC BY-NC-SA 4.0</li>
+  <li>Taktik-Rätsel und Eröffnungsstatistik: Lichess-Datenbank – CC0</li></ul></article>`;
+  v.innerHTML=pageHead("Rechtliches","Datenschutz, Impressum und Lizenzen.","legal")+
+  `<div class="seg" style="align-self:flex-start">${[["priv","Datenschutz"],["imp","Impressum"],["lic","Lizenzen"]].map(t=>`<button data-lt="${t[0]}" aria-pressed="${legalTab===t[0]}">${t[1]}</button>`).join("")}</div>
+  <div class="card">${legalTab==="imp"?imp:legalTab==="lic"?lic:priv}</div>`;
+  v.querySelectorAll("[data-lt]").forEach(b=>b.onclick=()=>{legalTab=b.dataset.lt;renderLegal()});
+}
+
+/* Sprungadressen wie #impressum oder #computer – auch wenn die Seite schon offen ist */
+const HASHV={"#start":"home","#analyse":"analyse","#chess":"chess","#quiz":"quiz","#statistik":"profile:stats","#profil":"profile:stats","#partien":"games","#lernen":"learn","#training":"learn","#eroeffnungen":"openings","#einstellungen":"profile:settings","#computer":"bots","#online":"online:play","#bestenliste":"online:leader","#datenschutz":"legal","#impressum":"legal"};
+window.addEventListener("hashchange",()=>{const h=location.hash;if(!HASHV[h])return;if(h==="#impressum")legalTab="imp";else if(h==="#datenschutz")legalTab="priv";history.replaceState(null,"",location.pathname);showView(HASHV[h])});
+
 /* ================= Start ================= */
 applySettings();
 st.badges=BADGES.filter(b=>{try{return b.ok()}catch(e){return false}}).map(b=>b.id);saveStats();
@@ -2953,18 +3213,19 @@ const last=store.get("et-last",null);
 try{
   op=byId(last)||ALL[0];
   if(!checkShareHash()){
-    const hv={"#analyse":"chess","#chess":"chess","#quiz":"quiz","#statistik":"profile","#profil":"profile","#partien":"games","#lernen":"learn","#eroeffnungen":"openings","#einstellungen":"profile"}[location.hash];
+    if(location.hash==="#impressum")legalTab="imp";
+    const hv=HASHV[location.hash];
     const pm=location.hash.match(/^#play=([A-Za-z0-9_-]+)/);
     if(pm){selectOpening(op);history.replaceState(null,"",location.pathname);openOnlineGame(pm[1])}
     else if(location.hash==="#taeglich")startSession("daily");
-    else{selectOpening(op);showView(hv||"learn")}
+    else{selectOpening(op);showView(hv||"home")}
   }
 }catch(err){window.__showErr(String(err&&err.stack||err))}
 renderTabbar();
 {const sp=$("splash");if(sp){setTimeout(()=>{sp.classList.add("out");setTimeout(()=>sp.remove(),400)},300)}}
 const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
-if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
+if(firstRun&&!location.hash)setTimeout(openLanding,300);else if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
 if(onlineReady())setTimeout(onlineBoot,600);
-window.__ET={ON,openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={ON,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();
