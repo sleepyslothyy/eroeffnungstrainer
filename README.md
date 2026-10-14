@@ -16,6 +16,14 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
 - **Analyse** – Game Review per Link oder PGN, Analysebrett mit FEN, zuletzt analysierte Partien und die Chess.com-/Lichess-Zentrale
 - **Profil** – Statistik, Abzeichen, Bestenliste, Freunde, Spielerprofile mit Avatar, Einstellungen (Akzentfarbe Lila/Rot/Grün, Hell/Dunkel, Brett, Figuren, Komfort), Konto, Daten und Rechtliches
 
+## Statistik und Motivation
+- **Statistik** (Profil): Level, Serie, Trefferquote und Partien auf einen Blick, Wertungsverlauf (Taktik, Online, Chess.com/Lichess) mit Zeitraumwahl, Trainingskalender, Stärken-und-Schwächen-Diagramm, Erfolgsquote nach Farbe, Bedenkzeit und Eröffnung, Fehlermuster mit passender Übung, Lernkurve und Vorschau der Wiederholungen
+- **Wochenbericht** jeden Montag auf der Startseite mit Vorschlag für die neue Woche
+- **Level und XP** für alles, was du trainierst und spielst; **Tagesaufgaben** (drei pro Tag, mit Bonus)
+- **Wochenliga** von Bronze bis Diamant mit Auf- und Abstieg (mit Konto gegen andere Spieler, ohne Konto nach Solo-Regel)
+- **Abzeichen in Stufen** (Bronze, Silber, Gold) und **Serienschutz** für verpasste Tage
+- Eigene Partien als PGN, Admin-Sicherung aller Online-Daten als Datei
+
 ## Partieanalyse (Game Review)
 - Partien aus Chess.com/Lichess, per Link oder als PGN – Stockfish 17.1 bewertet jeden Zug
 - Zugbewertungen wie auf Chess.com: Brillant, Großartig, Bester Zug, Exzellent, Gut, Buchzug, Ungenauigkeit, Fehler, Verpasst, Patzer, Erzwungen
@@ -44,7 +52,7 @@ Die aktuellen Regeln stehen in `firestore.rules`. In der Firebase-Konsole unter 
 Datenschutzerklärung, Impressum und Lizenzen stehen in der App unter Profil → Rechtliches (auch per `#datenschutz` und `#impressum`). Die Angaben fürs Impressum stehen in `IMPRESSUM` am Anfang von Teil 12 in `app.js`.
 
 ## Technik
-Reines HTML/CSS/JavaScript ohne Build-Schritt.
+Reines HTML/CSS/JavaScript ohne Build-Schritt. Bei jedem Push prüft GitHub Actions die App mit einem Rauchtest in Chromium (`tests/smoke.mjs`).
 - Schrift: [Inter](https://rsms.me/inter/) (SIL OFL 1.1), lokal unter `lib/fonts` – keine Anfragen an Google Fonts
 - [chess.js](https://github.com/jhlywa/chess.js) (BSD-2)
 - [Stockfish.js 17.1 lite](https://github.com/nmrugg/stockfish.js) (GPLv3, siehe `engine/COPYING.txt`)

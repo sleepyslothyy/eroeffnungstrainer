@@ -151,7 +151,7 @@ function sm2(s,q){
   if(q<3){s.reps=0;s.lapses=(s.lapses||0)+1;s.iv=1}else{s.reps++;s.iv=s.reps===1?1:s.reps===2?3:Math.max(1,Math.round(s.iv*s.ef))}
   s.ef=Math.max(1.3,s.ef+(0.1-(5-q)*(0.08+(5-q)*0.02)));s.due=startOfDay(Date.now())+s.iv*DAY;s.last=Date.now();return s;
 }
-function srsReview(k,q){S.srs[k]=sm2(S.srs[k],q);save("srs")}
+function srsReview(k,q){const o=S.srs[k];if(o&&o.last){st.rlog.push([Date.now(),Math.round((Date.now()-o.last)/DAY*10)/10,q>=3?1:0]);if(st.rlog.length>1500)st.rlog.splice(0,st.rlog.length-1500)}S.srs[k]=sm2(S.srs[k],q);save("srs")}
 const endToday=()=>startOfDay(Date.now())+DAY-1;
 const isDue=k=>{const s=S.srs[k];return !!(s&&s.due<=endToday())};
 function posReview(id,pre,q){const k=id+"|"+pre.join(" ");const s=sm2(S.pos[k],q);s.id=id;s.pre=pre.slice();s.n=(s.n||0)+1;if(q<3)s.err=(s.err||0)+1;S.pos[k]=s;save("pos")}
@@ -178,7 +178,7 @@ function markDailyDone(k){
   S.daily.done.push(k);save("daily");
   if(S.daily.done.length>=S.daily.queue.length&&S.streak.last!==today()){
     S.streak.n=S.streak.last===yesterday()?S.streak.n+1:1;S.streak.last=today();S.streak.best=Math.max(S.streak.best||0,S.streak.n);save("streak");
-    celebrate("streak",S.streak.n,"Tagestraining geschafft!");
+    celebrate("streak",S.streak.n,"Tagestraining geschafft!");streakMilestone();
   }
 }
 
@@ -367,7 +367,7 @@ function finish(){
   done=true;stopBlitz();const i=target;const k=lk(op.id,i);const clean=mistakes===0&&!usedHelp;const firstClean=clean&&P(op.id,i)<2;
   S.prog[op.id]=S.prog[op.id]||{};S.prog[op.id][i]=Math.max(P(op.id,i),clean?2:1);save("prog");
   srsReview(k,clean?5:mistakes<=1?3:1);
-  const s=opStat(op.id);s.att++;if(clean)s.clean++;st.days[today()]=(st.days[today()]||0)+1;
+  const s=opStat(op.id);s.att++;if(clean)s.clean++;st.days[today()]=(st.days[today()]||0)+1;gain("line",{clean,first:firstClean});
   if(clean&&sess&&sess.blitz)st.blitz++;if(clean&&blindOn&&!peeked)st.blind++;saveStats();
   if(badge&&badge.ply===hist.length)badge.type="ok";
   if(sess){sess.res.push({k,clean});if(sess.type==="daily"){markDailyDone(k);const qk=sess.queue[sess.idx];if(qk&&qk!==k)markDailyDone(qk)}}else markDailyDone(k);
@@ -393,7 +393,7 @@ function startPosition(o,pre,info){
 }
 function finishDrill(clean,skip){
   done=true;stopBlitz();if(!skip){if(clean)st.puzOk+=drill&&drill.info&&drill.info.mine?1:0;saveStats()}
-  if(drill&&drill.info&&drill.info.mine&&clean){const pz=S.puz.find(p=>p.key===drill.info.key);if(pz){pz.solved=(pz.solved||0)+1;save("puz")}}
+  if(drill&&drill.info&&drill.info.mine&&clean){const pz=S.puz.find(p=>p.key===drill.info.key);if(pz){pz.solved=(pz.solved||0)+1;save("puz")}gain("puz")}
   if(sess)sess.res.push({k:"pos",clean});
   setStatus("done",clean?"Richtig!":"Gelöst – mit Hilfe",(drill&&drill.info&&drill.info.after)||"Diese Stellung kommt in der Wiederholung wieder, bis sie sitzt.");
   setTimeout(()=>sfx("done"),150);render();renderChrome();checkBadges();if(sess)scheduleAuto(1500);
@@ -418,7 +418,7 @@ function puzzleMove(mv,animate){
   }
   const r=commit(mv,"p");view=hist.length;shown=new Chess(fens[view]);sel=null;hintLvl=0;render(animate?{fwd:r}:null);playSound(r);
   if(hist.length-puz.base>=puz.sol.length||new Chess(fens[view]).in_checkmate()){
-    done=true;const clean=mistakes===0&&!usedHelp;if(clean&&!puz.onResult)st.puzOk++;saveStats();
+    done=true;const clean=mistakes===0&&!usedHelp;if(clean&&!puz.onResult){st.puzOk++;if(puz.key)gain("puz")}saveStats();
     if(puz.key){const pz=S.puz.find(x=>x.key===puz.key);if(pz){pz.tries=(pz.tries||0)+1;if(clean)pz.solved=(pz.solved||0)+1;save("puz")}}
     if(sess)sess.res.push({k:"puz",clean});
     setStatus("done",clean?"Gelöst!":"Gelöst – mit Hilfe",puz.after||"");sfx("done");
@@ -517,7 +517,7 @@ function gameOverCheck(){
   endEngine(res,why);setStatus(res==="win"?"done":res==="draw"?"view":"bad",t,s);return true;
 }
 let sfEnd=null;
-function endEngine(res,why){if(mode!=="engine")return;sfEnd={res:res||"loss",why:why||"Aufgabe",id:"sf-"+Date.now(),n:hist.length};if(hist.length-sfStart>=8){st.engine++;saveStats();checkBadges()}if(op.endId){st.ends[op.endId]=true;saveStats();checkBadges()}sfToken++;busy=false;mode="train";done=true;renderChrome();render()}
+function endEngine(res,why){if(mode!=="engine")return;sfEnd={res:res||"loss",why:why||"Aufgabe",id:"sf-"+Date.now(),n:hist.length};if(hist.length-sfStart>=4)gain("game",{id:sfEnd.id,src:op.bot?"bot":op.endId?"end":"sf",res:sfEnd.res,color:op.side,n:hist.length,fam:op.endId?"Endspiel":op.bot?(/^Partie gegen/.test(op.name)?famOfMoves(hist):op.name.split(" gegen ")[0]):op.name,opp:op.botName||"Stockfish",moves:hist.slice(),term:sfEnd.why});if(hist.length-sfStart>=8){st.engine++;saveStats();checkBadges()}if(op.endId){st.ends[op.endId]=true;saveStats();checkBadges()}sfToken++;busy=false;mode="train";done=true;renderChrome();render()}
 function stopEngine(){if(mode==="engine"){sfToken++;busy=false;try{sfW&&sfW.postMessage("stop")}catch(e){}}}
 $("sfBtn").onclick=()=>startEngine();
 $("sfStop").onclick=()=>{const b=$("sfStop");if(mode!=="engine")return;
@@ -1065,7 +1065,7 @@ function subnavOf(sec){
   return {train:[["learn","Übersicht"],["courses","Kurse"],["openings","Eröffnungen"],["tactics","Taktik"],["end","Endspiele"],["quiz","Quiz"],["games","Musterpartien"]],
     play:[["online:play","Online"],["bots","Computer"],["tours","Turniere"],["online:live","Live"]],
     analyse:[["analyse","Partie analysieren"],["chess",siteName()]],
-    me:[["profile:stats","Statistik"],["profile:badges","Abzeichen"],["online:leader","Bestenliste"],["online:friends","Freunde"],["profile:settings","Einstellungen"],["online:account","Konto"],["profile:sync","Daten"]].concat(isAdmin()?[["online:admin","Admin"]]:[],[["legal","Rechtliches"]])}[sec]||[];
+    me:[["profile:stats","Statistik"],["league","Liga"],["profile:badges","Abzeichen"],["online:leader","Bestenliste"],["online:friends","Freunde"],["profile:settings","Einstellungen"],["online:account","Konto"],["profile:sync","Daten"]].concat(isAdmin()?[["online:admin","Admin"]]:[],[["legal","Rechtliches"]])}[sec]||[];
 }
 /* Zu welchem Bereich gehört die aktuelle Ansicht? Das Brett erbt den Bereich von dem, was gerade läuft */
 function sectionOf(v){
@@ -1074,7 +1074,7 @@ function sectionOf(v){
   if(v==="online")return ["leader","friends","account","admin"].indexOf(ON.tab)>=0?"me":"play";
   if(v==="bots"||v==="tours")return "play";if(v==="player")return "me";
   if(v==="analyse"||v==="chess")return "analyse";
-  if(v==="profile"||v==="legal")return "me";
+  if(v==="profile"||v==="legal"||v==="league")return "me";
   if(v==="train"){if(mode==="online")return "play";if(mode==="replay")return game&&(game.review||game.free)?"analyse":"train";if(op&&op.bot)return "play";return "train"}
   return "train";
 }
@@ -1090,7 +1090,7 @@ function showView(v){
   const prev=curView;curView=base;
   document.querySelectorAll(".view").forEach(el=>{const on=el.id==="v-"+base;el.hidden=!on;if(on&&prev!==base&&!calmNow()){el.classList.remove("enter");void el.offsetWidth;el.classList.add("enter")}});
   if(base!=="train"){stopEngine();stopBlitz()}
-  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,analyse:renderAnalyse,legal:renderLegal,courses:renderCourses,repedit:renderRepEdit,coords:renderCoords,guess:renderGuessPick,player:renderPlayer,tours:renderTours}[base]||(()=>{}))();
+  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,analyse:renderAnalyse,legal:renderLegal,courses:renderCourses,repedit:renderRepEdit,coords:renderCoords,guess:renderGuessPick,player:renderPlayer,tours:renderTours,league:renderLeague}[base]||(()=>{}))();
   if(base!=="train"){const sec=sectionOf();secLast[sec]=routeKey();store.set("et-seclast",secLast)}
   renderTabbar();applyBlind();if(base!=="train")window.scrollTo(0,0);else sizeVar();
 }
@@ -1298,7 +1298,7 @@ function nextQuestion(){
   <div class="quiz"><div class="qboard" id="qBoard"></div><div class="qopts">${q.opts.map((o,i)=>`<button class="qopt" data-i="${i}">${esc(o.t)}</button>`).join("")}<div class="qexp" id="qExp" hidden></div><div class="btnrow" id="qNextRow" hidden><button class="btn grn" id="qNext">${quiz.i+1>=quiz.n?"Ergebnis":"Nächste Frage"}</button><button class="btn" id="qTrain">Variante üben</button></div></div></div>`;
   $("qBoard").appendChild(staticBoard(q.fen,q.or,q.last));
   v.querySelectorAll(".qopt").forEach(b=>b.onclick=()=>{
-    const o=q.opts[+b.dataset.i];st.quiz.n++;if(o.ok){st.quiz.ok++;quiz.ok++;sfx("done")}else sfx("wrong");saveStats();
+    const o=q.opts[+b.dataset.i];st.quiz.n++;if(o.ok){st.quiz.ok++;quiz.ok++;sfx("done")}else sfx("wrong");saveStats();gain("quiz",{ok:o.ok});
     v.querySelectorAll(".qopt").forEach(x=>{x.disabled=true;const oo=q.opts[+x.dataset.i];if(oo.ok)x.classList.add("right");else if(x===b)x.classList.add("wrong")});
     $("qExp").hidden=false;$("qExp").textContent=(o.ok?"Richtig! ":"Leider falsch. ")+q.exp;$("qNextRow").hidden=false;
   });
@@ -1417,7 +1417,7 @@ function checkShareHash(){
 /* ---------------- Profil: Statistik, Abzeichen, Einstellungen, Sync ---------------- */
 let profTab="stats";
 function renderProfile(){
-  const v=$("v-profile");
+  checkBadges();const v=$("v-profile");
   const H={stats:["Statistik","Dein Fortschritt im Training.","chess"],badges:["Abzeichen",`${st.badges.length} von ${BADGES.length} gesammelt.`,"medal2"],settings:["Einstellungen","Aussehen, Brett, Training und Komfort.","settings"],sync:["Daten","Sichern, übertragen und teilen.","import"]}[profTab];
   v.innerHTML=pageHead(H[0],H[1],H[2]==="medal2"?"games":H[2])+`<div id="profBody" class="page" style="max-width:none"></div>`;
   ({stats:renderStats,badges:renderBadges,settings:renderSettings,sync:renderSync}[profTab])($("profBody"));
@@ -1830,7 +1830,7 @@ async function reviewCore(g,R,onStep,alive){
   let added=0;if(!g.foreign)R.cls.forEach((k,i)=>{if((k==="mist"||k==="blun"||k==="miss")&&(i%2===0?"w":"b")===g.color&&R.best[i]){const key="rv:"+g.id+":"+i;if(S.puz.some(p=>p.key===key))return;
     const bm=new Chess(F[i]).moves({verbose:true}).find(m=>m.from+m.to+(m.promotion||"")===R.best[i]);if(!bm)return;
     S.puz.unshift({key,kind:"engine",fen:F[i],best:bm.san,played:M[i].san,cls:CLS[k][0],opp:g.opp,date:g.date,opening:g.fam,url:g.url});added++}});
-  S.puz=S.puz.slice(0,200);save("puz");st.reviews++;saveStats();checkBadges();
+  S.puz=S.puz.slice(0,200);save("puz");st.reviews++;saveStats();checkBadges();gain("review");
   return {R,added,n};
 }
 
@@ -2177,7 +2177,7 @@ function recordTactic(p,ok,opts){
   if(ok){const f=PZ.fails.find(x=>x.id===p.id);if(f){f.ok++;if(f.ok>=2)PZ.fails=PZ.fails.filter(x=>x!==f)}}
   PZ.fails=PZ.fails.slice(0,150);
   if(d.n===PZ.goal&&PZ.streak.last!==today()){PZ.streak.n=PZ.streak.last===yesterday()?PZ.streak.n+1:1;PZ.streak.last=today();PZ.streak.best=Math.max(PZ.streak.best,PZ.streak.n);setTimeout(()=>celebrate("streak",PZ.streak.n,"Taktik-Tagesziel erreicht!"),900)}
-  st.days[today()]=(st.days[today()]||0)+1;saveStats();savePZ();
+  st.days[today()]=(st.days[today()]||0)+1;saveStats();savePZ();gain("tactic",{ok,xp});
   const lvAfter=levelOf(PZ.xp);if(lvAfter>lvBefore)setTimeout(()=>{celebrate("level",lvAfter,`Level ${lvAfter} erreicht`,`Rang: ${rankOf(lvAfter)}`);sfx("badge")},1200);
   checkBadges();return {delta,xp};
 }
@@ -2556,6 +2556,7 @@ function countResult(g){
     upd.elo=Math.round((P.elo||my)+K*(sc-E));upd.eloHist=(P.eloHist||[]).concat({t:Date.now(),r:upd.elo}).slice(-60);NET.set("users/"+ON.user.uid,upd,true).catch(()=>{})};
   if(g.elo&&opp&&g.elo[opp])finish(g.elo[opp]);else if(opp)NET.get("users/"+opp).then(p=>finish((p&&p.elo)||1200)).catch(()=>finish(1200));else NET.set("users/"+ON.user.uid,upd,true).catch(()=>{});
   st.online=(st.online||0)+1;saveStats();SOC.usersAt=0;
+  gain("game",{id:"on-"+g.id,src:"online",res:k==="w"?"win":k==="d"?"draw":"loss",color:me,tc:g.tc,fam:famOfMoves(g.moves||[]),opp:oppName(g),n:(g.moves||[]).length,moves:g.moves||[],term:g.reason||""});
 }
 
 /* ---- Partien anlegen, beitreten, Revanche ---- */
@@ -2831,7 +2832,7 @@ const tile=(n,l,sub,hot)=>`<div class="atile${hot?" hot":""}"><b>${n}</b><span>$
 function renderAdminBox(){
   const box=$("admBox");if(!box)return;
   const tabs=[["overview","Übersicht"],["users","Nutzer"],["games","Partien"],["clean","Aufräumen"]];
-  let h=`<div class="admbar"><div class="filters">${tabs.map(t=>`<button class="chip${ADM.tab===t[0]?" on":""}" data-at="${t[0]}">${t[1]}</button>`).join("")}</div><button class="btn" id="admRe" ${ADM.loading?"disabled":""}>${ADM.loading?"Lädt …":"Aktualisieren"}</button></div>`;
+  let h=`<div class="admbar"><div class="filters">${tabs.map(t=>`<button class="chip${ADM.tab===t[0]?" on":""}" data-at="${t[0]}">${t[1]}</button>`).join("")}</div><span class="btnrow"><button class="btn" id="admBak" ${ADM.users?"":"disabled"} title="Alle Online-Daten als Datei">Sicherung</button><button class="btn" id="admPgn" ${ADM.games?"":"disabled"} title="Alle Online-Partien als PGN">PGN</button><button class="btn" id="admRe" ${ADM.loading?"disabled":""}>${ADM.loading?"Lädt …":"Aktualisieren"}</button></span></div>`;
   if(ADM.err)h+=`<div class="err">${esc(ADM.err)}${/Berechtigung/.test(ADM.err)?" – die Admin-Regeln sind in Firestore noch nicht veröffentlicht.":""}</div>`;
   if(!ADM.users){box.innerHTML=h+(ADM.loading?`<div class="card">${SKEL}</div>`:"");wireAdmin(box);return}
   const U=ADM.users,G=ADM.games,P=ADM.priv,now=Date.now(),wk=now-7*DAY;
@@ -2907,6 +2908,7 @@ function wireAdmin(box){
   const sure=(b,txt)=>{if(b.dataset.sure)return true;b.dataset.sure="1";b.textContent=txt;setTimeout(()=>{if(b.isConnected)delete b.dataset.sure},4000);return false};
   box.querySelectorAll("[data-at]").forEach(b=>b.onclick=()=>{ADM.tab=b.dataset.at;renderAdminBox()});
   const re=$("admRe");if(re)re.onclick=()=>adminLoad();
+  const bk=$("admBak");if(bk)bk.onclick=()=>{adminBackup();toast("Sicherung heruntergeladen")};const pg=$("admPgn");if(pg)pg.onclick=adminPgn;
   const q=$("admQ");if(q)q.oninput=()=>{ADM.q=q.value;clearTimeout(ADM.qt);ADM.qt=setTimeout(()=>{renderAdminBox();const n=$("admQ");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},250)};
   const so=$("admSort");if(so)so.onchange=()=>{ADM.sort=so.value;renderAdminBox()};
   box.querySelectorAll("[data-us]").forEach(b=>b.onclick=()=>{ADM.sel=ADM.sel===b.dataset.us?null:b.dataset.us;renderAdminBox()});
@@ -2941,7 +2943,7 @@ function socialStart(){
 }
 /* Eigene Kennzahlen öffentlich für die Bestenliste (abschaltbar) */
 function myPub(){let clean=0;for(const o in S.prog)for(const i in S.prog[o])if(S.prog[o][i]===2)clean++;
-  return {tacR:PZ.n?PZ.r:null,tacN:PZ.n||0,clean,streak:Math.max(S.streak.best||0,(PZ.streak&&PZ.streak.best)||0),lv:levelOf(PZ.xp||0),hide:!!S.set.lbHide}}
+  return {tacR:PZ.n?PZ.r:null,tacN:PZ.n||0,clean,streak:Math.max(S.streak.best||0,(PZ.streak&&PZ.streak.best)||0),lv:levelOf(PZ.xp||0),hide:!!S.set.lbHide,gx:gxPub()}}
 function publishStats(){
   if(!ON.user||!ON.profile||!NET)return;const p=myPub();if(JSON.stringify(p)===JSON.stringify(ON.profile.pub||{}))return;
   NET.set("users/"+ON.user.uid,{pub:p},true).catch(()=>{});
@@ -3254,7 +3256,7 @@ function renderLegal(){
 }
 
 /* Sprungadressen wie #impressum oder #computer – auch wenn die Seite schon offen ist */
-const HASHV={"#start":"home","#analyse":"analyse","#chess":"chess","#quiz":"quiz","#statistik":"profile:stats","#profil":"profile:stats","#partien":"games","#lernen":"learn","#training":"learn","#eroeffnungen":"openings","#einstellungen":"profile:settings","#computer":"bots","#online":"online:play","#bestenliste":"online:leader","#datenschutz":"legal","#impressum":"legal"};
+const HASHV={"#liga":"league","#start":"home","#analyse":"analyse","#chess":"chess","#quiz":"quiz","#statistik":"profile:stats","#profil":"profile:stats","#partien":"games","#lernen":"learn","#training":"learn","#eroeffnungen":"openings","#einstellungen":"profile:settings","#computer":"bots","#online":"online:play","#bestenliste":"online:leader","#datenschutz":"legal","#impressum":"legal"};
 window.addEventListener("hashchange",()=>{const h=location.hash;if(!HASHV[h])return;if(h==="#impressum")legalTab="imp";else if(h==="#datenschutz")legalTab="priv";history.replaceState(null,"",location.pathname);showView(HASHV[h])});
 
 /* ================= Phase 2: Kurse, Baum-Editor, Koordinaten, Meisterzug, Bot-Stile ================= */
@@ -3332,7 +3334,7 @@ function renderCoords(){
   const next=()=>{const r=coRun;let t;do{t=rndSq()}while(t===r.t);r.t=t;
     if(CO.mode==="find"){$("coBig").hidden=false;$("coBig").textContent=t;draw(null)}
     else{draw(t);const o=new Set([t]);while(o.size<4)o.add(rndSq());const arr=shuffle([...o]);$("coOpts").hidden=false;$("coOpts").innerHTML=arr.map(s=>`<button class="btn" data-coa="${s}">${s}</button>`).join("");$("coOpts").querySelectorAll("[data-coa]").forEach(b=>b.onclick=()=>coTap(b.dataset.coa))}};
-  const end=()=>{const r=coRun;coRun=null;clearInterval(r.iv);const best=r.pts>CO.best[CO.mode];if(best){CO.best[CO.mode]=r.pts;store.set("et-coord",CO)}
+  const end=()=>{const r=coRun;coRun=null;clearInterval(r.iv);gain("coord",{pts:r.pts});const best=r.pts>CO.best[CO.mode];if(best){CO.best[CO.mode]=r.pts;store.set("et-coord",CO)}
     $("coBig").hidden=false;$("coBig").textContent=r.pts+" ✓";$("coOpts").hidden=true;$("coGo").disabled=false;$("coGo").textContent="Nochmal";toast(best?`Neuer Rekord: ${r.pts} Felder!`:`${r.pts} Felder · Rekord ${CO.best[CO.mode]}`);if(best&&r.pts>=10)confetti();sfx(best?"badge":"done")};
   coTapFn=sq=>{const r=coRun;if(!r)return;const ok=sq===r.t;const el=$("coBoard").querySelector(`[data-sq="${CO.mode==="find"?sq:r.t}"]`);
     if(ok){r.pts++;$("coPts").textContent=r.pts;sfx("move")}else{r.miss++;sfx("wrong");if(CO.mode==="find"){const right=$("coBoard").querySelector(`[data-sq="${r.t}"]`);if(right){right.classList.add("hint");setTimeout(()=>right.classList.remove("hint"),400)}}}
@@ -3384,7 +3386,7 @@ async function guessMove(mv,animate){
 }
 function guessEnd(){
   const G=guess;if(!G)return;done=true;const p=G.max?Math.round(G.pts/G.max*100):0;const key=G.gm.id+G.side;const best=p>(GUESSB[key]||0);if(best){GUESSB[key]=p;store.set("et-guess",GUESSB)}
-  st.games[G.gm.id]=true;saveStats();
+  st.games[G.gm.id]=true;saveStats();gain("guess",{p});
   setStatus("done",`Partie zu Ende: ${G.pts} von ${G.max} Punkten (${p} %)`,`${G.exact} von ${G.n} Zügen genau wie der Meister.${best?" Neuer Rekord!":""}`,true);
   if(p>=70)confetti();sfx("done");render();renderChrome();
 }
@@ -3586,6 +3588,468 @@ function feedHtml(){
     return `<button class="feed-i" data-og="${esc(g.id)}"><span class="feed-ic">${NI.swords}</span><span><span class="feed-t">${txt}${(g.players||[]).indexOf(me)>=0?" (du warst dabei)":""}</span><small>${esc(g.reason||"")} · ${tcTxt(g.tc)} · ${relTime(g.updated)}</small></span></button>`}).join("")}</div>`;
 }
 
+/* ================= Phase 4: Level, Tagesaufgaben, Ligen, Serienschutz, Abzeichen-Stufen, Statistik ================= */
+const isoWeek=t=>{const d=new Date(t||Date.now());d.setHours(0,0,0,0);d.setDate(d.getDate()+3-((d.getDay()+6)%7));const w1=new Date(d.getFullYear(),0,4);const n=1+Math.round(((d-w1)/DAY-3+((w1.getDay()+6)%7))/7);return d.getFullYear()+"-W"+String(n).padStart(2,"0")};
+const weekNo=id=>+String(id||"").split("-W")[1]||0;
+const weekStart=t=>{const d=new Date(t||Date.now());d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getTime()};
+const GX_DEF={xp:0,wk:{id:"",xp:0,s:0},lg:0,freeze:0,qd:{date:"",list:[],bonus:false},qdone:0,allDays:[],chestWk:"",hist:[],snap:{},repSeen:"",lgRes:null,pending:null};
+const GX=Object.assign(JSON.parse(JSON.stringify(GX_DEF)),store.get("et-gx",{}));
+fixT(GX,GX_DEF);fixT(GX.wk,{id:"",xp:0,s:0});fixT(GX.qd,{date:"",list:[],bonus:false});
+GX.hist=GX.hist.filter(h=>h&&h.id);GX.qd.list=GX.qd.list.filter(q=>q&&q.id);GX.lg=Math.max(0,Math.min(5,GX.lg|0));GX.freeze=Math.max(0,Math.min(2,GX.freeze|0));
+S.gx=GX;KEYS.push("gx");
+fixT(st,{glog:[],rlog:[]});st.glog=st.glog.filter(g=>g&&g.t);st.rlog=st.rlog.filter(r=>Array.isArray(r));
+const saveGX=()=>{store.set("et-gx",GX);savedAt=Date.now();store.set("et-savedAt",savedAt);try{cloudDirty()}catch(e){}};
+
+/* ---- Level aus allen Aktivitäten ---- */
+const gxLvXp=l=>Math.round(120*Math.pow(l-1,1.55));
+const gxLevel=xp=>{let l=1;while(gxLvXp(l+1)<=xp)l++;return l};
+const LEAGUES=[["Bronze","#B98457"],["Silber","#A9B2BC"],["Gold","#E3B341"],["Saphir","#4C86E0"],["Rubin","#D9475E"],["Diamant","#6FD3E3"]];
+const SHIELD=(c,s)=>`<svg class="shield" width="${s||28}" height="${s||28}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z" fill="${c}"/><path d="M12 6.5l1.5 3.1 3.4.5-2.5 2.4.6 3.4-3-1.6-3 1.6.6-3.4-2.5-2.4 3.4-.5z" fill="rgba(255,255,255,.85)"/></svg>`;
+let xpPopT=null;
+function xpPop(n){
+  if(calmNow())return;let el=$("xpPop");if(!el){el=document.createElement("div");el.id="xpPop";el.className="xppop";el.setAttribute("aria-hidden","true");document.body.appendChild(el)}
+  const cur=+(el.dataset.n||0)+n;el.dataset.n=cur;el.textContent="+"+cur+" XP";el.classList.remove("out");el.classList.add("in");
+  clearTimeout(xpPopT);xpPopT=setTimeout(()=>{el.classList.add("out");el.classList.remove("in");el.dataset.n=0},1400);
+}
+let pubT=null;
+function schedulePub(){clearTimeout(pubT);pubT=setTimeout(()=>{try{publishStats()}catch(e){}},15000)}
+function addXP(n){
+  n=Math.round(n||0);if(n<=0)return;gxRoll();const lb=gxLevel(GX.xp);GX.xp+=n;GX.wk.xp+=n;saveGX();xpPop(n);
+  const la=gxLevel(GX.xp);if(la>lb)setTimeout(()=>{celebrate("level",la,`Level ${la} erreicht`,"Alles, was du trainierst, zählt mit.");sfx("badge")},1300);
+  schedulePub();
+}
+
+/* ---- Ereignisse aus allen Bereichen ---- */
+function gain(kind,info){info=info||{};try{
+  let xp=0;
+  if(kind==="line"){xp=info.clean?(info.first?25:15):8;qBump("line",1);if(info.clean)qBump("lineClean",1);if(info.first)qBump("lineNew",1)}
+  else if(kind==="tactic"){xp=info.ok?Math.max(6,Math.round((info.xp||10)*.8)):2;if(info.ok)qBump("tactic",1)}
+  else if(kind==="game"){xp=info.src==="online"?25:18;if(info.res==="win")xp+=12;logGame(info);qBump("game",1);if(info.res==="win")qBump("win",1)}
+  else if(kind==="review"){xp=15;qBump("review",1)}
+  else if(kind==="coord"){xp=Math.round((info.pts||0)/2);qBump("coord",info.pts||0)}
+  else if(kind==="quiz"){if(info.ok){xp=4;qBump("quiz",1)}}
+  else if(kind==="guess"){xp=10+Math.round((info.p||0)/10);qBump("guess",1)}
+  else if(kind==="puz"){xp=10;qBump("puz",1)}
+  addXP(xp);checkBadges();
+}catch(e){}}
+function tcClass(tc,src){
+  if(src==="bot"||src==="sf"||src==="end")return "Computer";
+  if(!tc)return "Ohne Uhr";if(tc.d)return "Fernschach";const t=tc.m*60+40*tc.i;return t<180?"Bullet":t<600?"Blitz":"Schnell";
+}
+function logGame(i){
+  st.glog.unshift({t:Date.now(),id:i.id||"",src:i.src||"bot",res:i.res||"loss",color:i.color||"w",tc:i.tcName||tcClass(i.tc,i.src),fam:i.fam||"",n:i.n||0,opp:i.opp||"",moves:(i.moves||[]).join(" ")});
+  st.glog=st.glog.slice(0,300);saveStats();
+}
+
+/* ---- Tagesaufgaben ---- */
+const QPOOL=[
+  {id:"tac5",k:"tactic",g:5,t:"Löse 5 Taktikaufgaben",go:"tactics"},
+  {id:"tac12",k:"tactic",g:12,t:"Löse 12 Taktikaufgaben",go:"tactics",hard:1},
+  {id:"line3",k:"lineClean",g:3,t:"Spiele 3 Varianten fehlerfrei",go:"daily"},
+  {id:"new2",k:"lineNew",g:2,t:"Lerne 2 neue Varianten",go:"new"},
+  {id:"line6",k:"line",g:6,t:"Trainiere 6 Varianten",go:"daily",hard:1},
+  {id:"game1",k:"game",g:1,t:"Spiel eine Partie",go:"bots"},
+  {id:"win1",k:"win",g:1,t:"Gewinne eine Partie",go:"bots",hard:1},
+  {id:"rev1",k:"review",g:1,t:"Analysiere eine Partie",go:"analyse"},
+  {id:"coord20",k:"coord",g:20,t:"Finde 20 Felder im Koordinaten-Trainer",go:"coords"},
+  {id:"quiz5",k:"quiz",g:5,t:"Beantworte 5 Quizfragen richtig",go:"quiz"},
+  {id:"guess1",k:"guess",g:1,t:"Spiel eine Meisterpartie nach",go:"guess"},
+  {id:"puz2",k:"puz",g:2,t:"Löse 2 Aufgaben aus deinen Fehlern",go:"mine",need:()=>S.puz.filter(p=>!p.solved||p.solved<2).length>=2}
+];
+const QXP=30,QBONUS=50;
+function seedRnd(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return ()=>{h^=h<<13;h^=h>>>17;h^=h<<5;return ((h>>>0)%100000)/100000}}
+function ensureQuests(){
+  if(GX.qd.date===today()&&GX.qd.list.length)return;
+  const r=seedRnd(today()+"|zz");const pool=QPOOL.filter(q=>!q.need||q.need());const pick=[];const kinds=new Set();let hard=0;
+  const order=pool.map(q=>[r(),q]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+  for(const q of order){if(pick.length>=3)break;const grp=q.k.replace(/Clean|New/,"");if(kinds.has(grp))continue;if(q.hard&&hard)continue;pick.push(q);kinds.add(grp);if(q.hard)hard++}
+  GX.qd={date:today(),list:pick.map(q=>({id:q.id,n:0,done:false})),bonus:false};saveGX();
+}
+const qDef=id=>QPOOL.find(q=>q.id===id);
+function qBump(kind,n){
+  ensureQuests();let changed=false;
+  GX.qd.list.forEach(q=>{const d=qDef(q.id);if(!d||q.done||d.k!==kind)return;q.n=Math.min(d.g,q.n+n);changed=true;
+    if(q.n>=d.g){q.done=true;GX.qdone++;setTimeout(()=>toast(`Tagesaufgabe erledigt: ${d.t} · +${QXP} XP`),500);addXP(QXP)}});
+  if(changed){
+    if(!GX.qd.bonus&&GX.qd.list.length&&GX.qd.list.every(q=>q.done)){GX.qd.bonus=true;addXP(QBONUS);GX.allDays.push(today());GX.allDays=GX.allDays.slice(-60);
+      const w=isoWeek();const inWeek=GX.allDays.filter(d=>isoWeek(Date.parse(d)+12*3600000)===w).length;
+      if(inWeek>=5&&GX.chestWk!==w&&GX.freeze<2){GX.chestWk=w;GX.freeze++;setTimeout(()=>celebrate("level",GX.freeze,"Wochenkiste: Serienschutz erhalten","An fünf Tagen alle Aufgaben erledigt."),1800)}
+      else setTimeout(()=>celebrate("level",3,"Alle Tagesaufgaben erledigt",`+${QBONUS} XP Bonus`),1600)}
+    saveGX();if(curView==="home")renderHome();
+  }
+}
+function questsHtml(){
+  ensureQuests();const L=GX.qd.list;const nd=L.filter(q=>q.done).length;
+  return `<section class="card dq"><div class="today-h"><div><h3>Tagesaufgaben</h3><small>${nd} von ${L.length} · je ${QXP} XP, alle zusammen +${QBONUS} XP</small></div><span class="dq-xp">${GX.qd.bonus?"Erledigt":`${nd}/${L.length}`}</span></div>
+  <div class="dql">${L.map(q=>{const d=qDef(q.id);if(!d)return "";return `<button class="dqi${q.done?" ok":""}" data-qgo="${d.go}"><span class="qk">${q.done?ICON.ok:""}</span><span class="dqt"><b>${esc(d.t)}</b><span class="pbar2"><i style="width:${q.n/d.g*100}%"></i></span></span><small>${q.n}/${d.g}</small></button>`}).join("")}</div></section>`;
+}
+function qGo(go){
+  if(go==="daily"){startSession("daily");return}
+  if(go==="new"){const k=newKeys(3);if(k.length)startSession("new",k,"Neue Varianten");else showView("openings");return}
+  if(go==="mine"){startSession("mine");return}
+  showView(go);
+}
+
+/* ---- Serienschutz ---- */
+const dayDiff=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/DAY);
+function applyFreeze(){
+  const s=S.streak;if(!s.last||!s.n||s.last===today()||s.last===yesterday())return;
+  const missed=dayDiff(s.last,today())-1;if(missed<1||missed>GX.freeze)return;
+  GX.freeze-=missed;s.last=yesterday();save("streak");saveGX();
+  setTimeout(()=>toast(`Serienschutz eingesetzt: Deine Serie von ${s.n} ${s.n===1?"Tag":"Tagen"} bleibt erhalten.`),1500);
+}
+function streakMilestone(){if(S.streak.n>0&&S.streak.n%7===0&&GX.freeze<2){GX.freeze++;saveGX();setTimeout(()=>toast(`${S.streak.n} Tage in Folge – du bekommst einen Serienschutz (${GX.freeze}/2).`),2600)}}
+
+/* ---- Wochenwechsel und Ligen ---- */
+function gxSnap(){return {clean:cleanCount(),tacR:PZ.r,tacN:PZ.n,elo:ON.profile&&ON.profile.elo||null,xp:GX.xp,t:Date.now()}}
+function gxRoll(){
+  const w=isoWeek();if(GX.wk.id===w)return;
+  if(GX.wk.id){const old={id:GX.wk.id,xp:GX.wk.xp,lg:GX.lg,s:GX.wk.s||0};GX.hist.unshift(old);GX.hist=GX.hist.slice(0,26);
+    const gap=old.s?Math.max(1,Math.round((weekStart()-old.s)/(7*DAY))):1;
+    GX.pending={id:old.id,xp:old.xp,lg:old.lg,gap};GX.prevSnap=GX.snap&&GX.snap.id===old.id?GX.snap:null}
+  GX.wk={id:w,xp:0,s:weekStart()};GX.snap=Object.assign({id:w},gxSnap());saveGX();
+}
+function peerWeek(u,id){const g=u.pub&&u.pub.gx;if(!g)return null;if(g.wk===id)return {xp:g.wxp||0,lg:g.lg|0};if(g.last&&g.last.id===id)return {xp:g.last.xp||0,lg:g.last.lg|0};return null}
+async function gxSettle(){
+  if(!GX.pending)return;const P=GX.pending;let rank=0,n=0,from=P.lg,to=P.lg,how="solo";
+  try{
+    if(ON.user&&NET&&ON.profile){const U=await Promise.race([loadUsers(true),new Promise((_,j)=>setTimeout(()=>j(new Error("t")),6000))]);
+      const me=ON.user.uid;const list=U.filter(u=>u.id!==me&&!u.banned).map(u=>Object.assign({id:u.id},peerWeek(u,P.id)||{})).filter(x=>x.lg===P.lg&&x.xp!=null);
+      list.push({id:me,xp:P.xp});list.sort((a,b)=>b.xp-a.xp);n=list.length;rank=list.findIndex(x=>x.id===me)+1;
+      if(n>=4){how="liga";if(rank<=3&&P.xp>0)to=P.lg+1;else if(n>=7&&rank>n-3)to=P.lg-1}}
+  }catch(e){}
+  if(how==="solo"){if(P.xp>=350)to=P.lg+1;else if(P.xp<60&&P.lg>0)to=P.lg-1}
+  if(P.gap>1&&to>=P.lg&&P.lg>0)to=P.lg-1;
+  to=Math.max(0,Math.min(LEAGUES.length-1,to));GX.lg=to;GX.lgRes={id:P.id,from,to,rank,n,xp:P.xp,how};GX.pending=null;saveGX();schedulePub();
+  if(to>from)setTimeout(()=>celebrate("level",to+1,`Aufstieg in die ${LEAGUES[to][0]}-Liga`,`KW ${weekNo(P.id)}: ${P.xp} XP${n>=4?` · Platz ${rank} von ${n}`:""}`),2000);
+  else if(to<from)setTimeout(()=>toast(`Abstieg in die ${LEAGUES[to][0]}-Liga – diese Woche holst du dir den Platz zurück.`),2000);
+}
+function gxPub(){const h=GX.hist[0];return {lv:gxLevel(GX.xp),xp:GX.xp,wk:GX.wk.id,wxp:GX.wk.xp,lg:GX.lg,last:h?{id:h.id,xp:h.xp,lg:h.lg}:null}}
+
+/* ---- Liga-Ansicht ---- */
+let lgUsers=null,lgAt=0;
+function renderLeague(){
+  const v=$("v-league");if(!v)return;gxRoll();
+  const L=LEAGUES[GX.lg],nx=LEAGUES[GX.lg+1];const lv=gxLevel(GX.xp),a=gxLvXp(lv),b=gxLvXp(lv+1);
+  const left=Math.max(0,Math.ceil((weekStart()+7*DAY-Date.now())/DAY));
+  const res=GX.lgRes;const online=!!(ON.user&&ON.profile);
+  let table="";
+  if(online){
+    if(!lgUsers||Date.now()-lgAt>60000){table=`<div class="card">${SKEL}</div>`;loadUsers(true).then(u=>{lgUsers=u;lgAt=Date.now();if(curView==="league")renderLeague()}).catch(()=>{lgUsers=[];lgAt=Date.now();if(curView==="league")renderLeague()})}
+    else{
+      const me=ON.user.uid,w=GX.wk.id;
+      const rows=lgUsers.filter(u=>u.id!==me&&!u.banned&&u.pub&&u.pub.gx&&u.pub.gx.wk===w&&(u.pub.gx.lg|0)===GX.lg).map(u=>({id:u.id,name:u.name,xp:u.pub.gx.wxp||0,lv:u.pub.gx.lv||1}));
+      rows.push({id:me,name:(ON.profile.name||"Du")+" (du)",xp:GX.wk.xp,lv,me:true});rows.sort((x,y)=>y.xp-x.xp);const n=rows.length;
+      table=`<div class="card"><div class="sec-h" style="margin-bottom:8px"><h3>${L[0]}-Liga · KW ${weekNo(w)}</h3><small>${n} ${n===1?"Spieler":"Spieler"}</small></div>
+      ${n<4?`<p class="hint" style="margin:0 0 8px">Ab vier Spielern in deiner Liga zählt die Tabelle. Bis dahin gilt die Solo-Regel: ab 350 XP steigst du auf.</p>`:""}
+      <div class="lgt">${rows.map((r,i)=>{const z=n>=4&&i<3&&GX.lg<LEAGUES.length-1?"up":n>=7&&i>=n-3&&GX.lg>0?"down":"";return `<div class="lgr ${z}${r.me?" me":""}"><span class="lrank">${i+1}</span><span class="onav sm">${esc((r.name||"?")[0].toUpperCase())}</span><span class="onn"><b>${esc(r.name||"Spieler")}</b><small>Level ${r.lv}</small></span><b class="lgxp">${r.xp} XP</b></div>`}).join("")}</div>
+      ${n>=4?`<p class="hint" style="margin:8px 0 0"><span class="zone up"></span> Aufstiegszone · <span class="zone down"></span> Abstiegszone</p>`:""}</div>`;
+    }
+  }else table=`<div class="card"><h3>Gegen andere antreten</h3><p class="hint" style="margin:0 0 10px">Mit einem kostenlosen Konto spielst du in einer echten Liga mit anderen Spielern. Ohne Konto gilt die Solo-Regel: ab 350 XP pro Woche steigst du auf, unter 60 XP ab.</p><button class="btn grn" data-go="online:account">Konto erstellen oder anmelden</button></div>`;
+  v.innerHTML=pageHead("Wochenliga","Sammle XP mit allem, was du trainierst. Jeden Montag wird abgerechnet.","bolt")+
+  `<div class="lg-hero" style="--lgc:${L[1]}">${SHIELD(L[1],64)}<div><small>Deine Liga</small><h3>${L[0]}</h3><span>${GX.wk.xp} XP diese Woche · noch ${left} ${left===1?"Tag":"Tage"}</span>
+    ${!online?`<span class="pbar2" style="margin-top:8px"><i style="width:${Math.min(100,GX.wk.xp/350*100)}%"></i></span><em class="lg-sub">${GX.wk.xp>=350?"Aufstieg sicher":`${350-GX.wk.xp} XP bis zum Aufstieg`}</em>`:""}</div></div>
+  ${res?`<div class="card lgres"><b>${res.to>res.from?"Aufgestiegen":res.to<res.from?"Abgestiegen":"Klasse gehalten"}</b> <span class="hint">KW ${weekNo(res.id)}: ${res.xp} XP${res.n>=4?` · Platz ${res.rank} von ${res.n}`:""} · ${LEAGUES[res.from][0]} → ${LEAGUES[res.to][0]}</span></div>`:""}
+  ${table}
+  <div class="card"><h3>Level ${lv}</h3><span class="pbar2"><i style="width:${(GX.xp-a)/Math.max(1,b-a)*100}%"></i></span><p class="hint" style="margin:6px 0 0">${GX.xp-a} / ${b-a} XP bis Level ${lv+1} · insgesamt ${GX.xp} XP</p></div>
+  <div class="card"><h3>So bekommst du XP</h3><div class="xpl">${[["Variante fehlerfrei","15–25"],["Taktikaufgabe gelöst","8–16"],["Partie gespielt (Sieg +12)","18–37"],["Partie analysiert","15"],["Tagesaufgabe","30"],["Alle drei Tagesaufgaben","+50"],["Koordinaten, Quiz, Meisterzug","je nach Ergebnis"]].map(r=>`<div><span>${r[0]}</span><b>${r[1]}</b></div>`).join("")}</div></div>
+  <div class="card"><h3>Ligen</h3><div class="lgs">${LEAGUES.map((l,i)=>`<div class="lgs-i${i===GX.lg?" on":""}">${SHIELD(l[1],30)}<small>${l[0]}</small></div>`).join("")}</div>
+    ${GX.hist.length?`<div class="exh" style="margin-top:12px"><span>Letzte Wochen</span></div><div class="xpl">${GX.hist.slice(0,6).map(h=>`<div><span>KW ${weekNo(h.id)} · ${LEAGUES[h.lg|0][0]}</span><b>${h.xp} XP</b></div>`).join("")}</div>`:""}</div>
+  <div class="card"><h3>Serienschutz</h3><p class="hint" style="margin:0">Du hast <b>${GX.freeze} von 2</b>. Verpasst du einen Tag Tagestraining, rettet ein Serienschutz automatisch deine Serie. Du bekommst einen für jede volle Woche Serie und für die Wochenkiste (an fünf Tagen alle Tagesaufgaben).</p></div>`;
+  v.querySelectorAll("[data-go]").forEach(x=>x.onclick=()=>showView(x.dataset.go));
+}
+
+/* ---- Abzeichen in Stufen ---- */
+const BFAM=[
+  {id:"lines",t:"Varianten",d:"fehlerfrei gelernte Varianten",v:()=>cleanCount(),g:[1,25,100],ids:["first","c25","c100"]},
+  {id:"streak",t:"Serie",d:"Tage Tagestraining in Folge",v:()=>S.streak.best||0,g:[3,7,30],ids:["s3","s7","s30"]},
+  {id:"tac",t:"Taktik",d:"gelöste Taktikaufgaben",v:()=>PZ.ok,g:[25,250,1000],ids:["t1","t2","tac3"]},
+  {id:"tacr",t:"Taktik-Wertung",d:"höchste Taktik-Wertung",v:()=>Math.max(PZ.r,...PZ.hist.map(h=>h[1])),g:[1500,1800,2100],ids:["t1500","t1800","t2100"]},
+  {id:"games",t:"Partien",d:"gespielte Partien (Computer und online)",v:()=>Math.max(st.engine||0,st.glog.length),g:[5,25,100],ids:["sf","gm25","gm100"]},
+  {id:"wins",t:"Siege",d:"gewonnene Partien",v:()=>st.glog.filter(g=>g.res==="win").length,g:[1,10,50],ids:["w1","w10","w50"]},
+  {id:"rev",t:"Analysen",d:"Partien im Game Review",v:()=>st.reviews||0,g:[5,25,100],ids:["review","rv25","rv100"]},
+  {id:"lvl",t:"Level",d:"erreichtes Level",v:()=>gxLevel(GX.xp),g:[5,15,30],ids:["lv5","lv15","lv30"]},
+  {id:"quest",t:"Tagesaufgaben",d:"erledigte Tagesaufgaben",v:()=>GX.qdone,g:[10,50,200],ids:["q10","q50","q200"]},
+  {id:"coord",t:"Koordinaten",d:"Rekord im Koordinaten-Trainer (30 s)",v:()=>Math.max(CO.best.find||0,CO.best.name||0),g:[15,25,35],ids:["co15","co25","co35"]}
+];
+const TIERN=["Bronze","Silber","Gold"];
+BFAM.forEach(f=>f.ids.forEach((id,i)=>{if(!BADGES.some(b=>b.id===id))BADGES.push({id,t:`${f.t} ${TIERN[i]}`,d:`${f.g[i]} ${f.d}`,ok:()=>f.v()>=f.g[i]})}));
+const famIds=new Set([].concat(...BFAM.map(f=>f.ids)));
+renderBadges=function(v){
+  checkBadges();const got=id=>st.badges.indexOf(id)>=0;
+  const fams=BFAM.map(f=>{let val=0;try{val=f.v()}catch(e){}const tier=f.g.filter(x=>val>=x).length;const nxt=f.g[tier];
+    return `<div class="bfam"><div class="bfam-h"><b>${esc(f.t)}</b><small>${tier?TIERN[tier-1]:"noch keine Stufe"}</small></div>
+    <div class="bmeds">${f.g.map((g,i)=>`<span class="bmed t${i+1}${val>=g?" got":""}" title="${TIERN[i]}: ${g} ${esc(f.d)}">${ICON.medal}<small>${g}</small></span>`).join("")}</div>
+    ${nxt!=null?`<span class="pbar2"><i style="width:${Math.min(100,val/nxt*100)}%"></i></span><small class="bnext">${val} / ${nxt} ${esc(f.d)}</small>`:`<small class="bnext">Alle Stufen erreicht · ${val} ${esc(f.d)}</small>`}</div>`}).join("");
+  const rest=BADGES.filter(b=>!famIds.has(b.id));
+  v.innerHTML=`<div class="sec-h"><h3>Stufen</h3><small>Bronze, Silber und Gold</small></div><div class="bfams">${fams}</div>
+  <div class="sec-h" style="margin-top:6px"><h3>Besondere Abzeichen</h3><small>${rest.filter(b=>got(b.id)).length} von ${rest.length}</small></div>
+  <div class="badges">${rest.map(b=>`<div class="bdg${got(b.id)?" got":""}"><span class="md">${ICON.medal}</span><span><b>${esc(b.t)}</b><small>${esc(b.d)}</small></span></div>`).join("")}</div>`;
+};
+
+/* ================= Statistik-Dashboard ================= */
+const STV=Object.assign({range:90,src:"all"},store.get("et-stv",{}));fixT(STV,{range:90,src:"all"});
+const fmtD=t=>{const d=new Date(t);return d.getDate()+". "+MON[d.getMonth()]};
+const pctS=x=>x==null||isNaN(x)?"–":Math.round(x*100)+" %";
+/* gemeinsamer Tooltip für alle Diagramme */
+function vizTip(root){
+  let tip=$("vizTip");if(!tip){tip=document.createElement("div");tip.id="vizTip";tip.className="viztip";tip.hidden=true;document.body.appendChild(tip)}
+  const show=(e,html)=>{tip.innerHTML=html;tip.hidden=false;const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY-h-10;if(x+w>innerWidth-8)x=e.clientX-w-14;if(y<8)y=e.clientY+16;tip.style.left=x+"px";tip.style.top=y+"px"};
+  root.addEventListener("pointermove",e=>{const t=e.target.closest&&e.target.closest("[data-tip]");if(t&&root.contains(t))show(e,t.dataset.tip);else if(!e.target.closest(".rchart"))tip.hidden=true});
+  root.addEventListener("pointerleave",()=>{tip.hidden=true});
+  return show;
+}
+/* Wertungen: Taktik, Online, Chess.com/Lichess */
+function ratingSeries(){
+  const out=[];
+  if(PZ.hist.length>1)out.push({k:"tac",name:"Taktik",pts:PZ.hist.map(h=>[h[0],h[1]])});
+  const eh=ON.profile&&ON.profile.eloHist;if(eh&&eh.length>1)out.push({k:"on",name:"Online",pts:eh.map(h=>[h.t,h.r])});
+  const by={};CH.games.forEach(g=>{if(g.myR&&g.date){(by[g.tc]=by[g.tc]||[]).push([g.date,g.myR])}});
+  const best=Object.entries(by).sort((a,b)=>b[1].length-a[1].length)[0];
+  if(best&&best[1].length>1){const nm={bullet:"Bullet",blitz:"Blitz",rapid:"Schnell",daily:"Täglich",classical:"Klassisch"}[best[0]]||best[0];out.push({k:"ch",name:`${siteName()} ${nm}`,pts:best[1].sort((a,b)=>a[0]-b[0])})}
+  return out;
+}
+function ratingChartHtml(){
+  const all=ratingSeries();const t1=Date.now(),t0=STV.range?t1-STV.range*DAY:Math.min(...all.map(s=>s.pts[0][0]),t1-7*DAY);
+  const ser=all.map(s=>{const inR=s.pts.filter(p=>p[0]>=t0);const before=s.pts.filter(p=>p[0]<t0).pop();return Object.assign({},s,{pts:(before?[[t0,before[1]]]:[]).concat(inR)})}).filter(s=>s.pts.length>1);
+  const seg=`<span class="seg sm">${[[30,"30 T"],[90,"90 T"],[365,"1 J"],[0,"Alle"]].map(r=>`<button data-rng="${r[0]}" aria-pressed="${STV.range===r[0]}">${r[1]}</button>`).join("")}</span>`;
+  if(!ser.length)return `<div class="card"><div class="sec-h"><h3>Wertungen</h3>${seg}</div><p class="hint" style="margin:8px 0 0">Noch kein Verlauf in diesem Zeitraum. Löse Taktikaufgaben, spiel online oder verknüpfe ${siteName()}, dann erscheinen deine Wertungen hier.</p></div>`;
+  const W=640,H=220,pl=44,pr=74,pt=12,pb=26;const ys=[].concat(...ser.map(s=>s.pts.map(p=>p[1])));let lo=Math.min(...ys),hi=Math.max(...ys);const pad=Math.max(20,(hi-lo)*.12);lo=Math.floor((lo-pad)/50)*50;hi=Math.ceil((hi+pad)/50)*50;
+  const X=t=>pl+(t-t0)/Math.max(1,t1-t0)*(W-pl-pr),Y=r=>pt+(hi-r)/Math.max(1,hi-lo)*(H-pt-pb);
+  const step=[50,100,200,250,500].find(s=>(hi-lo)/s<=5)||500;const ticks=[];for(let r=Math.ceil(lo/step)*step;r<=hi;r+=step)ticks.push(r);
+  const xt=[0,1/3,2/3,1].map(f=>t0+(t1-t0)*f);
+  const ends=ser.map(s=>({s,y:Y(s.pts[s.pts.length-1][1])})).sort((a,b)=>a.y-b.y);for(let i=1;i<ends.length;i++)if(ends[i].y-ends[i-1].y<16)ends[i].y=ends[i-1].y+16;
+  const svg=`<svg class="rchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wertungsverlauf">
+    ${ticks.map(r=>`<line x1="${pl}" x2="${W-pr}" y1="${Y(r).toFixed(1)}" y2="${Y(r).toFixed(1)}" class="grid"/><text x="${pl-8}" y="${(Y(r)+4).toFixed(1)}" class="ax" text-anchor="end">${r}</text>`).join("")}
+    ${xt.map((t,i)=>`<text x="${X(t).toFixed(1)}" y="${H-6}" class="ax" text-anchor="${i===0?"start":i===3?"end":"middle"}">${fmtD(t)}</text>`).join("")}
+    ${ser.map(s=>`<path d="${s.pts.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join(" ")}" class="ln s-${s.k}"/>`).join("")}
+    ${ends.map(e=>{const p=e.s.pts[e.s.pts.length-1];return `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="4" class="dt s-${e.s.k}"/><text x="${W-pr+8}" y="${(e.y+4).toFixed(1)}" class="endl">${p[1]}</text>`}).join("")}
+    <line class="xh" x1="0" x2="0" y1="${pt}" y2="${H-pb}" visibility="hidden"/></svg>`;
+  return `<div class="card"><div class="sec-h"><h3>Wertungen</h3>${seg}</div>
+    <div class="lgd">${ser.map(s=>{const a=s.pts[0][1],b=s.pts[s.pts.length-1][1],d=b-a;return `<span><i class="sw s-${s.k}"></i>${esc(s.name)} <b>${b}</b> <em class="${d>0?"up":d<0?"dn":""}">${d>0?"+":""}${d}</em></span>`}).join("")}</div>
+    <div class="rwrap" data-t0="${t0}" data-t1="${t1}" data-pl="${pl}" data-pr="${pr}" data-w="${W}">${svg}</div></div>`;
+}
+function wireRatingChart(root){
+  const wrap=root.querySelector(".rwrap");if(!wrap)return;const svg=wrap.querySelector("svg");const xh=svg.querySelector(".xh");const ser=ratingSeries();
+  const t0=+wrap.dataset.t0,t1=+wrap.dataset.t1,pl=+wrap.dataset.pl,pr=+wrap.dataset.pr,W=+wrap.dataset.w;const tip=$("vizTip");
+  const move=e=>{const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*W;if(x<pl||x>W-pr){xh.setAttribute("visibility","hidden");if(tip)tip.hidden=true;return}
+    const t=t0+(x-pl)/(W-pl-pr)*(t1-t0);xh.setAttribute("x1",x);xh.setAttribute("x2",x);xh.setAttribute("visibility","visible");
+    const rows=ser.map(s=>{const p=s.pts.filter(q=>q[0]<=t).pop();return p?`<div><i class="sw s-${s.k}"></i>${esc(s.name)} <b>${p[1]}</b></div>`:""}).join("");
+    const T=$("vizTip");if(!T)return;T.innerHTML=`<small>${fmtD(t)}</small>${rows||"<div>keine Werte</div>"}`;T.hidden=false;const w=T.offsetWidth;let xx=e.clientX+14;if(xx+w>innerWidth-8)xx=e.clientX-w-14;T.style.left=xx+"px";T.style.top=(e.clientY-T.offsetHeight-12)+"px"};
+  svg.addEventListener("pointermove",move);svg.addEventListener("pointerdown",move);svg.addEventListener("pointerleave",()=>{xh.setAttribute("visibility","hidden");const T=$("vizTip");if(T)T.hidden=true});
+}
+/* Trainingskalender (26 Wochen) */
+function heatHtml(){
+  const weeks=innerWidth<480?15:innerWidth<760?20:26,start=weekStart()-(weeks-1)*7*DAY;const cells=[];let tot=0,act=0,run=0,best=0;
+  for(let i=0;i<weeks*7;i++){const t=start+i*DAY;const d=dstr(new Date(t));const n=t>Date.now()?-1:(st.days[d]||0);cells.push([t,n]);if(n>0){tot+=n;act++;run++;best=Math.max(best,run)}else if(n===0)run=0}
+  const nz=cells.map(c=>c[1]).filter(n=>n>0).sort((a,b)=>a-b);const q=f=>nz.length?nz[Math.min(nz.length-1,Math.floor(nz.length*f))]:1;const th=[q(.25),q(.5),q(.75)];
+  const lvl=n=>n<=0?0:n<=th[0]?1:n<=th[1]?2:n<=th[2]?3:4;
+  const WD=["Mo","Di","Mi","Do","Fr","Sa","So"];let months="";let lastM=-1;
+  for(let w=0;w<weeks;w++){const m=new Date(start+w*7*DAY).getMonth();months+=`<span>${m!==lastM?MON[m]:""}</span>`;lastM=m}
+  return `<div class="card"><div class="sec-h"><h3>Trainingskalender</h3><small>${act} aktive Tage · längste Folge ${best} · ${tot} Einheiten</small></div>
+  <div class="heat-wrap"><div class="heat-m" style="grid-template-columns:repeat(${weeks},1fr)">${months}</div>
+  <div class="heat-g"><div class="heat-d">${WD.map((d,i)=>`<span>${i%2===0?d:""}</span>`).join("")}</div>
+  <div class="heat" style="grid-template-columns:repeat(${weeks},1fr)">${cells.map(([t,n],i)=>{const w=Math.floor(i/7),d=i%7;return `<i class="hl${lvl(n)}${n<0?" fut":""}" style="grid-column:${w+1};grid-row:${d+1}" ${n>=0?`data-tip="${WD[d]}, ${fmtD(t)}: <b>${n}</b> ${n===1?"Einheit":"Einheiten"}"`:""}></i>`}).join("")}</div></div>
+  <div class="heat-l"><span>weniger</span>${[0,1,2,3,4].map(l=>`<i class="hl${l}"></i>`).join("")}<span>mehr</span></div></div>
+  <p class="hint" style="margin:6px 0 0">Eine Einheit ist eine trainierte Variante oder eine Taktikaufgabe. Angezeigt: die letzten ${weeks} Wochen.</p></div>`;
+}
+/* Partien aller Quellen */
+function allGames(){
+  const out=[];const tcN={bullet:"Bullet",blitz:"Blitz",rapid:"Schnell",daily:"Fernschach",classical:"Schnell"};
+  CH.games.forEach(g=>out.push({src:"ch",res:g.res,color:g.color,tc:tcN[g.tc]||g.tc||"–",fam:g.fam||"Unbekannt",term:g.term||"",t:g.date||0,id:g.id}));
+  st.glog.forEach(g=>out.push({src:g.src==="online"?"on":"bot",res:g.res,color:g.color,tc:g.tc,fam:g.fam||"Ohne Eröffnung",term:g.term||"",t:g.t,id:g.id}));
+  return out;
+}
+function wdlRow(label,a,extra){const n=a.length;const w=a.filter(g=>g.res==="win").length,d=a.filter(g=>g.res==="draw").length,l=n-w-d;const sc=n?(w+d/2)/n:0;
+  return `<div class="wrow" data-tip="${esc(label)}: ${w} Siege · ${d} Remis · ${l} Niederlagen"><span class="wl">${extra||""}${esc(label)}<small>${n} ${n===1?"Partie":"Partien"}</small></span><span class="wdl"><i class="w" style="width:${n?w/n*100:0}%"></i><i class="d" style="width:${n?d/n*100:0}%"></i><i class="l" style="width:${n?l/n*100:0}%"></i></span><b class="${sc>=.55?"score-good":sc<.45?"score-bad":""}">${Math.round(sc*100)} %</b></div>`}
+function winHtml(){
+  const G0=allGames();const srcs=[["all","Alle"],["ch",siteName()],["on","Online"],["bot","Computer"]].filter(s=>s[0]==="all"||G0.some(g=>g.src===s[0]));
+  if(!srcs.some(s=>s[0]===STV.src))STV.src="all";const G=G0.filter(g=>STV.src==="all"||g.src===STV.src);
+  const seg=srcs.length>2?`<span class="seg sm">${srcs.map(s=>`<button data-src2="${s[0]}" aria-pressed="${STV.src===s[0]}">${esc(s[1])}</button>`).join("")}</span>`:"";
+  if(!G.length)return `<div class="card"><div class="sec-h"><h3>Erfolgsquote</h3>${seg}</div><p class="hint" style="margin:8px 0 0">Noch keine Partien. Spiel gegen den Computer oder online, oder verknüpfe ${siteName()} unter Analyse.</p></div>`;
+  const grp=(f)=>{const m={};G.forEach(g=>{const k=f(g);(m[k]=m[k]||[]).push(g)});return Object.entries(m).sort((a,b)=>b[1].length-a[1].length)};
+  const fams=grp(g=>g.fam).slice(0,6);
+  return `<div class="card"><div class="sec-h"><h3>Erfolgsquote</h3>${seg}</div>
+  <div class="wtot">${wdlRow("Gesamt",G)}</div>
+  <div class="wgrid"><div><div class="exh"><span>Nach Farbe</span></div>${wdlRow("Mit Weiß",G.filter(g=>g.color==="w"),'<span class="kchip w"></span>')}${wdlRow("Mit Schwarz",G.filter(g=>g.color==="b"),'<span class="kchip b"></span>')}</div>
+  <div><div class="exh"><span>Nach Bedenkzeit</span></div>${grp(g=>g.tc).slice(0,5).map(([k,a])=>wdlRow(k,a)).join("")}</div></div>
+  <div class="exh" style="margin-top:12px"><span>Nach Eröffnung</span></div>${fams.map(([k,a])=>wdlRow(k,a)).join("")}
+  <p class="hint" style="margin:8px 0 0"><span class="lgsw w"></span> Sieg <span class="lgsw d"></span> Remis <span class="lgsw l"></span> Niederlage · Prozent = Punkte pro Partie</p></div>`;
+}
+/* Genauigkeit eigener Partien aus Game Reviews */
+function myReviews(){
+  const out=[];const seen=new Set();
+  CH.games.forEach(g=>{const R=REV[g.id];if(R&&R.acc&&!seen.has(g.id)){seen.add(g.id);out.push({R,c:g.color})}});
+  st.glog.forEach(g=>{const R=REV[g.id];if(g.id&&R&&R.acc&&!seen.has(g.id)){seen.add(g.id);out.push({R,c:g.color})}});
+  return out;
+}
+/* Stärken & Schwächen */
+function radarData(){
+  const ax=[];
+  let mv=0,er=0;Object.values(st.op).forEach(s=>{mv+=s.mv;er+=s.err});
+  ax.push({k:"op",t:"Eröffnungen",v:mv+er>=10?Math.round(100*(.6*mv/(mv+er)+.4*Math.min(1,cleanCount()/40))):null,go:"daily",gt:"Tagestraining"});
+  ax.push({k:"tac",t:"Taktik",v:PZ.n>=10?Math.max(0,Math.min(100,Math.round((PZ.r-500)/(2300-500)*100))):null,go:"tactics",gt:"Taktik"});
+  const rv=myReviews();const pe=rv.map(x=>x.R.phase&&x.R.phase[x.c]&&x.R.phase[x.c].e).filter(v=>v!=null);const endDone=Object.keys(st.ends).length/Math.max(1,ENDGAMES.length);
+  ax.push({k:"end",t:"Endspiel",v:pe.length?Math.round(.5*endDone*100+.5*pe.reduce((a,b)=>a+b,0)/pe.length):endDone>0?Math.round(endDone*100):null,go:"end",gt:"Endspiele"});
+  const acc=rv.map(x=>x.R.acc[x.c]).filter(v=>v!=null);
+  ax.push({k:"acc",t:"Genauigkeit",v:acc.length?Math.round(acc.reduce((a,b)=>a+b,0)/acc.length):null,go:"analyse",gt:"Partie analysieren"});
+  const losses=allGames().filter(g=>g.res==="loss");const tl=losses.filter(g=>/Zeit/.test(g.term)).length;
+  ax.push({k:"time",t:"Zeiteinteilung",v:losses.length>=5?Math.max(0,Math.round(100-tl/losses.length*200)):null,go:"blitz",gt:"Blitz-Drill"});
+  let act=0;for(let i=0;i<30;i++){if(st.days[dstr(new Date(Date.now()-i*DAY))])act++}
+  ax.push({k:"cons",t:"Konstanz",v:Math.min(100,Math.round(act/20*100)),go:"daily",gt:"Tagestraining"});
+  return ax;
+}
+function radarHtml(){
+  const ax=radarData();const known=ax.filter(a=>a.v!=null);const N=ax.length,cx=170,cy=132,R=84;
+  const P=(i,v)=>{const a=-Math.PI/2+i*2*Math.PI/N;return [cx+Math.cos(a)*R*v/100,cy+Math.sin(a)*R*v/100]};
+  const ring=f=>ax.map((_,i)=>P(i,f).map(x=>x.toFixed(1)).join(",")).join(" ");
+  const poly=ax.map((a,i)=>P(i,a.v==null?0:a.v).map(x=>x.toFixed(1)).join(",")).join(" ");
+  const lab=ax.map((a,i)=>{const [x,y]=P(i,122);const anc=Math.abs(x-cx)<10?"middle":x>cx?"start":"end";return `<text x="${x.toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="${anc}" class="rlab">${esc(a.t)}</text><text x="${x.toFixed(1)}" y="${(y+17).toFixed(1)}" text-anchor="${anc}" class="rval">${a.v==null?"–":a.v}</text>`}).join("");
+  const svg=`<svg class="radar" viewBox="0 0 340 270" role="img" aria-label="Stärken und Schwächen">${[25,50,75,100].map(f=>`<polygon points="${ring(f)}" class="rg"/>`).join("")}${ax.map((_,i)=>{const [x,y]=P(i,100);return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rg"/>`}).join("")}
+    <polygon points="${poly}" class="rp"/>${ax.map((a,i)=>{if(a.v==null)return "";const [x,y]=P(i,a.v);return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" class="rd" data-tip="${esc(a.t)}: <b>${a.v}</b> / 100"/>`}).join("")}${lab}</svg>`;
+  const s=known.slice().sort((a,b)=>b.v-a.v);const best=s[0],worst=s[s.length-1];
+  return `<div class="card"><div class="sec-h"><h3>Stärken und Schwächen</h3><small>0–100 · aus deinem Training und deinen Partien</small></div>
+  <div class="rwrap2">${svg}<div class="rside">${known.length>=2?`<div class="rbox up"><small>Deine Stärke</small><b>${esc(best.t)}</b><span>${best.v} von 100</span></div><div class="rbox dn"><small>Hier lohnt sich Training</small><b>${esc(worst.t)}</b><span>${worst.v} von 100</span><button class="btn grn" data-rgo="${worst.go}">${esc(worst.gt)}</button></div>`:`<p class="hint">Noch zu wenig Daten. Trainiere ein paar Varianten und Taktikaufgaben, spiel Partien und analysiere sie – dann füllt sich das Diagramm.</p>`}
+  ${ax.some(a=>a.v==null)?`<p class="hint" style="margin:0">„–“ heißt: noch keine Daten. ${ax.filter(a=>a.v==null).map(a=>a.t).join(", ")}.</p>`:""}</div></div></div>`;
+}
+/* Fehlermuster mit passender Übung */
+function patterns(){
+  const out=[];
+  const losses=allGames().filter(g=>g.res==="loss");const tl=losses.filter(g=>/Zeit/.test(g.term)).length;
+  if(losses.length>=5&&tl/losses.length>=.25)out.push({ic:"bolt",t:`${pctS(tl/losses.length)} deiner Niederlagen auf Zeit`,d:"Du brauchst zu lange für Standardzüge. Der Blitz-Drill macht die Eröffnung schneller.",go:"blitz",gt:"Blitz-Drill"});
+  const th=Object.entries(PZ.themes).filter(([k,t])=>t.n>=5&&TTH[k]).map(([k,t])=>({k,r:t.ok/t.n,n:t.n})).sort((a,b)=>a.r-b.r)[0];
+  if(th&&th.r<.62)out.push({ic:"target",t:`${TTH[th.k][0]}: nur ${pctS(th.r)} gelöst`,d:`Von ${th.n} Aufgaben mit diesem Motiv hast du ${Math.round(th.r*th.n)} geschafft. Ein Themen-Pfad übt genau das.`,go:"theme:"+th.k,gt:"Pfad üben"});
+  const rv=myReviews();if(rv.length>=2){const ph={o:[],m:[],e:[]};rv.forEach(x=>{const p=x.R.phase&&x.R.phase[x.c];if(p)["o","m","e"].forEach(k=>{if(p[k]!=null)ph[k].push(p[k])})});
+    const av=Object.entries(ph).filter(([k,a])=>a.length).map(([k,a])=>({k,v:a.reduce((x,y)=>x+y,0)/a.length})).sort((a,b)=>a.v-b.v);
+    if(av.length>=2&&av[0].v<av[av.length-1].v-5){const nm={o:"in der Eröffnung",m:"im Mittelspiel",e:"im Endspiel"}[av[0].k];out.push({ic:"search",t:`Am ungenauesten spielst du ${nm}`,d:`Ø ${Math.round(av[0].v)} % Genauigkeit gegenüber ${Math.round(av[av.length-1].v)} % in deiner besten Phase (aus ${rv.length} analysierten Partien).`,go:av[0].k==="e"?"end":av[0].k==="o"?"daily":"tactics",gt:av[0].k==="e"?"Endspiele":av[0].k==="o"?"Tagestraining":"Taktik"})}
+    let bl=0,mi=0;rv.forEach(x=>x.R.cls.forEach((c,i)=>{if((i%2===0?"w":"b")!==x.c)return;if(c==="blun")bl++;else if(c==="mist")mi++}));
+    if(bl/rv.length>=1.5)out.push({ic:"mistake",t:`Ø ${(bl/rv.length).toFixed(1)} Patzer pro Partie`,d:"Ein Blunder-Check vor jedem Zug hilft: Was greift sein letzter Zug an, was hängt bei mir? Taktik schärft den Blick.",go:"tactics",gt:"Taktik"})}
+  const rows=ALL.filter(o=>st.op[o.id]&&st.op[o.id].mv+st.op[o.id].err>=10).map(o=>({o,a:st.op[o.id].mv/(st.op[o.id].mv+st.op[o.id].err)})).sort((a,b)=>a.a-b.a)[0];
+  if(rows&&rows.a<.8)out.push({ic:"book",t:`${rows.o.name}: ${pctS(rows.a)} Trefferquote`,d:"In dieser Eröffnung liegst du am häufigsten daneben. Spiel die Varianten noch einmal mit Lernmodus.",go:"op:"+rows.o.id,gt:"Üben"});
+  const hard=Object.values(st.hard).filter(H=>byId(H.id)).sort((a,b)=>b.n-a.n)[0];
+  if(hard&&hard.n>=3)out.push({ic:"target",t:`${hard.n}× falsch in ${byId(hard.id).name}`,d:`Nach ${hard.pre.length?fmtMoves(hard.pre.slice(-4),hard.pre.length-Math.min(4,hard.pre.length)):"dem ersten Zug"} spielst du oft den falschen Zug.`,go:"hard:"+byId(hard.id).id+"|"+hard.pre.join(" "),gt:"Stellung üben"});
+  const mine=S.puz.filter(p=>!p.solved||p.solved<2).length;
+  if(mine>=3)out.push({ic:"mistake",t:`${mine} Fehler aus deinen Partien warten`,d:"Stellungen, in denen du in echten Partien falsch gespielt hast – jetzt mit Lösung.",go:"mine",gt:"Fehler üben"});
+  return out.slice(0,4);
+}
+function patternsHtml(){
+  const p=patterns();
+  return `<div class="card"><div class="sec-h"><h3>Fehlermuster</h3><small>was dir am meisten Punkte kostet</small></div>
+  ${p.length?`<div class="pats">${p.map((x,i)=>`<div class="pat"><span class="pat-ic">${NI[x.ic]||NI.target}</span><span><b>${esc(x.t)}</b><small>${esc(x.d)}</small></span><button class="btn" data-pat="${i}">${esc(x.gt)}</button></div>`).join("")}</div>`:`<p class="hint" style="margin:0">Noch keine auffälligen Muster. Je mehr du trainierst, spielst und analysierst, desto genauer wird diese Auswertung.</p>`}</div>`;
+}
+function patGo(go){
+  if(go==="blitz"||go==="daily"||go==="mine"){startSession(go);return}
+  if(go.indexOf("theme:")===0){const k=go.slice(6);const ti=TIERS.findIndex(T=>T.keys.indexOf(k)>=0);if(ti<0||tierUnlocked(ti))tacticSession("theme",k);else showView("tactics");return}
+  if(go.indexOf("op:")===0){selectOpening(byId(go.slice(3)));return}
+  if(go.indexOf("hard:")===0){const [id,pre]=go.slice(5).split("|");startPosition(byId(id),pre?pre.split(" "):[]);return}
+  showView(go);
+}
+/* Lernkurve */
+function curveHtml(){
+  const B=[["≤ 1 Tag",0,1.5],["2–7 Tage",1.5,7.5],["8–30 Tage",7.5,30.5],["über 30 Tage",30.5,1e9]];
+  const ret=B.map(([t,a,b])=>{const xs=st.rlog.filter(r=>r[1]>a&&r[1]<=b);return {t,n:xs.length,v:xs.length?xs.filter(r=>r[2]).length/xs.length:null}});
+  let nw=0,le=0,ge=0,si=0;ALL.forEach(o=>o.lines.forEach((l,i)=>{const s=S.srs[lk(o.id,i)];if(!s)nw++;else if(s.iv<7)le++;else if(s.iv<21)ge++;else si++}));const tot=nw+le+ge+si||1;
+  const d0=startOfDay(Date.now());const fc=Array(14).fill(0);Object.values(S.srs).forEach(s=>{if(!s||!s.due)return;const i=Math.max(0,Math.floor((s.due-d0)/DAY));if(i<14)fc[i]++});const mx=Math.max(1,...fc);
+  const stat=[["Neu",nw,"st0"],["Lernend",le,"st1"],["Gefestigt",ge,"st2"],["Sicher",si,"st3"]];
+  return `<div class="card"><div class="sec-h"><h3>Lernkurve</h3><small>wie gut die Varianten im Gedächtnis bleiben</small></div>
+  <div class="wgrid"><div><div class="exh"><span>Noch gewusst nach …</span></div>
+    ${ret.map(r=>`<div class="wrow"><span class="wl">${r.t}<small>${r.n} Wiederholungen</small></span><span class="rbar"><i style="width:${r.v==null?0:r.v*100}%"></i></span><b>${r.n>=3?pctS(r.v):"–"}</b></div>`).join("")}
+    <p class="hint" style="margin:6px 0 0">${st.rlog.length<10?"Wird mit jeder Wiederholung genauer.":"Je länger die Pause, desto wichtiger die Wiederholung zum richtigen Zeitpunkt."}</p></div>
+  <div><div class="exh"><span>Stand aller ${tot} Varianten</span></div><div class="stk">${stat.map(s=>s[1]?`<i class="${s[2]}" style="flex:${s[1]}" data-tip="${s[0]}: <b>${s[1]}</b>"></i>`:"").join("")}</div>
+    <div class="stk-l">${stat.map(s=>`<span><i class="${s[2]}"></i>${s[0]} <b>${s[1]}</b></span>`).join("")}</div>
+    <p class="hint" style="margin:6px 0 0">Lernend: Abstand unter 7 Tagen · Gefestigt: bis 3 Wochen · Sicher: 3 Wochen und mehr.</p></div></div>
+  <div class="exh" style="margin-top:12px"><span>Wiederholungen der nächsten 14 Tage</span></div>
+  ${fc.some(n=>n)?"":`<p class="hint" style="margin:0 0 6px">Noch keine Wiederholungen geplant – sie entstehen, sobald du Varianten trainierst.</p>`}<div class="fcast">${fc.map((n,i)=>`<span class="fc" data-tip="${i===0?"Heute":fmtD(d0+i*DAY)}: <b>${n}</b> fällig"><i style="height:${n?Math.max(6,n/mx*100):0}%"></i><small>${i===0?"heute":new Date(d0+i*DAY).getDate()}</small></span>`).join("")}</div></div>`;
+}
+/* Wochenbericht */
+function weekReport(recent){
+  gxRoll();const h=GX.hist[0];if(!h)return null;const ws=h.s||weekStart()-7*DAY,we=ws+7*DAY;if(recent&&ws!==weekStart()-7*DAY)return null;
+  let units=0,days=0;for(let i=0;i<7;i++){const n=st.days[dstr(new Date(ws+i*DAY+12*3600000))]||0;units+=n;if(n)days++}
+  let prevU=0;for(let i=0;i<7;i++)prevU+=st.days[dstr(new Date(ws-7*DAY+i*DAY+12*3600000))]||0;
+  const tAt=t=>{const p=PZ.hist.filter(x=>x[0]<=t).pop();return p?p[1]:null};const ta=tAt(ws),tb=tAt(we);
+  const gs=allGames().filter(g=>g.t>=ws&&g.t<we);const w=gs.filter(g=>g.res==="win").length;
+  const ps=GX.prevSnap,cs=GX.snap;const newClean=ps&&cs&&ps.id===h.id?Math.max(0,cs.clean-ps.clean):null;
+  const known=radarData().filter(a=>a.v!=null).sort((a,b)=>a.v-b.v)[0];
+  return {id:h.id,xp:h.xp,lg:h.lg,units,prevU,days,tac:ta!=null&&tb!=null?tb-ta:null,tacNow:tb,games:gs.length,wins:w,newClean,tip:known};
+}
+function reportHtml(r,dismiss){
+  if(!r)return "";const d=r.units-r.prevU;
+  return `<section class="card wrep"><div class="sec-h"><h3>Wochenbericht · KW ${weekNo(r.id)}</h3>${dismiss?`<button class="linkb" data-repx>Ausblenden</button>`:""}</div>
+  <div class="kpis">${[["Trainiert",r.units,`an ${r.days} von 7 Tagen`],["XP",r.xp,`${LEAGUES[r.lg|0][0]}-Liga`],["Taktik",r.tac==null?"–":(r.tac>0?"+":"")+r.tac,r.tacNow?`jetzt ${r.tacNow}`:"keine Aufgaben"],["Partien",r.games,r.games?`${r.wins} gewonnen`:"keine gespielt"]].map(k=>`<div class="kpi"><small>${k[0]}</small><b>${k[1]}</b><span>${k[2]}</span></div>`).join("")}</div>
+  <p class="wrep-t">${r.prevU||r.units?`${d>0?`${d} Einheiten mehr als in der Vorwoche. `:d<0?`${-d} Einheiten weniger als in der Vorwoche. `:"Genauso viel wie in der Vorwoche. "}`:""}${r.newClean!=null&&r.newClean>0?`Du hast ${r.newClean} ${r.newClean===1?"Variante":"Varianten"} neu fehlerfrei gelernt. `:""}${r.days>=5?"Starke Woche – fast jeden Tag trainiert.":r.days>=3?"Gute Woche. Mit ein, zwei Tagen mehr wird die Wiederholung noch wirksamer.":"Diese Woche wenig trainiert. Schon zehn Minuten am Tag reichen, damit die Varianten sitzen."}
+  ${r.tip?` Vorschlag für diese Woche: <b>${esc(r.tip.t)}</b> – dort hast du am meisten Luft nach oben.`:""}</p>
+  ${r.tip?`<button class="btn grn" data-rgo="${r.tip.go}">${esc(r.tip.gt)}</button>`:""}</section>`;
+}
+/* Das Dashboard */
+renderStats=function(v){
+  checkBadges();gxRoll();const tot=totalLines(),cl=cleanCount();const lv=gxLevel(GX.xp),a=gxLvXp(lv),b=gxLvXp(lv+1);
+  let mv=0,er=0;Object.values(st.op).forEach(s=>{mv+=s.mv;er+=s.err});
+  const rows=ALL.filter(o=>st.op[o.id]&&(st.op[o.id].att||st.op[o.id].err)).map(o=>{const s=st.op[o.id];return {o,s,acc:s.mv+s.err?s.mv/(s.mv+s.err):1,cl:o.lines.filter((l,i)=>P(o.id,i)===2).length}}).sort((x,y)=>x.acc-y.acc);
+  const hard=Object.entries(st.hard).filter(([k,H])=>byId(H.id)).sort((x,y)=>y[1].n-x[1].n).slice(0,8);
+  const G=allGames();const gw=G.filter(g=>g.res==="win").length;
+  const k=(t,bv,s,cls)=>`<div class="kpi${cls?" "+cls:""}"><small>${t}</small><b>${bv}</b>${s?`<span>${s}</span>`:""}</div>`;
+  v.innerHTML=`<div class="kpis k6">${k("Level",lv,`${GX.xp-a}/${b-a} XP · ${LEAGUES[GX.lg][0]}-Liga`)}${k("Serie",streakNow(),`Rekord ${S.streak.best||0} · Schutz ${GX.freeze}/2`)}${k("Varianten",cl,`von ${tot} fehlerfrei`)}${k("Trefferquote",mv+er?pctS(mv/(mv+er)):"–",`${mv} richtig · ${er} falsch`)}${k("Taktik",PZ.r,`${PZ.n} Aufgaben · ${PZ.n?pctS(PZ.ok/PZ.n):"–"} gelöst`)}${k("Partien",G.length,G.length?`${gw} gewonnen · ${pctS(gw/G.length)}`:"noch keine")}</div>
+  ${reportHtml(weekReport(),false)}
+  ${ratingChartHtml()}
+  ${heatHtml()}
+  ${radarHtml()}
+  ${winHtml()}
+  ${patternsHtml()}
+  ${curveHtml()}
+  <div class="sec-h"><h3>Schwierigste Züge</h3><small>Wo du am häufigsten falsch ziehst</small></div>
+  ${hard.length?`<div class="card cl">${hard.map(([key,H])=>{const o=byId(H.id);const bm=bookMovesIn(o,H.pre);return `<button class="ci" data-hard="${esc(key)}"><span class="kchip ${o.side}"></span><span class="ci-t"><b>${esc(o.name)}</b><small>${H.pre.length?esc(fmtMoves(H.pre.slice(-4),H.pre.length-Math.min(4,H.pre.length))):"Startstellung"} → richtig: ${esc(bm.map(de).join(" / ")||"–")}</small></span><span class="ci-n">${H.n}×</span></button>`}).join("")}</div>`:`<p class="hint">Noch keine Fehler gesammelt.</p>`}
+  <div class="sec-h"><h3>Eröffnungen</h3><small>sortiert nach Trefferquote</small></div>
+  ${rows.length?`<div class="card cl">${rows.map(r=>`<button class="ci" data-op="${r.o.id}"><span class="kchip ${r.o.side}"></span><span class="ci-t"><b>${esc(r.o.name)}</b><small>${r.cl}/${r.o.lines.length} fehlerfrei · ${r.s.att} Durchgänge</small></span><span class="ci-n ${r.acc<.7?"score-bad":r.acc>.9?"score-good":""}">${pctS(r.acc)}</span></button>`).join("")}</div>`:`<p class="hint">Noch nichts trainiert.</p>`}`;
+  vizTip(v);wireRatingChart(v);
+  v.querySelectorAll("[data-rng]").forEach(x=>x.onclick=()=>{STV.range=+x.dataset.rng;store.set("et-stv",STV);renderStats(v)});
+  v.querySelectorAll("[data-src2]").forEach(x=>x.onclick=()=>{STV.src=x.dataset.src2;store.set("et-stv",STV);renderStats(v)});
+  const pats=patterns();v.querySelectorAll("[data-pat]").forEach(x=>x.onclick=()=>patGo(pats[+x.dataset.pat].go));
+  v.querySelectorAll("[data-rgo]").forEach(x=>x.onclick=()=>patGo(x.dataset.rgo));
+  v.querySelectorAll("[data-op]").forEach(x=>x.onclick=()=>selectOpening(byId(x.dataset.op)));
+  v.querySelectorAll("[data-hard]").forEach(x=>x.onclick=()=>{const H=st.hard[x.dataset.hard];if(H)startPosition(byId(H.id),H.pre)});
+};
+
+/* ---- Startseite ergänzen: Level-Leiste, Tagesaufgaben, Wochenbericht ---- */
+const _renderHome=renderHome;
+renderHome=function(){
+  _renderHome();const v=$("v-home");if(!v)return;gxRoll();
+  const lv=gxLevel(GX.xp),a=gxLvXp(lv),b=gxLvXp(lv+1);const L=LEAGUES[GX.lg];
+  const bar=`<button class="lvbar" data-go2="league">${SHIELD(L[1],30)}<span class="lv-t"><b>Level ${lv}</b><small>${L[0]}-Liga · ${GX.wk.xp} XP diese Woche${GX.freeze?` · ${GX.freeze}× Serienschutz`:""}</small><span class="pbar2"><i style="width:${(GX.xp-a)/Math.max(1,b-a)*100}%"></i></span></span><span class="ci-go">›</span></button>`;
+  const head=v.querySelector(".home-h");if(head)head.insertAdjacentHTML("afterend",bar);
+  const today=v.querySelector(".today");if(today)today.insertAdjacentHTML("afterend",questsHtml());
+  const r=GX.repSeen!==GX.wk.id?weekReport(true):null;if(r&&head){const lb=v.querySelector(".lvbar");(lb||head).insertAdjacentHTML("afterend",reportHtml(r,true))}
+  v.querySelectorAll("[data-go2]").forEach(x=>x.onclick=()=>showView(x.dataset.go2));
+  v.querySelectorAll("[data-qgo]").forEach(x=>x.onclick=()=>qGo(x.dataset.qgo));
+  v.querySelectorAll("[data-rgo]").forEach(x=>x.onclick=()=>patGo(x.dataset.rgo));
+  const rx=v.querySelector("[data-repx]");if(rx)rx.onclick=()=>{GX.repSeen=GX.wk.id;saveGX();renderHome()};
+};
+
+/* ---- Eigene Partien als PGN, Admin-Sicherung ---- */
+function pgnOf(g){const res=g.res==="draw"?"1/2-1/2":(g.res==="win")===(g.color==="w")?"1-0":"0-1";const me="Ich",op2=g.opp||(g.src==="online"?"Gegner":"Computer");const d=new Date(g.t);
+  const mv=(g.moves||"").split(" ").filter(Boolean).map((m,i)=>(i%2===0?(i/2+1)+". ":"")+m).join(" ");
+  return `[Event "Zugzwang ${g.src==="online"?"Online":"Computer"}"]\n[Site "${location.origin}"]\n[Date "${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}"]\n[White "${g.color==="w"?me:op2}"]\n[Black "${g.color==="w"?op2:me}"]\n[Result "${res}"]\n${g.fam?`[Opening "${g.fam.replace(/"/g,"'")}"]\n`:""}\n${mv} ${res}\n`}
+function download(name,txt,type){const blob=new Blob([txt],{type:type||"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+const _renderSync=renderSync;
+renderSync=function(v){
+  _renderSync(v);const n=st.glog.filter(g=>g.moves).length;
+  v.insertAdjacentHTML("beforeend",`<div class="card"><h3>Meine Partien als PGN</h3><p class="hint" style="margin:0 0 10px">${n} Partien gegen den Computer und online. PGN lässt sich in Chess.com, Lichess oder ChessBase öffnen.</p><button class="btn" id="pgnAll" ${n?"":"disabled"}>PGN herunterladen</button></div>`);
+  const b=$("pgnAll");if(b)b.onclick=()=>download("zugzwang-partien-"+today()+".pgn",st.glog.filter(g=>g.moves).map(pgnOf).join("\n"),"application/x-chess-pgn");
+};
+function adminBackup(){
+  if(typeof ADM==="undefined"||!ADM.users)return;const data={app:"zugzwang-admin",date:new Date().toISOString(),users:ADM.users,games:ADM.games,usernames:ADM.names};
+  download("zugzwang-sicherung-"+today()+".json",JSON.stringify(data),"application/json");
+}
+function adminPgn(){
+  if(typeof ADM==="undefined"||!ADM.games)return;const nm=uid=>{const u=ADM.users.find(x=>x.id===uid);return u?u.name:"?"};
+  const txt=ADM.games.filter(g=>(g.moves||[]).length&&g.result&&g.result!=="-").map(g=>{const d=new Date(g.created||0);const mv=g.moves.map((m,i)=>(i%2===0?(i/2+1)+". ":"")+m).join(" ");
+    return `[Event "Zugzwang Online"]\n[Date "${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}"]\n[White "${nm(g.white)}"]\n[Black "${nm(g.black)}"]\n[Result "${g.result}"]\n[TimeControl "${tcTxt(g.tc)}"]\n\n${mv} ${g.result}\n`}).join("\n");
+  download("zugzwang-alle-partien-"+today()+".pgn",txt,"application/x-chess-pgn");
+}
+
+/* ---- Start: Wochenwechsel, Serienschutz, Ligen abrechnen ---- */
+gxRoll();applyFreeze();ensureQuests();
+setTimeout(()=>{gxSettle()},5000);
+
 /* ================= Start ================= */
 applySettings();
 st.badges=BADGES.filter(b=>{try{return b.ok()}catch(e){return false}}).map(b=>b.id);saveStats();
@@ -3607,5 +4071,5 @@ const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
 if(firstRun&&!location.hash)setTimeout(openLanding,300);else if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
 if(onlineReady())setTimeout(onlineBoot,600);
-window.__ET={ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={tryMove:(a,b)=>tryMove(a,b,true),GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();

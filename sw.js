@@ -1,5 +1,5 @@
 /* Service Worker: Seite offline verfügbar machen. Eigene Dateien: erst Netz, dann Cache. Stockfish: erst Cache. */
-const CACHE="et-v20";
+const CACHE="et-v21";
 const CORE=["./","index.html","style.css","pieces.css","app.js","data.js","lib/chess.js","manifest.webmanifest","icons/icon-192.png","icons/apple-touch-icon.png","lib/fonts/inter-latin-wght.woff2"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
