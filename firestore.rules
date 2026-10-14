@@ -1,0 +1,79 @@
+rules_version = '2';
+// Firestore-Regeln für Zugzwang. In der Firebase-Konsole unter Firestore → Regeln einfügen und veröffentlichen.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isAdmin() { return signedIn() && me() in ['iJ4m56bUDeW1mclGgpg6np59GVN2']; }
+    function notBanned() {
+      return !exists(/databases/$(database)/documents/users/$(me()))
+        || get(/databases/$(database)/documents/users/$(me())).data.get('banned', false) != true;
+    }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // Profile: alle Angemeldeten dürfen lesen (Bestenliste), schreiben nur der Besitzer – ohne die Sperre zu ändern
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && me() == uid && !('banned' in request.resource.data);
+      allow update: if isAdmin() || (signedIn() && me() == uid && !changed().hasAny(['banned']));
+      allow delete: if isAdmin() || (signedIn() && me() == uid);
+
+      // Trainingsfortschritt: nur der Besitzer (der Admin darf ihn ansehen und löschen)
+      match /private/{doc} {
+        allow read: if signedIn() && (me() == uid || isAdmin());
+        allow write: if signedIn() && me() == uid;
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Benutzernamen: eindeutig, jeder darf prüfen, ob ein Name frei ist
+    match /usernames/{name} {
+      allow read: if true;
+      allow create: if isAdmin() || (signedIn() && request.resource.data.uid == me());
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (signedIn() && resource.data.uid == me());
+    }
+
+    // Partien: Mitspieler dürfen ändern, bei offenen Einladungen darf man beitreten
+    match /games/{gid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && notBanned() && request.resource.data.creator == me() && me() in request.resource.data.players;
+      allow update: if isAdmin() || (signedIn() && (
+        me() in resource.data.players ||
+        (resource.data.status == 'waiting' && me() in request.resource.data.players && notBanned())
+      ));
+      allow delete: if isAdmin();
+    }
+
+    // Freundschaftsanfragen
+    match /friendreq/{rid} {
+      allow read: if signedIn() && (resource.data.from == me() || resource.data.to == me());
+      allow create: if signedIn() && request.resource.data.from == me() && rid == me() + '_' + request.resource.data.to;
+      allow update: if signedIn() && resource.data.to == me() && changed().hasOnly(['status']);
+      allow delete: if signedIn() && (resource.data.from == me() || resource.data.to == me());
+    }
+
+    // Zuschauer laufender Partien
+    match /watch/{wid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && request.resource.data.uid == me();
+      allow delete: if signedIn() && (resource.data.uid == me() || isAdmin());
+    }
+
+    // Warteschlange der Schnellsuche: eigener Eintrag; andere dürfen nur die gefundene Partie eintragen
+    match /queue/{uid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && me() == uid;
+      allow update: if signedIn() && resource.data.gid == null && changed().hasOnly(['gid', 'by']) && request.resource.data.by == me();
+      allow delete: if signedIn() && (me() == uid || isAdmin());
+    }
+
+    // Turniere unter Freunden
+    match /tournaments/{tid} {
+      allow read: if signedIn() && (me() in resource.data.players || isAdmin());
+      allow create: if signedIn() && notBanned() && request.resource.data.creator == me() && me() in request.resource.data.players;
+      allow update: if signedIn() && me() in resource.data.players && changed().hasOnly(['pairs', 'updated', 'status']);
+      allow delete: if signedIn() && (resource.data.creator == me() || isAdmin());
+    }
+  }
+}

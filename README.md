@@ -12,9 +12,9 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
   - Sieben Kurse mit Kapiteln vom Einsteiger bis stark, Varianten-Baum für eigene Varianten (abzweigen, löschen)
   - Millionen echter Lichess-Rätsel (CC0) mit Wertung, Levels, Themen-Pfaden und Taktik-Rush (3 Min, 5 Min, Überleben)
   - Koordinaten-Trainer (Feld finden, Feld benennen), „Finde den Meisterzug“ mit berühmten Partien, Endspiel-Kapitel (Grundmatts, Bauern-, Turm- und Damenendspiele)
-- **Spielen** – Online gegen Freunde (Einladungslink oder Herausforderung, Uhren, Remis, Revanche), gegen den Computer in sechs Stufen und drei Spielstilen (auch ab einer Eröffnung) und Live-Partien zum Zuschauen
+- **Spielen** – Schnellsuche nach gleich starken Gegnern, online gegen Freunde (Einladungslink oder Herausforderung, Uhren, Fernschach mit 1 oder 3 Tagen pro Zug, Remis, Zurücknahme, Vorzüge, Schnellnachrichten, Revanche), Turniere jeder gegen jeden unter Freunden, gegen den Computer in sechs Stufen und drei Spielstilen (auch ab einer Eröffnung) und Live-Partien zum Zuschauen
 - **Analyse** – Game Review per Link oder PGN, Analysebrett mit FEN, zuletzt analysierte Partien und die Chess.com-/Lichess-Zentrale
-- **Profil** – Statistik, Abzeichen, Bestenliste, Freunde, Einstellungen (Akzentfarbe Lila/Rot/Grün, Hell/Dunkel, Brett, Figuren, Komfort), Konto, Daten und Rechtliches
+- **Profil** – Statistik, Abzeichen, Bestenliste, Freunde, Spielerprofile mit Avatar, Einstellungen (Akzentfarbe Lila/Rot/Grün, Hell/Dunkel, Brett, Figuren, Komfort), Konto, Daten und Rechtliches
 
 ## Partieanalyse (Game Review)
 - Partien aus Chess.com/Lichess, per Link oder als PGN – Stockfish 17.1 bewertet jeden Zug
@@ -36,6 +36,9 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
 - Automatisch weiter nach gelösten Varianten und Aufgaben, Materialanzeige, Konfetti und Serien-Feier
 - Chess.com/Lichess beim Öffnen automatisch abgleichen, neue Partien im Hintergrund analysieren
 - Querformat und Tablets, Schriftgröße, „Weniger Animationen“
+
+## Firestore-Regeln
+Die aktuellen Regeln stehen in `firestore.rules`. In der Firebase-Konsole unter Firestore → Regeln einfügen und veröffentlichen.
 
 ## Rechtliches
 Datenschutzerklärung, Impressum und Lizenzen stehen in der App unter Profil → Rechtliches (auch per `#datenschutz` und `#impressum`). Die Angaben fürs Impressum stehen in `IMPRESSUM` am Anfang von Teil 12 in `app.js`.

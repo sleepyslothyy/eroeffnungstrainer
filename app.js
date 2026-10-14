@@ -76,10 +76,10 @@ const KEYS=["prog","srs","pos","rep","daily","streak","stats","set","custom","an
 const S={
   prog:store.get("et-prog",{}),srs:store.get("et-srs",{}),pos:store.get("et-pos",{}),rep:store.get("et-rep",[]),daily:store.get("et-daily",null),
   streak:store.get("et-streak",{last:null,n:0,best:0}),stats:store.get("et-stats",{}),
-  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true},store.get("et-set",{})),
+  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true},store.get("et-set",{})),
   custom:store.get("et-custom",{w:[],b:[]}),ana:store.get("et-ana",null),puz:store.get("et-puz",[])
 };
-{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
+{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
 fixT(S.streak,{last:"",n:0,best:0});if(S.streak.last==="")S.streak.last=null;
 fixT(S.custom,{w:[],b:[]});S.custom.w=S.custom.w.filter(l=>l&&Array.isArray(l.m));S.custom.b=S.custom.b.filter(l=>l&&Array.isArray(l.m));
 S.rep=S.rep.filter(x=>typeof x==="string");S.puz=S.puz.filter(x=>x&&typeof x==="object"&&x.key);
@@ -798,7 +798,7 @@ function canMoveNow(){
   if(mode==="engine")return live()&&shown.turn()===op.side;
   if(mode==="edit")return true;
   if(mode==="replay")return !!game;
-  if(mode==="online")return onCanMove();
+  if(mode==="online")return onCanMove()||onCanPremove();
   if(mode==="guess")return live()&&!!guess&&!done&&shown.turn()===guess.side;
   return false;
 }
@@ -1003,6 +1003,7 @@ function pickPromotion(color){
 }
 function tryMove(from,to,animate,promo){
   if(!canMoveNow())return false;
+  if(mode==="online"&&!onCanMove())return setPremove(from,to);
   const cands=shown.moves({verbose:true}).filter(m=>m.from===from&&m.to===to);
   if(!cands.length)return false;
   const go=mv=>{if(mode==="train")trainMove(mv,animate);else if(mode==="puzzle")puzzleMove(mv,animate);else if(mode==="engine")engineUserMove(mv,animate);else if(mode==="edit")editMove(mv,animate);else if(mode==="replay")anaMove(mv,animate);else if(mode==="online")onlineMove(mv,animate);else if(mode==="guess")guessMove(mv,animate)};
@@ -1013,7 +1014,7 @@ function tryMove(from,to,animate,promo){
 
 /* ---------------- Zeiger, Pfeile ---------------- */
 const marks={a:new Set(),c:new Set()};
-function renderMarks(){let s="";marks.c.forEach(q=>{const p=xy(q);s+=`<circle cx="${p.x+.5}" cy="${p.y+.5}" r=".44" fill="none" stroke="rgba(235,97,80,.85)" stroke-width=".07"/>`});marks.a.forEach(k=>{s+=arrowPath(k.slice(0,2),k.slice(2,4),"rgba(255,170,0,.8)",.16)});marksEl.innerHTML=s}
+function renderMarks(){let s="";if(mode==="online"&&ON.pre)s+=arrowPath(ON.pre.from,ON.pre.to,"rgba(110,140,255,.85)",.17);marks.c.forEach(q=>{const p=xy(q);s+=`<circle cx="${p.x+.5}" cy="${p.y+.5}" r=".44" fill="none" stroke="rgba(235,97,80,.85)" stroke-width=".07"/>`});marks.a.forEach(k=>{s+=arrowPath(k.slice(0,2),k.slice(2,4),"rgba(255,170,0,.8)",.16)});marksEl.innerHTML=s}
 let drag=null,rStart=null,swipe=null,hovSq=null;
 function setHov(n){if(n===hovSq)return;if(hovSq){const o=sqsEl.querySelector(`[data-sq="${hovSq}"]`);if(o)o.classList.remove("hov")}hovSq=n;if(n){const e=sqsEl.querySelector(`[data-sq="${n}"]`);if(e)e.classList.add("hov")}}
 function sqFromEvent(e){const r=boardEl.getBoundingClientRect();return sqAtXY(Math.floor((e.clientX-r.left)/r.width*8),Math.floor((e.clientY-r.top)/r.height*8))}
@@ -1023,6 +1024,7 @@ boardEl.addEventListener("pointerdown",e=>{
   if(e.button===2){rStart=name;return}
   if(e.button>0)return;
   if(wrongRevert){wrongRevert();return}
+  if(mode==="online"&&ON.pre){ON.pre=null;sel=null;render();return}
   if(marks.a.size||marks.c.size){marks.a.clear();marks.c.clear();renderMarks()}
   const startSwipe=()=>{swipe={x:e.clientX,y:e.clientY,t:Date.now()};try{boardEl.setPointerCapture(e.pointerId)}catch(_){}};
   if(!canMoveNow()){startSwipe();return}
@@ -1061,7 +1063,7 @@ let curView="home";
 const SECTIONS=[["home","Start","home"],["train","Training","learn"],["play","Spielen","swords"],["analyse","Analyse","search"],["me","Profil","profile"]];
 function subnavOf(sec){
   return {train:[["learn","Übersicht"],["courses","Kurse"],["openings","Eröffnungen"],["tactics","Taktik"],["end","Endspiele"],["quiz","Quiz"],["games","Musterpartien"]],
-    play:[["online:play","Online"],["bots","Computer"],["online:live","Live"]],
+    play:[["online:play","Online"],["bots","Computer"],["tours","Turniere"],["online:live","Live"]],
     analyse:[["analyse","Partie analysieren"],["chess",siteName()]],
     me:[["profile:stats","Statistik"],["profile:badges","Abzeichen"],["online:leader","Bestenliste"],["online:friends","Freunde"],["profile:settings","Einstellungen"],["online:account","Konto"],["profile:sync","Daten"]].concat(isAdmin()?[["online:admin","Admin"]]:[],[["legal","Rechtliches"]])}[sec]||[];
 }
@@ -1070,7 +1072,7 @@ function sectionOf(v){
   v=v||curView;
   if(v==="home")return "home";
   if(v==="online")return ["leader","friends","account","admin"].indexOf(ON.tab)>=0?"me":"play";
-  if(v==="bots")return "play";
+  if(v==="bots"||v==="tours")return "play";if(v==="player")return "me";
   if(v==="analyse"||v==="chess")return "analyse";
   if(v==="profile"||v==="legal")return "me";
   if(v==="train"){if(mode==="online")return "play";if(mode==="replay")return game&&(game.review||game.free)?"analyse":"train";if(op&&op.bot)return "play";return "train"}
@@ -1082,12 +1084,13 @@ const secLast=store.get("et-seclast",{});
 function showView(v){
   v=String(v||"home");const [base,sub]=v.split(":");
   if(base==="online"&&sub)ON.tab=sub==="admin"&&!isAdmin()?"play":sub;
+  if(base==="player"&&sub)playerUid=sub;
   if(base==="profile"&&sub)profTab=["stats","badges","settings","sync"].indexOf(sub)>=0?sub:"stats";
   if(base!==curView)cancelAuto();
   const prev=curView;curView=base;
   document.querySelectorAll(".view").forEach(el=>{const on=el.id==="v-"+base;el.hidden=!on;if(on&&prev!==base&&!calmNow()){el.classList.remove("enter");void el.offsetWidth;el.classList.add("enter")}});
   if(base!=="train"){stopEngine();stopBlitz()}
-  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,analyse:renderAnalyse,legal:renderLegal,courses:renderCourses,repedit:renderRepEdit,coords:renderCoords,guess:renderGuessPick}[base]||(()=>{}))();
+  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,analyse:renderAnalyse,legal:renderLegal,courses:renderCourses,repedit:renderRepEdit,coords:renderCoords,guess:renderGuessPick,player:renderPlayer,tours:renderTours}[base]||(()=>{}))();
   if(base!=="train"){const sec=sectionOf();secLast[sec]=routeKey();store.set("et-seclast",secLast)}
   renderTabbar();applyBlind();if(base!=="train")window.scrollTo(0,0);else sizeVar();
 }
@@ -2451,7 +2454,7 @@ const myName=()=>ON.profile&&ON.profile.name||"Ich";
 const oppUid=g=>(g.players||[]).find(u=>u!==ON.user.uid)||null;
 const oppName=g=>{const o=oppUid(g);return o?(g.names&&g.names[o])||"Gegner":"(wartet)"};
 const myColorIn=g=>g.white===ON.user.uid?"w":g.black===ON.user.uid?"b":null;
-const tcTxt=tc=>tc?`${tc.m}+${tc.i}`:"ohne Uhr";
+const tcTxt=tc=>tc?(tc.d?`${tc.d} ${tc.d===1?"Tag":"Tage"}/Zug`:`${tc.m}+${tc.i}`):"ohne Uhr";
 const resTxt=(g,me)=>{if(!g.result||g.result==="-")return g.reason||"abgebrochen";if(g.result==="1/2-1/2")return "Remis";const w=g.result==="1-0"?"w":"b";return me?(w===me?"Gewonnen":"Verloren"):(w==="w"?"Weiß gewinnt":"Schwarz gewinnt")};
 
 /* ---- Anmeldung ---- */
@@ -2459,7 +2462,7 @@ async function onlineBoot(){
   if(!onlineReady()||ON.booted)return;ON.booted=true;
   let n;try{n=await netInit()}catch(e){ON.netErr=true;if(curView==="online")renderOnline();return}
   n.onAuth(async u=>{
-    ON.authKnown=true;socialStop();if(ON.unsubL){ON.unsubL();ON.unsubL=null}if(ON.unsubP){ON.unsubP();ON.unsubP=null}
+    ON.authKnown=true;socialStop();tourStop();mmStop();FEED.items=null;if(ON.unsubL){ON.unsubL();ON.unsubL=null}if(ON.unsubP){ON.unsubP();ON.unsubP=null}
     ON.user=u;ON.profile=null;ON.games=[];
     if(u){
       ON.unsubP=n.watch("users/"+u.uid,p=>{ON.profile=p;if(p&&ON.user&&(!p.lastSeen||Date.now()-p.lastSeen>3600000)){p.lastSeen=Date.now();n.set("users/"+ON.user.uid,{lastSeen:p.lastSeen},true).catch(()=>{})}if(curView==="online")renderOnline();if(mode==="online")renderChrome()});
@@ -2528,7 +2531,10 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 /* ---- Partienliste & Benachrichtigungen ---- */
 function gamesChanged(list){
   const me=ON.user.uid;const prev=ON.seen;const next={};
-  list.forEach(g=>{const key=g.status+"|"+(g.moves||[]).length+"|"+(g.drawOffer||"")+"|"+(g.rematch?g.rematch.id:"");next[g.id]=key;
+  ON.chatN=ON.chatN||{};
+  list.forEach(g=>{const key=g.status+"|"+(g.moves||[]).length+"|"+(g.drawOffer||"")+"|"+(g.rematch?g.rematch.id:"")+"|"+(g.takeback?g.takeback.n:"");next[g.id]=key;
+    const cn=(g.chat||[]).length;if(ON.listInit&&ON.chatN[g.id]!=null&&cn>ON.chatN[g.id]){const m=g.chat[cn-1];if(m&&m.u!==me&&QUICK[m.k])toast(`${(g.names&&g.names[m.u])||"Gegner"}: ${QUICK[m.k]}`)}ON.chatN[g.id]=cn;
+    if(ON.listInit&&prev[g.id]&&prev[g.id]!==key&&g.takeback&&g.takeback.by!==me&&g.status==="active")toast(`${oppName(g)} bittet um Zurücknahme des letzten Zugs`);
     if(prev[g.id]===key||!ON.listInit)return;
     const viewing=mode==="online"&&ON.gid===g.id&&curView==="train";
     if(g.status==="waiting"&&g.invite===me&&!prev[g.id]&&!viewing)toast(`${g.names&&g.names[g.creator]||"Jemand"} fordert dich heraus (${tcTxt(g.tc)})`);
@@ -2553,11 +2559,11 @@ function countResult(g){
 }
 
 /* ---- Partien anlegen, beitreten, Revanche ---- */
-function parseTc(s){if(s==="none")return null;const m=String(s).match(/^(\d+)\+(\d+)$/);return m?{m:+m[1],i:+m[2]}:null}
+function parseTc(s){if(s==="none")return null;if(/^d\d$/.test(s))return {m:0,i:0,d:+s.slice(1)};const m=String(s).match(/^(\d+)\+(\d+)$/);return m?{m:+m[1],i:+m[2]}:null}
 function newGameDoc(tc,myCol,friend){
   const me=ON.user.uid,now=Date.now();const col=myCol==="r"?(Math.random()<.5?"w":"b"):myCol;const other=col==="w"?"b":"w";
   const d={players:friend?[me,friend.uid]:[me],creator:me,invite:friend?friend.uid:null,white:null,black:null,names:{[me]:myName()},status:"waiting",tc:tc||null,moves:[],fen:START_FEN,
-    times:tc?{w:tc.m*60000,b:tc.m*60000}:null,lastAt:0,result:null,reason:"",drawOffer:null,rematch:null,created:now,updated:now};
+    times:tc&&!tc.d?{w:tc.m*60000,b:tc.m*60000}:null,lastAt:0,result:null,reason:"",drawOffer:null,rematch:null,created:now,updated:now};
   d[col==="w"?"white":"black"]=me;if(friend){d[other==="w"?"white":"black"]=friend.uid;d.names[friend.uid]=friend.name}
   return d;
 }
@@ -2626,7 +2632,8 @@ function applyGame(d,force){
   else if(last){if(wasLive){view=hist.length;shown=new Chess(fens[view]);render(ms.length-hist.length===0?{fwd:last}:null);if(last.color!==ON.color)playSound(last)}else render()}
   else render();
   if(d.status==="over"&&prevStatus&&prevStatus!=="over"){sfx(d.result&&d.result!=="-"&&d.result!=="1/2-1/2"&&(d.result==="1-0")===(ON.color==="w")?"done":"wrong")}
-  renderChrome();onlineStatus();startOnTick();
+  if(d.status!=="active")ON.pre=null;
+  renderChrome();onlineStatus();startOnTick();renderQChat();runPremove();
 }
 function onCanMove(){const g=ON.g;return !!g&&g.status==="active"&&!ON.spect&&live()&&shown.turn()===ON.color&&!ON.busy}
 function gameEndOf(c){if(c.in_checkmate())return {result:winRes(otherCol(c.turn())),reason:"Schachmatt"};if(c.in_stalemate())return {result:"1/2-1/2",reason:"Patt"};if(c.insufficient_material())return {result:"1/2-1/2",reason:"zu wenig Material"};if(c.in_threefold_repetition())return {result:"1/2-1/2",reason:"Stellungswiederholung"};if(c.in_draw())return {result:"1/2-1/2",reason:"50-Züge-Regel"};return null}
@@ -2639,26 +2646,30 @@ async function onlineMove(mv,animate){
     if(!d||d.status!=="active"||(d.moves||[]).length!==n)return null;
     const c=new Chess();for(const m of d.moves)c.move(m);if(c.turn()!==myC)return null;
     const m=c.move(r.san);if(!m)return null;
-    const upd={moves:d.moves.concat(m.san),fen:c.fen(),lastAt:now,updated:now,drawOffer:null};
+    if(d.tc&&d.tc.d&&d.moves.length>=2&&now-(d.lastAt||now)>d.tc.d*DAY_MS)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};
+    const upd={moves:d.moves.concat(m.san),fen:c.fen(),lastAt:now,updated:now,drawOffer:null,takeback:null};
     if(d.tc&&d.times&&d.moves.length>=2){const left=d.times[myC]-(now-d.lastAt);if(left<=0)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};upd.times={w:d.times.w,b:d.times.b};upd.times[myC]=left+d.tc.i*1000}
     const end=gameEndOf(c);if(end)Object.assign(upd,{status:"over",result:end.result,reason:end.reason});
     return upd})}catch(e){toast(netErr(e))}
   ON.busy=false;if(!ok&&ON.g)applyGame(ON.g,true);else onlineStatus();
 }
 /* Uhren */
-function clockLeft(g,c){if(!g.tc||!g.times)return null;let t=g.times[c];const running=g.status==="active"&&(g.moves||[]).length>=2&&new Chess(g.fen||START_FEN).turn()===c;if(running)t-=Date.now()-(g.lastAt||Date.now());return t}
+function clockLeft(g,c){if(!g.tc||!g.times||g.tc.d)return null;let t=g.times[c];const running=g.status==="active"&&(g.moves||[]).length>=2&&new Chess(g.fen||START_FEN).turn()===c;if(running)t-=Date.now()-(g.lastAt||Date.now());return t}
 const fmtClock=ms=>{if(ms==null)return "";ms=Math.max(0,ms);const s=ms/1000;if(s<20)return (Math.floor(s*10)/10).toFixed(1);const m=Math.floor(s/60),ss=Math.floor(s%60);return m+":"+String(ss).padStart(2,"0")};
 function onlineClocks(){
   const g=ON.g;const yc=$("youClock"),oc=$("oppClock");if(!g){yc.textContent=oc.textContent="";return}
   const me=ON.color,op2=otherCol(me);const turn=new Chess(g.fen||START_FEN).turn();const act=g.status==="active";
-  if(g.tc){const a=clockLeft(g,me),b=clockLeft(g,op2);yc.textContent=fmtClock(a);oc.textContent=fmtClock(b);yc.classList.toggle("low",a<20000);oc.classList.toggle("low",b<20000)}
+  if(g.tc&&g.tc.d){const L=corrLeft(g);yc.textContent=act?(turn===me?(L==null?"Am Zug":fmtDays(L)):"Wartet"):g.status==="waiting"?"Wartet":"Ende";oc.textContent=act?(turn===op2?(L==null?"Am Zug":fmtDays(L)):"Wartet"):g.status==="waiting"?"–":"Ende";yc.classList.toggle("low",act&&turn===me&&L!=null&&L<6*3600000);oc.classList.remove("low")}
+  else if(g.tc){const a=clockLeft(g,me),b=clockLeft(g,op2);yc.textContent=fmtClock(a);oc.textContent=fmtClock(b);yc.classList.toggle("low",a<20000);oc.classList.toggle("low",b<20000)}
   else{yc.textContent=act?(turn===me?"Am Zug":"Wartet"):g.status==="waiting"?"Wartet":"Ende";oc.textContent=act?(turn===op2?"Denkt …":"Wartet"):g.status==="waiting"?"–":"Ende"}
   yc.classList.toggle("on",act&&turn===me);oc.classList.toggle("on",act&&turn===op2);
 }
 function startOnTick(){stopOnTick();if(!ON.g||ON.g.status!=="active"||!ON.g.tc)return;ON.tick=setInterval(()=>{if(mode!=="online"||!ON.g){stopOnTick();return}onlineClocks();checkFlag()},200)}
 function stopOnTick(){clearInterval(ON.tick);ON.tick=null}
 function checkFlag(){
-  const g=ON.g;if(!g||g.status!=="active"||!g.tc||(g.moves||[]).length<2||ON.spect)return;const turn=new Chess(g.fen).turn();const left=clockLeft(g,turn);
+  const g=ON.g;if(!g||g.status!=="active"||!g.tc||(g.moves||[]).length<2||ON.spect)return;
+  if(g.tc.d){const L=corrLeft(g);if(L==null||L>-2000||Date.now()-ON.claimT<10000)return;ON.claimT=Date.now();const now=Date.now();
+    NET.tx("games/"+ON.gid,d=>{if(!d||d.status!=="active"||!d.tc||!d.tc.d)return null;if(now-(d.lastAt||now)<=d.tc.d*DAY_MS)return null;const t=new Chess(d.fen).turn();return {status:"over",result:winRes(otherCol(t)),reason:"Zeit abgelaufen",updated:now}}).catch(()=>{});return}const turn=new Chess(g.fen).turn();const left=clockLeft(g,turn);
   const grace=turn===ON.color?0:2000;if(left>-grace||Date.now()-ON.claimT<3000)return;ON.claimT=Date.now();const now=Date.now();
   NET.tx("games/"+ON.gid,d=>{if(!d||d.status!=="active"||!d.tc)return null;const t=new Chess(d.fen).turn();if(d.times[t]-(now-d.lastAt)>-grace)return null;return {status:"over",result:winRes(otherCol(t)),reason:"Zeit abgelaufen",updated:now}}).catch(()=>{});
 }
@@ -2676,13 +2687,14 @@ function onlineChrome(){
   else if(ON.spect){h=`<button class="btn" data-on="leave">Zurück</button>`}
   else if(g.status==="waiting"){h=g.invite===myU?`<button class="btn grn" data-on="accept">Annehmen</button><button class="btn" data-on="decline">Ablehnen</button>`:`<button class="btn grn" data-on="share">${g.invite?"Wartet auf Zusage":"Link teilen"}</button><button class="btn" data-on="abort">Abbrechen</button>`}
   else if(g.status==="active"){const n=(g.moves||[]).length;
-    if(g.drawOffer&&g.drawOffer!==myU)h=`<button class="btn grn" data-on="drawyes">Remis annehmen</button><button class="btn" data-on="drawno">Ablehnen</button>`;
-    else h=`${n<2?`<button class="btn" data-on="abort">Abbrechen</button>`:`<button class="btn" data-on="draw" ${g.drawOffer?"disabled":""}>${g.drawOffer?"Remis angeboten":"Remis anbieten"}</button>`}<button class="btn red" data-on="resign">Aufgeben</button>`}
+    if(g.takeback&&g.takeback.by!==myU)h=`<button class="btn grn" data-on="tbyes">Zurücknahme annehmen</button><button class="btn" data-on="tbno">Ablehnen</button>`;
+    else if(g.drawOffer&&g.drawOffer!==myU)h=`<button class="btn grn" data-on="drawyes">Remis annehmen</button><button class="btn" data-on="drawno">Ablehnen</button>`;
+    else h=`${n<2?`<button class="btn" data-on="abort">Abbrechen</button>`:`<button class="btn" data-on="draw" ${g.drawOffer?"disabled":""}>${g.drawOffer?"Remis angeboten":"Remis"}</button>`}${n?`<button class="btn" data-on="tb" ${canAskTakeback(g)?"":"disabled"}>${g.takeback&&g.takeback.by===myU?"Angefragt":"Zurück"}</button>`:""}<button class="btn red" data-on="resign">Aufgeben</button>`}
   else{const rm=g.rematch;h=`<button class="btn grn" data-on="analyze">Partie analysieren</button><button class="btn ${rm&&rm.by!==myU?"grn":""}" data-on="rematch">${rm?(rm.by===myU?"Revanche angeboten":"Revanche annehmen"):"Revanche"}</button>`;if(g.result==="-")h=`<button class="btn" data-on="leave">Zur Übersicht</button><button class="btn" data-on="rematch">Neue Partie</button>`}
-  box.innerHTML=h;box.className="acts two";
+  box.innerHTML=h;box.className=(h.match(/<button/g)||[]).length===3?"acts":"acts two";
   box.querySelectorAll("[data-on]").forEach(b=>b.onclick=()=>{const a=b.dataset.on;
     if(a==="resign"){if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich aufgeben?";setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent="Aufgeben"}},3000);return}onResign()}
-    else if(a==="abort")onAbort();else if(a==="draw")onOfferDraw();else if(a==="drawyes")onDrawAnswer(true);else if(a==="drawno")onDrawAnswer(false);
+    else if(a==="abort")onAbort();else if(a==="draw")onOfferDraw();else if(a==="drawyes")onDrawAnswer(true);else if(a==="tb")onTakebackAsk();else if(a==="tbyes")onTakebackAnswer(true);else if(a==="tbno")onTakebackAnswer(false);else if(a==="drawno")onDrawAnswer(false);
     else if(a==="share")shareInvite(ON.gid);else if(a==="accept")joinGame(ON.gid).catch(e=>toast(netErr(e)));else if(a==="decline")onDecline();
     else if(a==="analyze")analyzeOnline();else if(a==="rematch")onRematch();else if(a==="leave")leaveOnline()});
 }
@@ -2719,27 +2731,30 @@ function renderOnline(){
   const act=G.filter(g=>g.status==="active");const over=G.filter(g=>g.status==="over"&&g.result!=="-").slice(0,20);
   const row=(g,extra)=>{const c=myColorIn(g);const turn=g.status==="active"?new Chess(g.fen||START_FEN).turn():null;const mine2=turn&&turn===c;
     return `<div class="onrow"><button class="onopen" data-og="${esc(g.id)}"><span class="kchip ${c||"w"}"></span><span class="onn"><b>${esc(oppName(g))}</b><small>${tcTxt(g.tc)} · ${g.status==="over"?esc(resTxt(g,c))+" · "+esc(g.reason||""):g.status==="active"?((g.moves||[]).length+" Halbzüge"):g.invite?"Herausforderung":"Einladungslink"} · ${fmtDate(g.updated||g.created)}</small></span>${mine2?'<span class="onturn">Am Zug</span>':""}</button>${extra||""}</div>`};
-  const tcs=[["1+0","1 Min"],["3+2","3 | 2"],["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["30+0","30 Min"],["none","Ohne Uhr"]];
+  const tcs=[["1+0","1 Min"],["3+2","3 | 2"],["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["30+0","30 Min"],["d1","1 Tag/Zug"],["d3","3 Tage/Zug"],["none","Ohne Uhr"]];
   const friends=(P.friends||[]);
   const OTH={leader:["Bestenliste","Alle Spieler im Vergleich."],friends:["Freunde","Anfragen, Online-Status und Herausforderungen."],live:["Live","Laufende Partien – tippe zum Zuschauen."],admin:["Admin","Übersicht über Konten und Partien."]}[ON.tab];
-  v.innerHTML=`${OTH?pageHead(OTH[0],OTH[1],ON.tab==="admin"?"settings":ON.tab==="live"?"swords":"online"):`<div class="onhead"><span class="onav">${esc(P.name[0].toUpperCase())}</span><div><h2>${esc(P.name)}</h2><small>Wertung ${P.elo||1200} · ${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>`}
+  v.innerHTML=`${OTH?pageHead(OTH[0],OTH[1],ON.tab==="admin"?"settings":ON.tab==="live"?"swords":"online"):`<div class="onhead"><span class="onav"${avSt(P.av)}>${avTxt(P.name,P.av)}</span><div><h2>${esc(P.name)}</h2><small>Wertung ${P.elo||1200} · ${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>`}
   ${P.banned?`<div class="err">Dein Konto wurde gesperrt. Du kannst keine neuen Partien starten.</div>`:""}
   ${ON.tab==="play"?`
   ${inv.length?`<div class="card"><h3>Herausforderungen</h3>${inv.map(g=>row(g,`<span class="onbtns"><button class="btn grn" data-acc="${esc(g.id)}">Annehmen</button><button class="btn" data-dec="${esc(g.id)}">Ablehnen</button></span>`)).join("")}</div>`:""}
-  <div class="card"><h3>Neue Partie</h3>
+  <div class="card mmcard"><h3>Schnelle Partie</h3>${MM.on?`<div class="mm-on"><span class="mm-spin"></span><span><b>Suche Gegner …</b><small>${esc(tcTxt(parseTc(MM.tc)))} · <span id="mmTime">${Math.floor((Date.now()-MM.t0)/1000)} s</span> · etwa gleich stark</small></span><button class="btn" id="mmStop">Abbrechen</button></div>`:`<p class="hint" style="margin:0 0 10px">Ein zufälliger Gegner mit ähnlicher Wertung und derselben Bedenkzeit (${esc(tcTxt(parseTc(ON.tc)))}).</p><button class="btn grn wide" id="mmGo">Gegner suchen</button>`}</div>
+  <div class="card"><h3>Partie gegen Freunde</h3>
     <div class="fld">Bedenkzeit</div><div class="filters" style="margin:6px 0 12px">${tcs.map(t=>`<button class="chip${ON.tc===t[0]?" on":""}" data-tc="${t[0]}">${t[1]}</button>`).join("")}</div>
     <div class="fld">Deine Farbe</div><div class="seg" style="margin:6px 0 14px">${[["w","Weiß"],["r","Zufall"],["b","Schwarz"]].map(c=>`<button data-col="${c[0]}" aria-pressed="${ON.col===c[0]}">${c[1]}</button>`).join("")}</div>
     <div class="btnrow"><button class="btn grn" id="onLink" style="padding:11px 16px">Einladungslink erstellen</button>${friends.length?`<select id="onFr" class="txt" style="width:auto;flex:1;min-width:120px">${friends.map(f=>`<option value="${esc(f.uid)}">${esc(f.name)}</option>`).join("")}</select><button class="btn" id="onChal" style="padding:11px 16px">Herausfordern</button>`:`<span class="hint">Füge unter Profil → Freunde Freunde hinzu, um sie direkt herauszufordern.</span>`}</div></div>
   ${act.length?`<div class="card"><h3>Laufende Partien</h3>${act.map(g=>row(g)).join("")}</div>`:""}
   ${mine.length?`<div class="card"><h3>Offene Einladungen</h3>${mine.map(g=>row(g,`<span class="onbtns"><button class="btn" data-shr="${esc(g.id)}">Teilen</button><button class="btn" data-can="${esc(g.id)}">Löschen</button></span>`)).join("")}</div>`:""}
   ${over.length?`<div class="card"><h3>Beendete Partien</h3>${over.map(g=>row(g)).join("")}</div>`:""}`:""}
-  ${ON.tab==="account"?`<div class="card"><h3>Konto</h3><p class="hint" style="margin:0 0 10px">Angemeldet als <b>${esc(ON.user.email)}</b>. Deine Nutzer-ID: <code class="uid">${esc(ON.user.uid)}</code> <button class="chip" id="onUid">Kopieren</button> Dein Trainingsfortschritt (Varianten, Wiederholungen, Taktik, Einstellungen) wird automatisch in deinem Konto gesichert und ist auf allen Geräten gleich.</p>
+  ${ON.tab==="account"?`<div class="card"><h3>Avatar</h3><p class="hint" style="margin:0 0 10px">So sehen dich andere Spieler in der Bestenliste und bei Partien.</p>${avPicker(P.av)}<div class="btnrow" style="margin-top:10px"><button class="btn" data-go="player:${esc(me)}">Mein Profil ansehen</button></div></div><div class="card"><h3>Konto</h3><p class="hint" style="margin:0 0 10px">Angemeldet als <b>${esc(ON.user.email)}</b>. Deine Nutzer-ID: <code class="uid">${esc(ON.user.uid)}</code> <button class="chip" id="onUid">Kopieren</button> Dein Trainingsfortschritt (Varianten, Wiederholungen, Taktik, Einstellungen) wird automatisch in deinem Konto gesichert und ist auf allen Geräten gleich.</p>
     <p class="hint" style="margin:0 0 12px">${ON.syncAt?"Zuletzt gesichert: "+new Date(ON.syncAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"Noch nicht gesichert."}</p>
     <div class="btnrow"><button class="btn" id="onSync">Jetzt sichern</button><button class="btn" id="onOut">Abmelden</button></div>
     <div class="setrow" style="margin-top:12px"><span><b>In der Bestenliste zeigen</b><small>Taktik-Wertung, gelernte Varianten und Serie erscheinen für andere Spieler. Deine Online-Bilanz ist immer sichtbar.</small></span><button class="switch" id="onLbShow" aria-pressed="${!S.set.lbHide}" aria-label="In der Bestenliste zeigen"></button></div></div>
     <div class="card"><h3>Konto löschen</h3><p class="hint" style="margin:0 0 10px">Löscht dein Profil, deinen Benutzernamen und den Cloud-Fortschritt. Dein Fortschritt in diesem Browser bleibt erhalten.</p><div class="btnrow"><button class="btn red" id="onDel">Konto löschen</button><span class="hint" id="onDelMsg"></span></div></div>`:""}`;
   v.querySelectorAll("[data-ot]").forEach(b=>b.onclick=()=>{ON.tab=b.dataset.ot;renderOnline()});
   v.querySelectorAll("[data-og]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.og));
+  if($("mmGo"))$("mmGo").onclick=()=>mmStart();if($("mmStop"))$("mmStop").onclick=()=>mmStop();
+  if(ON.tab==="account")wireAvPicker(v);v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));
   v.querySelectorAll("[data-tc]").forEach(b=>b.onclick=()=>{ON.tc=b.dataset.tc;store.set("et-ontc",ON.tc);renderOnline()});
   v.querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{ON.col=b.dataset.col;store.set("et-oncol",ON.col);renderOnline()});
   v.querySelectorAll("[data-acc]").forEach(b=>b.onclick=async()=>{const id=b.dataset.acc;try{await joinGame(id)}catch(e){toast(netErr(e))}openOnlineGame(id)});
@@ -2851,7 +2866,7 @@ function renderAdminBox(){
     h+=`<div class="card"><div class="btnrow"><input class="txt" id="admQ" placeholder="Name oder E-Mail suchen" value="${esc(ADM.q)}" style="flex:1;width:auto;min-width:150px"><select id="admSort" class="txt" style="width:auto">${[["new","Neueste"],["seen","Zuletzt aktiv"],["games","Meiste Partien"],["name","Name"]].map(s=>`<option value="${s[0]}" ${ADM.sort===s[0]?"selected":""}>${s[1]}</option>`).join("")}</select></div>
       <p class="hint" style="margin:8px 0 0">${list.length} von ${U.length} Nutzern</p></div>
     <div class="card aul">${list.map(u=>{const p=P[u.id];const n=ng(u);const open=ADM.sel===u.id;
-      return `<div class="aurow${open?" open":""}"><button class="auhead" data-us="${esc(u.id)}"><span class="onav sm">${esc((u.name||"?")[0].toUpperCase())}</span><span class="onn"><b>${esc(u.name||"(ohne Namen)")}${u.banned?' <span class="abadge red">gesperrt</span>':""}${ADMIN_UIDS.indexOf(u.id)>=0?' <span class="abadge">Admin</span>':""}</b><small>${p&&p.email?esc(p.email)+" · ":""}seit ${u.created?fmtDate(u.created):"?"} · aktiv ${relTime(u.lastSeen)}</small></span><span class="aunum"><b>${n}</b><small>Partien</small></span></button>
+      return `<div class="aurow${open?" open":""}"><button class="auhead" data-us="${esc(u.id)}"><span class="onav sm"${avSt(u.av)}>${avTxt(u.name,u.av)}</span><span class="onn"><b>${esc(u.name||"(ohne Namen)")}${u.banned?' <span class="abadge red">gesperrt</span>':""}${ADMIN_UIDS.indexOf(u.id)>=0?' <span class="abadge">Admin</span>':""}</b><small>${p&&p.email?esc(p.email)+" · ":""}seit ${u.created?fmtDate(u.created):"?"} · aktiv ${relTime(u.lastSeen)}</small></span><span class="aunum"><b>${n}</b><small>Partien</small></span></button>
       ${open?userDetail(u,p,gamesOf(u.id),nameOf):""}</div>`}).join("")||'<p class="hint" style="margin:0">Keine Nutzer gefunden.</p>'}</div>`;
   }
   if(ADM.tab==="games"){
@@ -2954,10 +2969,10 @@ function renderLeader(v){
   const rest=list.filter(u=>ranked.indexOf(u)<0).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   const myRank=ranked.findIndex(u=>u.id===me);
   const row=(u,i)=>{const lg=liveGameOf(u.id);const open=SOC.sel===u.id;const isF=friendIds.indexOf(u.id)>=0&&u.id!==me;
-    return `<div class="aurow${u.id===me?" mine":""}${open?" open":""}"><button class="auhead" data-lu="${esc(u.id)}"><span class="lrank">${i==null?"–":medal(i)}</span><span class="onav sm">${esc(u.name[0].toUpperCase())}${isOnlineAt(u.lastSeen)?'<i class="odot"></i>':""}</span><span class="onn"><b>${esc(u.name)}${u.id===me?" (du)":""}${lg?' <span class="abadge grn">spielt</span>':""}</b><small>${i==null?"noch keine Werte":esc(sub(u))}</small></span><span class="aunum"><b>${i==null?"–":(val(u)==null?"–":val(u))}</b><small>${M.find(m=>m[0]===SOC.lb)[1]}</small></span></button>
+    return `<div class="aurow${u.id===me?" mine":""}${open?" open":""}"><button class="auhead" data-lu="${esc(u.id)}"><span class="lrank">${i==null?"–":medal(i)}</span><span class="onav sm"${avSt(u.av)}>${avTxt(u.name,u.av)}${isOnlineAt(u.lastSeen)?'<i class="odot"></i>':""}</span><span class="onn"><b>${esc(u.name)}${u.id===me?" (du)":""}${lg?' <span class="abadge grn">spielt</span>':""}</b><small>${i==null?"noch keine Werte":esc(sub(u))}</small></span><span class="aunum"><b>${i==null?"–":(val(u)==null?"–":val(u))}</b><small>${M.find(m=>m[0]===SOC.lb)[1]}</small></span></button>
     ${open?`<div class="audet"><div class="atiles sm">${tileS(u.elo||1200,"Online-Wertung")}${tileS(userGames(u),"Partien",`${u.w||0} S · ${u.d||0} R · ${u.l||0} N`)}${tileS(u.pub&&u.pub.tacR||"–","Taktik-Wertung")}${tileS(u.pub&&u.pub.clean||0,"Varianten fehlerfrei")}${tileS(u.pub&&u.pub.streak||0,"Beste Serie")}${tileS(isOnlineAt(u.lastSeen)?"online":relTime(u.lastSeen),"Zuletzt aktiv")}</div>
       ${u.eloHist&&u.eloHist.length>1?`<div class="exh" style="margin-top:10px"><span>Wertungsverlauf</span></div>${sparkHtml(u.eloHist.map(h=>h.r))}`:""}
-      ${u.id!==me?`<div class="btnrow" style="margin-top:10px">${lg?`<button class="btn grn" data-watch="${esc(lg.id)}">Zuschauen</button>`:""}<button class="btn" data-chal="${esc(u.id)}">Herausfordern</button>${isF?"":`<button class="btn" data-freq="${esc(u.id)}">Als Freund hinzufügen</button>`}</div>`:""}</div>`:""}</div>`};
+      ${`<div class="btnrow" style="margin-top:10px"><button class="btn" data-prof="${esc(u.id)}">Profil</button>`}${u.id!==me?`<div class="btnrow" style="margin-top:10px">${lg?`<button class="btn grn" data-watch="${esc(lg.id)}">Zuschauen</button>`:""}<button class="btn" data-chal="${esc(u.id)}">Herausfordern</button>${isF?"":`<button class="btn" data-freq="${esc(u.id)}">Als Freund hinzufügen</button>`}</div>`:""}</div>`:""}</div>`};
   box.innerHTML=`<div class="card"><div class="filters">${M.map(m=>`<button class="chip${SOC.lb===m[0]?" on":""}" data-lb="${m[0]}">${m[1]}</button>`).join("")}</div>
     <div class="btnrow" style="margin-top:10px;justify-content:space-between"><span class="seg"><button data-lf="0" aria-pressed="${!SOC.lbFriends}">Alle</button><button data-lf="1" aria-pressed="${SOC.lbFriends}">Freunde</button></span><button class="btn" id="lbRe" style="padding:8px 12px">Aktualisieren</button></div>
     <p class="hint" style="margin:8px 0 0">${myRank>=0?`Du bist auf Platz <b>${myRank+1}</b> von ${ranked.length}.`:"Spiel eine Online-Partie, um in die Wertung zu kommen."} Die Online-Wertung startet bei 1200 und ändert sich nach jeder Partie (Elo).</p></div>
@@ -2982,7 +2997,7 @@ function renderFriends(v){
     <p class="hint" id="frMsg" style="margin:8px 0 0">Dein Benutzername: <b>${esc(P.name)}</b> – gib ihn deinen Freunden.</p>
     ${pendOut.length?`<p class="hint" style="margin:6px 0 0">Gesendet, wartet auf Antwort: ${pendOut.map(r=>`<b>${esc(r.toName||"?")}</b> <button class="chip" data-rcan="${esc(r.id)}">zurückziehen</button>`).join(" ")}</p>`:""}</div>
   <div class="card aul"><h3 style="margin:6px">Deine Freunde (${fr.length})</h3>${sorted.length?sorted.map(f=>{const u=U(f.uid);const on=isOnlineAt(u.lastSeen);const lg=liveGameOf(f.uid);
-    return `<div class="onrow"><span class="onav sm">${esc((f.name||"?")[0].toUpperCase())}${on?'<i class="odot"></i>':""}</span><span class="onn" style="padding:8px 4px"><b>${esc(u.name||f.name)}${lg?' <span class="abadge grn">spielt</span>':""}</b><small>${on?"online":"zuletzt "+relTime(u.lastSeen)} · Wertung ${u.elo||1200} · ${nP(userGames(u))}</small></span><span class="onbtns">${lg?`<button class="btn grn" data-watch="${esc(lg.id)}">Zuschauen</button>`:""}<button class="btn" data-chal="${esc(f.uid)}">Herausfordern</button><button class="btn" data-rmf2="${esc(f.uid)}" title="Entfernen">✕</button></span></div>`}).join(""):'<p class="hint" style="margin:6px">Noch keine Freunde. Schick jemandem eine Anfrage oder füge Spieler aus der Bestenliste hinzu.</p>'}</div>`;
+    return `<div class="onrow"><button class="onopen fr-open" data-prof="${esc(f.uid)}"><span class="onav sm"${avSt(u.av)}>${avTxt(u.name||f.name,u.av)}${on?'<i class="odot"></i>':""}</span><span class="onn"><b>${esc(u.name||f.name)}${lg?' <span class="abadge grn">spielt</span>':""}</b><small>${on?"online":"zuletzt "+relTime(u.lastSeen)} · Wertung ${u.elo||1200} · ${nP(userGames(u))}</small></span></button><span class="onbtns">${lg?`<button class="btn grn" data-watch="${esc(lg.id)}">Zuschauen</button>`:""}<button class="btn" data-chal="${esc(f.uid)}">Herausfordern</button><button class="btn" data-rmf2="${esc(f.uid)}" title="Entfernen">✕</button></span></div>`}).join(""):'<p class="hint" style="margin:6px">Noch keine Freunde. Schick jemandem eine Anfrage oder füge Spieler aus der Bestenliste hinzu.</p>'}</div>`;
   wireSocial(box);
 }
 async function sendFriendReq(uid,name,msg){
@@ -3021,6 +3036,7 @@ function wireSocial(box){
   box.querySelectorAll("[data-lf]").forEach(b=>b.onclick=()=>{SOC.lbFriends=b.dataset.lf==="1";renderOnline()});
   box.querySelectorAll("[data-lu]").forEach(b=>b.onclick=()=>{SOC.sel=SOC.sel===b.dataset.lu?null:b.dataset.lu;renderOnline()});
   const re=$("lbRe");if(re)re.onclick=()=>{re.disabled=true;Promise.all([loadUsers(true),loadLive()]).then(()=>renderOnline()).catch(e=>toast(netErr(e)))};
+  box.querySelectorAll("[data-prof]").forEach(b=>b.onclick=e=>{e.stopPropagation();showView("player:"+b.dataset.prof)});
   box.querySelectorAll("[data-watch]").forEach(b=>b.onclick=e=>{e.stopPropagation();openOnlineGame(b.dataset.watch)});
   box.querySelectorAll("[data-chal]").forEach(b=>b.onclick=()=>{const u=(SOC.users||[]).find(x=>x.id===b.dataset.chal);if(!u)return;ON.tab="play";createGame({uid:u.id,name:u.name})});
   box.querySelectorAll("[data-freq]").forEach(b=>b.onclick=()=>{const u=(SOC.users||[]).find(x=>x.id===b.dataset.freq);if(u)sendFriendReq(u.id,u.name)});
@@ -3079,6 +3095,7 @@ function renderHome(){
     <button class="btn grn wide" data-act="daily">${dd>=dq?"Extra-Training starten":"Tagestraining fortsetzen"}</button></section>
   <div class="sec-h"><h3>Schnellstart</h3></div>
   <div class="qas">${quick("online:play","swords","Online spielen","Gegen Freunde")}${quick("bots","bot","Gegen Computer","Stockfish in 6 Stufen")}${quick("analyse","search","Partie analysieren","Game Review")}${quick("tactics","bolt","Taktik",`Wertung ${PZ.r}`)}</div>
+  ${feedHtml()}
   <div class="sec-h"><h3>Dein Stand</h3><button class="linkb" data-act="profile:stats">Statistik ›</button></div>
   <div class="kpis">${tile("Serie",streakNow(),`Rekord ${S.streak.best||0}`)}${tile("Varianten",cleanCount(),`von ${totalLines()} fehlerfrei`)}${tile("Taktik",PZ.r,`${PZ.n} Aufgaben`)}${tile("Online",ON.profile?(ON.profile.elo||1200):"–",ON.profile?`${ON.profile.w||0} S · ${ON.profile.d||0} R · ${ON.profile.l||0} N`:"nicht angemeldet")}</div>
   <p class="foot-links"><button class="linkb" data-act="legal">Datenschutz</button> · <button class="linkb" data-act="legal:imp">Impressum</button></p>`;
@@ -3388,6 +3405,187 @@ function botPick(fen,r){
   return best;
 }
 
+/* ================= Phase 3: Avatare, Profile, Nachrichten, Zurücknahme, Vorzüge, Schnellsuche, Fernschach, Turniere, Neuigkeiten ================= */
+
+/* ---- Avatare (nur feste Auswahl, damit fremde Daten nichts einschleusen können) ---- */
+const AV_ICONS=["♞","♝","♜","♛","♚","♟","♘","♗","♖","♕","♔","♙"];
+const AV_COLS=["#8B6CF6","#E5484D","#81B64C","#3E8ED0","#E6912C","#26A69A","#D6409F","#5C5A57"];
+const avOk=av=>av&&AV_ICONS.indexOf(av.i)>=0&&AV_COLS.indexOf(av.c)>=0;
+function avSt(av){return avOk(av)?` style="background:${av.c}"`:""}
+function avTxt(name,av){return avOk(av)?av.i+"\uFE0E":esc(String(name||"?")[0].toUpperCase())}
+function avPicker(cur){cur=avOk(cur)?cur:{i:"",c:""};
+  return `<div class="avp"><div class="avp-row">${AV_ICONS.map(i=>`<button class="avb" data-avi="${i}" aria-pressed="${cur.i===i}">${i}\uFE0E</button>`).join("")}</div><div class="avp-row">${AV_COLS.map(c=>`<button class="avc" data-avc="${c}" aria-pressed="${cur.c===c}" style="--c:${c}" aria-label="Farbe"></button>`).join("")}</div></div>`}
+function wireAvPicker(root){
+  const cur=Object.assign({i:AV_ICONS[0],c:AV_COLS[0]},avOk(ON.profile&&ON.profile.av)?ON.profile.av:{});
+  const save=()=>{NET.set("users/"+ON.user.uid,{av:{i:cur.i,c:cur.c}},true).then(()=>toast("Avatar gespeichert")).catch(e=>toast(netErr(e)))};
+  root.querySelectorAll("[data-avi]").forEach(b=>b.onclick=()=>{cur.i=b.dataset.avi;save()});
+  root.querySelectorAll("[data-avc]").forEach(b=>b.onclick=()=>{cur.c=b.dataset.avc;save()});
+}
+
+/* ---- Spielerprofil ---- */
+let playerUid=null;
+async function renderPlayer(){
+  const v=$("v-player");if(!v)return;const uid=playerUid;
+  if(!ON.user){v.innerHTML=emptyState("profile","Melde dich an","Spielerprofile siehst du mit einem Konto.",`<button class="btn grn" data-go="online:account">Anmelden</button>`);v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));return}
+  let u=(SOC.users||[]).find(x=>x.id===uid);
+  if(!u){v.innerHTML=`<div class="card">${SKEL}</div>`;try{const d=await NET.get("users/"+uid);if(playerUid!==uid)return;if(!d){v.innerHTML=emptyState("profile","Spieler nicht gefunden","");return}u=Object.assign({id:uid},d)}catch(e){v.innerHTML=`<div class="err">${esc(netErr(e))}</div>`;return}}
+  const me=ON.user.uid;const isMe=uid===me;const fr=((ON.profile&&ON.profile.friends)||[]).some(f=>f.uid===uid);
+  const n=userGames(u);const lg=liveGameOf(uid);
+  const mine=(ON.games||[]).filter(g=>(g.players||[]).indexOf(uid)>=0&&g.status==="over"&&g.result&&g.result!=="-");
+  const h2h={w:0,d:0,l:0};mine.forEach(g=>{const c=myColorIn(g);if(g.result==="1/2-1/2")h2h.d++;else if((g.result==="1-0")===(c==="w"))h2h.w++;else h2h.l++});
+  const pub=u.pub&&!u.pub.hide?u.pub:null;
+  v.innerHTML=`<div class="pl-h"><span class="onav pl-av"${avSt(u.av)}>${avTxt(u.name,u.av)}${isOnlineAt(u.lastSeen)?'<i class="odot"></i>':""}</span><div><h2>${esc(u.name||"Spieler")}${isMe?" (du)":""}</h2><small>${isOnlineAt(u.lastSeen)?"online":"zuletzt "+relTime(u.lastSeen)}${u.created?" · dabei seit "+fmtDate(u.created):""}${lg?' · <span class="abadge grn">spielt gerade</span>':""}</small></div></div>
+  <div class="kpis">${[["Wertung",n?(u.elo||1200):"–",n?nP(n):"noch keine Partie"],["Bilanz",`${u.w||0}/${u.d||0}/${u.l||0}`,"Siege/Remis/Niederlagen"],["Taktik",pub&&pub.tacR||"–",pub?`${pub.tacN||0} Aufgaben`:"verborgen"],["Varianten",pub?pub.clean||0:"–",pub?`Serie ${pub.streak||0}`:"verborgen"]].map(t=>`<div class="kpi"><small>${t[0]}</small><b>${esc(String(t[1]))}</b><span>${esc(t[2])}</span></div>`).join("")}</div>
+  ${u.eloHist&&u.eloHist.length>1?`<div class="card"><h3>Wertungsverlauf</h3>${sparkHtml(u.eloHist.map(x=>x.r))}</div>`:""}
+  ${!isMe&&mine.length?`<div class="card"><h3>Gegen dich</h3><p class="hint" style="margin:0 0 8px">${mine.length} ${mine.length===1?"Partie":"Partien"}: ${h2h.w} Siege, ${h2h.d} Remis, ${h2h.l} Niederlagen</p>${mine.slice(0,6).map(g=>`<div class="onrow"><button class="onopen" data-og="${esc(g.id)}"><span class="kchip ${myColorIn(g)||"w"}"></span><span class="onn"><b>${esc(resTxt(g,myColorIn(g)))}</b><small>${tcTxt(g.tc)} · ${esc(g.reason||"")} · ${fmtDate(g.updated||g.created)}</small></span></button></div>`).join("")}</div>`:""}
+  ${isMe?`<div class="card"><h3>Dein Avatar</h3>${avPicker(u.av)}</div>`:`<div class="btnrow">${lg?`<button class="btn grn" data-watch="${esc(lg.id)}">Zuschauen</button>`:""}<button class="btn grn" data-chal="${esc(uid)}">Herausfordern</button>${fr?"":`<button class="btn" data-freq="${esc(uid)}">Als Freund hinzufügen</button>`}</div>`}`;
+  v.querySelectorAll("[data-og]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.og));
+  v.querySelectorAll("[data-watch]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.watch));
+  const ch=v.querySelector("[data-chal]");if(ch)ch.onclick=()=>createGame({uid,name:u.name});
+  const fq=v.querySelector("[data-freq]");if(fq)fq.onclick=()=>sendFriendReq(uid,u.name);
+  if(isMe)wireAvPicker(v);
+}
+
+/* ---- Schnellnachrichten (nur vorgegebene Sätze – keine Moderation nötig) ---- */
+const QUICK=["Viel Glück!","Viel Spaß!","Guter Zug!","Hoppla!","Danke für die Partie!","Gut gespielt!","Revanche?","Bin gleich zurück"];
+let qLast=0,qOpen=false;
+async function sendQuick(k){
+  if(!ON.gid||ON.spect||Date.now()-qLast<2500)return;qLast=Date.now();const me=ON.user.uid;
+  try{await NET.tx("games/"+ON.gid,d=>d?{chat:(d.chat||[]).concat({u:me,k,at:Date.now()}).slice(-20),updated:Date.now()}:null)}catch(e){toast(netErr(e))}
+}
+function renderQChat(){
+  const el=$("qChat");if(!el)return;const g=ON.g;
+  if(mode!=="online"||!g||g.status==="waiting"){el.hidden=true;return}el.hidden=false;
+  const me=ON.user&&ON.user.uid;const msgs=(g.chat||[]).filter(m=>QUICK[m.k]).slice(-4);
+  el.innerHTML=`<div class="qc-row"><div class="qc-log">${msgs.length?msgs.map(m=>`<span class="qc-m${m.u===me?" me":""}"><b>${esc(m.u===me?"Du":(g.names&&g.names[m.u])||"Gegner")}:</b> ${esc(QUICK[m.k])}</span>`).join(""):'<span class="qc-e">Noch keine Nachrichten</span>'}</div>${ON.spect?"":`<button class="chip qc-tg${qOpen?" on":""}" id="qcTg" aria-expanded="${qOpen}">Nachricht</button>`}</div>${ON.spect||!qOpen?"":`<div class="qc-btns">${QUICK.map((t,i)=>`<button class="chip" data-qk="${i}">${esc(t)}</button>`).join("")}</div>`}`;
+  el.querySelectorAll("[data-qk]").forEach(b=>b.onclick=()=>{qOpen=false;sendQuick(+b.dataset.qk);renderQChat()});
+  const tg=$("qcTg");if(tg)tg.onclick=()=>{qOpen=!qOpen;renderQChat()};
+  const lg=el.querySelector(".qc-log");if(lg)lg.scrollLeft=lg.scrollWidth;
+}
+
+/* ---- Zug zurücknehmen (Gegner muss zustimmen) ---- */
+function canAskTakeback(g){if(!g||g.status!=="active"||ON.spect)return false;const n=(g.moves||[]).length;if(!n||g.takeback)return false;return (n%2===1?"w":"b")===ON.color}
+function onTakebackAsk(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.takeback&&(d.moves||[]).length?{takeback:{by:me,n:d.moves.length},updated:Date.now()}:null).then(ok=>{if(ok)toast("Zurücknahme angefragt")})}
+function onTakebackAnswer(acc){const me=ON.user.uid;const now=Date.now();
+  gameAct(d=>{if(!d||d.status!=="active"||!d.takeback||d.takeback.by===me)return null;if(!acc||(d.moves||[]).length!==d.takeback.n)return {takeback:null,updated:now};
+    const mv=d.moves.slice(0,d.takeback.n-1);const c=new Chess();mv.forEach(m=>c.move(m));return {moves:mv,fen:c.fen(),takeback:null,drawOffer:null,lastAt:now,updated:now}})}
+
+/* ---- Vorzüge (Premoves): Zug vormerken, während der Gegner nachdenkt ---- */
+function onCanPremove(){const g=ON.g;return S.set.premove!==false&&!!g&&g.status==="active"&&!ON.spect&&live()&&shown.turn()!==ON.color&&!!ON.color}
+function premoveCands(from,to){const f=shown.fen().split(" ");f[1]=ON.color;f[3]="-";let c;try{c=new Chess(f.join(" "))}catch(e){return []}
+  return c.moves({verbose:true}).filter(m=>m.from===from&&m.to===to)}
+function setPremove(from,to){const c=premoveCands(from,to);if(!c.length)return false;ON.pre={from,to,promotion:c.some(m=>m.promotion)?"q":undefined};sel=null;render();toast("Vorzug gemerkt – tippe aufs Brett zum Löschen");return true}
+function runPremove(){const p=ON.pre;if(!p||!onCanMove())return;ON.pre=null;const g=new Chess(fens[hist.length]);const mv=g.moves({verbose:true}).find(m=>m.from===p.from&&m.to===p.to&&(!m.promotion||m.promotion===(p.promotion||"q")));renderMarks();if(mv)setTimeout(()=>{if(onCanMove())onlineMove(mv,true)},60)}
+
+/* ---- Fernschach: Tage pro Zug ---- */
+const DAY_MS=86400000;
+function corrLeft(g){if(!g||!g.tc||!g.tc.d||g.status!=="active"||(g.moves||[]).length<2)return null;return (g.lastAt||Date.now())+g.tc.d*DAY_MS-Date.now()}
+const fmtDays=ms=>{if(ms==null)return "";ms=Math.max(0,ms);const h=Math.floor(ms/3600000);return h>=48?Math.floor(h/24)+" Tage":h>=1?h+" Std":Math.ceil(ms/60000)+" Min"};
+
+/* ---- Schnellsuche: gleich starke Gegner mit derselben Bedenkzeit ---- */
+const MM={on:false,t0:0,iv:null,unsub:null,tc:null,busy:false,beat:0};
+async function mmStart(){
+  if(!ON.profile){toast("Lege zuerst deinen Benutzernamen fest.");return}if(ON.profile.banned){toast("Dein Konto ist gesperrt.");return}
+  if(MM.on)return;const me=ON.user.uid;MM.on=true;MM.t0=Date.now();MM.tc=ON.tc;MM.beat=0;
+  try{await NET.set("queue/"+me,{uid:me,name:myName(),elo:ON.profile.elo||1200,tc:MM.tc,at:Date.now(),gid:null})}catch(e){MM.on=false;toast(netErr(e));return}
+  MM.unsub=NET.watch("queue/"+me,d=>{if(MM.on&&d&&d.gid)mmMatched(d.gid,true)});
+  MM.iv=setInterval(mmTick,2500);mmTick();if(curView==="online")renderOnline();
+}
+function mmStop(keepDoc){if(MM.iv)clearInterval(MM.iv);MM.iv=null;if(MM.unsub){MM.unsub();MM.unsub=null}const was=MM.on;MM.on=false;if(was&&!keepDoc&&ON.user)NET.del("queue/"+ON.user.uid).catch(()=>{});if(curView==="online")renderOnline()}
+async function mmTick(){
+  if(!MM.on||MM.busy||!ON.user)return;const me=ON.user.uid,now=Date.now();MM.busy=true;
+  try{
+    if(++MM.beat%4===0)await NET.set("queue/"+me,{at:now},true);
+    if(curView==="online"){const t=$("mmTime");if(t)t.textContent=Math.floor((now-MM.t0)/1000)+" s"}
+    const list=await NET.query("queue","tc","==",MM.tc);if(!MM.on)return;
+    const my=ON.profile.elo||1200;
+    const cand=list.filter(x=>x.uid&&x.uid!==me&&!x.gid&&now-(x.at||0)<20000&&x.uid>me).sort((a,b)=>Math.abs((a.elo||1200)-my)-Math.abs((b.elo||1200)-my)||(a.at||0)-(b.at||0));
+    for(const x of cand){
+      const d=newGameDoc(parseTc(MM.tc),"r",{uid:x.uid,name:x.name||"Gegner"});d.mm=true;d.elo={[me]:my,[x.uid]:x.elo||1200};
+      const id=await NET.add("games",d);
+      const ok=await NET.tx("queue/"+x.uid,q=>q&&!q.gid&&q.tc===MM.tc?{gid:id,by:me}:null).catch(()=>false);
+      if(ok){mmMatched(id,false);return}
+      NET.set("games/"+id,{status:"cancelled",updated:Date.now()},true).catch(()=>{});
+    }
+  }catch(e){}finally{MM.busy=false}
+}
+async function mmMatched(id,join){
+  if(!MM.on)return;mmStop();toast("Gegner gefunden!");sfx("badge");
+  if(join){try{await joinGame(id)}catch(e){}}
+  openOnlineGame(id);
+}
+
+/* ---- Turniere unter Freunden (jeder gegen jeden) ---- */
+const TOUR={list:[],sub:null,open:null,games:{}};
+function tourWatch(){if(TOUR.sub||!ON.user||!NET)return;TOUR.sub=NET.watchQ("tournaments","players","array-contains",ON.user.uid,l=>{if(!l)return;TOUR.list=l.sort((a,b)=>(b.created||0)-(a.created||0));if(curView==="tours")renderTours()})}
+function tourStop(){if(TOUR.sub){TOUR.sub();TOUR.sub=null}TOUR.list=[]}
+function tourStand(t){const S0={};(t.players||[]).forEach(u=>S0[u]={u,p:0,n:0,w:0});
+  (t.pairs||[]).forEach(p=>{const g=p.gid&&(TOUR.games[p.gid]||(ON.games||[]).find(x=>x.id===p.gid));if(!g||g.status!=="over"||!g.result||g.result==="-")return;
+    const wU=g.white,bU=g.black;if(!S0[wU]||!S0[bU])return;S0[wU].n++;S0[bU].n++;if(g.result==="1-0"){S0[wU].p+=1;S0[wU].w++}else if(g.result==="0-1"){S0[bU].p+=1;S0[bU].w++}else{S0[wU].p+=.5;S0[bU].p+=.5}});
+  return Object.values(S0).sort((a,b)=>b.p-a.p||b.w-a.w)}
+function renderTours(){
+  const v=$("v-tours");if(!v)return;
+  if(!ON.user||!ON.profile){v.innerHTML=pageHead("Turniere","Jeder gegen jeden mit deinen Freunden.","swords")+emptyState("online","Melde dich an","Turniere spielst du mit einem Konto und Freunden.",`<button class="btn grn" data-go="online:account">Anmelden</button>`);v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));return}
+  tourWatch();const me=ON.user.uid;
+  if(TOUR.open){const t=TOUR.list.find(x=>x.id===TOUR.open);if(t){renderTour(v,t);return}TOUR.open=null}
+  const fr=(ON.profile.friends||[]);
+  v.innerHTML=pageHead("Turniere","Jeder gegen jeden mit deinen Freunden – die Partien spielt ihr, wann ihr wollt.","swords")+
+  `${TOUR.list.length?`<div class="glist">${TOUR.list.map(t=>{const st2=tourStand(t);const done=(t.pairs||[]).filter(p=>{const g=p.gid&&(TOUR.games[p.gid]||(ON.games||[]).find(x=>x.id===p.gid));return g&&g.status==="over"}).length;
+    return `<button class="gi" data-tour="${esc(t.id)}"><span class="res ${done===(t.pairs||[]).length?"win":"draw"}">${(t.players||[]).length}</span><span style="min-width:0"><b>${esc(t.name||"Turnier")}</b><small>${tcTxt(t.tc)} · ${done}/${(t.pairs||[]).length} Partien · vorn: ${esc((t.names&&st2[0]&&t.names[st2[0].u])||"–")}</small></span><span class="acc"></span><span class="mini">Öffnen</span></button>`}).join("")}</div>`:emptyState("swords","Noch kein Turnier","Lade 2 bis 7 Freunde ein. Jeder spielt einmal gegen jeden.")}
+  <div class="card"><h3>Neues Turnier</h3>${fr.length<2?`<p class="hint" style="margin:0">Du brauchst mindestens zwei Freunde. Füge sie unter Profil → Freunde hinzu.</p>`:`
+    <label class="fld">Name<input class="txt" id="tuName" maxlength="40" placeholder="z. B. Herbstturnier"></label>
+    <div class="fld" style="margin-top:10px">Bedenkzeit</div><div class="filters" style="margin:6px 0 10px">${[["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["d1","1 Tag/Zug"],["d3","3 Tage/Zug"]].map(t=>`<button class="chip${(TOUR.tc||"10+0")===t[0]?" on":""}" data-ttc="${t[0]}">${t[1]}</button>`).join("")}</div>
+    <div class="fld">Teilnehmer</div><div class="tu-fr">${fr.map(f=>`<label class="tu-cb"><input type="checkbox" value="${esc(f.uid)}" data-tn="${esc(f.name)}"> ${esc(f.name)}</label>`).join("")}</div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn grn" id="tuGo">Turnier starten</button><span class="hint" id="tuMsg"></span></div>`}</div>`;
+  v.querySelectorAll("[data-tour]").forEach(b=>b.onclick=()=>{TOUR.open=b.dataset.tour;renderTours();window.scrollTo(0,0)});
+  v.querySelectorAll("[data-ttc]").forEach(b=>b.onclick=()=>{TOUR.tc=b.dataset.ttc;renderTours()});
+  v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));
+  const go=$("tuGo");if(go)go.onclick=async()=>{const sel=[...v.querySelectorAll(".tu-cb input:checked")];const msg=t=>{const m=$("tuMsg");if(m)m.textContent=t};
+    if(sel.length<2||sel.length>7){msg("Wähle 2 bis 7 Freunde.");return}
+    const players=[me].concat(sel.map(x=>x.value));const names={[me]:myName()};sel.forEach(x=>names[x.value]=x.dataset.tn);
+    const pairs=[];for(let i=0;i<players.length;i++)for(let j=i+1;j<players.length;j++)pairs.push({a:players[i],b:players[j],gid:null});
+    go.disabled=true;try{const id=await NET.add("tournaments",{name:$("tuName").value.trim()||"Turnier",creator:me,players,names,tc:parseTc(TOUR.tc||"10+0"),pairs:shuffle(pairs),status:"running",created:Date.now(),updated:Date.now()});TOUR.open=id;toast("Turnier gestartet");tourWatch();setTimeout(renderTours,300)}catch(e){msg(netErr(e));go.disabled=false}};
+}
+function renderTour(v,t){
+  const me=ON.user.uid;const nm=u=>(t.names&&t.names[u])||"Spieler";
+  (t.pairs||[]).forEach(p=>{if(p.gid&&!TOUR.games[p.gid]&&!(ON.games||[]).some(x=>x.id===p.gid)){TOUR.games[p.gid]={status:"?"};NET.get("games/"+p.gid).then(g=>{if(g){TOUR.games[p.gid]=Object.assign({id:p.gid},g);if(curView==="tours")renderTours()}}).catch(()=>{})}});
+  const gOf=p=>p.gid&&((ON.games||[]).find(x=>x.id===p.gid)||TOUR.games[p.gid]);
+  const st2=tourStand(t);
+  v.innerHTML=`<button class="back" data-tback>← Alle Turniere</button>`+pageHead(esc(t.name||"Turnier"),`${(t.players||[]).length} Spieler · ${tcTxt(t.tc)} · jeder gegen jeden`,"swords")+
+  `<div class="card"><h3>Tabelle</h3><table class="tu-tab" style="min-width:0"><thead><tr><th>#</th><th>Spieler</th><th style="text-align:right">Partien</th><th style="text-align:right">Punkte</th></tr></thead><tbody>${st2.map((s,i)=>`<tr${s.u===me?' class="mine"':""}><td>${medal(i)}</td><td><b>${esc(nm(s.u))}</b>${s.u===me?" (du)":""}</td><td class="num">${s.n}</td><td class="num"><b>${String(s.p).replace(".",",")}</b></td></tr>`).join("")}</tbody></table></div>
+  <div class="card"><h3>Paarungen</h3>${(t.pairs||[]).map((p,i)=>{const g=gOf(p);const mineP=p.a===me||p.b===me;const res=g&&g.status==="over"?(g.result==="-"?"abgebrochen":g.result==="1/2-1/2"?"½–½":g.result==="1-0"?`${esc(nm(g.white))} gewinnt`:`${esc(nm(g.black))} gewinnt`):g&&g.status==="active"?"läuft":g&&g.status==="waiting"?"wartet auf Zusage":"noch offen";
+    return `<div class="onrow"><span class="onn" style="padding:8px 4px"><b>${esc(nm(p.a))} – ${esc(nm(p.b))}</b><small>${res}</small></span><span class="onbtns">${g&&g.id?`<button class="btn${mineP&&g.status!=="over"?" grn":""}" data-og="${esc(p.gid)}">${g.status==="over"?"Ansehen":mineP?"Spielen":"Zuschauen"}</button>`:mineP?`<button class="btn grn" data-tpl="${i}">Partie starten</button>`:""}</span></div>`}).join("")}</div>`;
+  v.querySelector("[data-tback]").onclick=()=>{TOUR.open=null;renderTours()};
+  v.querySelectorAll("[data-og]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.og));
+  v.querySelectorAll("[data-tpl]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.tpl;const p=t.pairs[i];if(!p)return;const opp=p.a===me?p.b:p.a;b.disabled=true;
+    try{const d=newGameDoc(t.tc,"r",{uid:opp,name:nm(opp)});d.tid=t.id;const id=await NET.add("games",d);
+      const ok=await NET.tx("tournaments/"+t.id,x=>{if(!x)return null;const ps=(x.pairs||[]).map(q=>Object.assign({},q));const q=ps.find(q=>(q.a===p.a&&q.b===p.b));if(!q||q.gid)return null;q.gid=id;return {pairs:ps,updated:Date.now()}});
+      if(!ok){NET.set("games/"+id,{status:"cancelled",updated:Date.now()},true).catch(()=>{});toast("Diese Partie wurde schon gestartet.");return}
+      openOnlineGame(id)}catch(e){toast(netErr(e));b.disabled=false}});
+}
+
+/* ---- Neuigkeiten von Freunden (Startseite) ---- */
+const FEED={items:null,at:0,loading:false};
+async function loadFeed(){
+  if(FEED.loading||!ON.user||!NET||!ON.profile)return;if(FEED.items&&Date.now()-FEED.at<120000)return;
+  const fr=(ON.profile.friends||[]).slice(0,10);if(!fr.length){FEED.items=[];FEED.at=Date.now();return}
+  FEED.loading=true;
+  try{const all=[];const seen=new Set();
+    for(const f of fr){const gs=await NET.query("games","players","array-contains",f.uid).catch(()=>[]);gs.forEach(g=>{if(seen.has(g.id))return;seen.add(g.id);if(g.status==="over"&&g.result&&g.result!=="-"&&Date.now()-(g.updated||0)<14*DAY_MS)all.push(g)})}
+    FEED.items=all.sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,8);FEED.at=Date.now();
+  }finally{FEED.loading=false}
+  if(curView==="home")renderHome();
+}
+function feedHtml(){
+  if(!ON.user||!ON.profile||!(ON.profile.friends||[]).length)return "";
+  if(!FEED.items){loadFeed();return `<div class="sec-h"><h3>Neues von Freunden</h3></div><div class="card">${SKEL}</div>`}
+  if(!FEED.items.length)return "";
+  const me=ON.user.uid;const nm=(g,u)=>(g.names&&g.names[u])||"Spieler";
+  return `<div class="sec-h"><h3>Neues von Freunden</h3></div><div class="card feed">${FEED.items.map(g=>{const w=g.result==="1-0"?g.white:g.result==="0-1"?g.black:null;const l=w?(w===g.white?g.black:g.white):null;
+    const txt=w?`<b>${esc(nm(g,w))}</b> hat gegen <b>${esc(nm(g,l))}</b> gewonnen`:`<b>${esc(nm(g,g.white))}</b> und <b>${esc(nm(g,g.black))}</b> spielten remis`;
+    return `<button class="feed-i" data-og="${esc(g.id)}"><span class="feed-ic">${NI.swords}</span><span><span class="feed-t">${txt}${(g.players||[]).indexOf(me)>=0?" (du warst dabei)":""}</span><small>${esc(g.reason||"")} · ${tcTxt(g.tc)} · ${relTime(g.updated)}</small></span></button>`}).join("")}</div>`;
+}
+
 /* ================= Start ================= */
 applySettings();
 st.badges=BADGES.filter(b=>{try{return b.ok()}catch(e){return false}}).map(b=>b.id);saveStats();
@@ -3409,5 +3607,5 @@ const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
 if(firstRun&&!location.hash)setTimeout(openLanding,300);else if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
 if(onlineReady())setTimeout(onlineBoot,600);
-window.__ET={ON,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();
