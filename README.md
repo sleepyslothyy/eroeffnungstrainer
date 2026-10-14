@@ -8,8 +8,11 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
 - **Start** – Begrüßung, Weitermachen, „Heute“ mit Tagestraining, Taktik-Ziel und Wiederholungen, Hinweise auf laufende Online-Partien, Schnellstart und dein Stand
 - **Training** – Übersicht mit Sammlungen (Eröffnungen, Taktik, Drills, Endspiele & Partien, Repertoire), dazu Eröffnungen, Taktik, Endspiele, Quiz und Musterpartien
   - 59 Eröffnungen mit 236 geprüften Varianten, Wiederholung nach Lernkurve, schwache Stellungen, Fallen, Blitz- und Blind-Drill
-  - Millionen echter Lichess-Rätsel (CC0) mit Wertung, Levels, Themen-Pfaden und Taktik-Sprint
-- **Spielen** – Online gegen Freunde (Einladungslink oder Herausforderung, Uhren, Remis, Revanche), gegen den Computer in sechs Stufen (auch ab einer Eröffnung) und Live-Partien zum Zuschauen
+  - Lern- und Prüfmodus: Neue Varianten werden zuerst mit Pfeilen und Erklärungen vorgezeigt, danach spielst du sie ohne Hilfe
+  - Sieben Kurse mit Kapiteln vom Einsteiger bis stark, Varianten-Baum für eigene Varianten (abzweigen, löschen)
+  - Millionen echter Lichess-Rätsel (CC0) mit Wertung, Levels, Themen-Pfaden und Taktik-Rush (3 Min, 5 Min, Überleben)
+  - Koordinaten-Trainer (Feld finden, Feld benennen), „Finde den Meisterzug“ mit berühmten Partien, Endspiel-Kapitel (Grundmatts, Bauern-, Turm- und Damenendspiele)
+- **Spielen** – Online gegen Freunde (Einladungslink oder Herausforderung, Uhren, Remis, Revanche), gegen den Computer in sechs Stufen und drei Spielstilen (auch ab einer Eröffnung) und Live-Partien zum Zuschauen
 - **Analyse** – Game Review per Link oder PGN, Analysebrett mit FEN, zuletzt analysierte Partien und die Chess.com-/Lichess-Zentrale
 - **Profil** – Statistik, Abzeichen, Bestenliste, Freunde, Einstellungen (Akzentfarbe Lila/Rot/Grün, Hell/Dunkel, Brett, Figuren, Komfort), Konto, Daten und Rechtliches
 

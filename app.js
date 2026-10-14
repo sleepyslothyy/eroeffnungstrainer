@@ -76,10 +76,10 @@ const KEYS=["prog","srs","pos","rep","daily","streak","stats","set","custom","an
 const S={
   prog:store.get("et-prog",{}),srs:store.get("et-srs",{}),pos:store.get("et-pos",{}),rep:store.get("et-rep",[]),daily:store.get("et-daily",null),
   streak:store.get("et-streak",{last:null,n:0,best:0}),stats:store.get("et-stats",{}),
-  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet"},store.get("et-set",{})),
+  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true},store.get("et-set",{})),
   custom:store.get("et-custom",{w:[],b:[]}),ana:store.get("et-ana",null),puz:store.get("et-puz",[])
 };
-{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet"};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
+{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
 fixT(S.streak,{last:"",n:0,best:0});if(S.streak.last==="")S.streak.last=null;
 fixT(S.custom,{w:[],b:[]});S.custom.w=S.custom.w.filter(l=>l&&Array.isArray(l.m));S.custom.b=S.custom.b.filter(l=>l&&Array.isArray(l.m));
 S.rep=S.rep.filter(x=>typeof x==="string");S.puz=S.puz.filter(x=>x&&typeof x==="object"&&x.key);
@@ -216,12 +216,18 @@ function checkBadges(){
 }
 
 /* ---------------- Endspiele ---------------- */
+const END_CH=[["mate","Grundmatts","Die Mattführungen, die jeder Spieler beherrschen muss."],["pawn","Bauernendspiele","Opposition, Schlüsselfelder und Quadratregel."],["rook","Turm- und Damenendspiele","Lucena, Philidor und Dame gegen Turm."],["open","Endspiele aus der Eröffnung","Typische Endspiele, die direkt aus deinen Eröffnungen entstehen."]];
 const ENDGAMES=[
-  {id:"kq",t:"Matt mit Dame",fen:"8/8/8/3k4/8/8/8/3QK3 w - - 0 1",side:"w",goal:"Setze den schwarzen König mit Dame und König matt. Dränge ihn mit der Dame an den Rand, ohne Patt zu geben.",plan:["Die Dame schneidet den König ab – immer einen Springerzug entfernt.","Der eigene König kommt zur Unterstützung.","Vorsicht vor Patt, wenn der König am Rand steht."]},
-  {id:"kr",t:"Matt mit Turm",fen:"8/8/8/4k3/8/8/8/R3K3 w - - 0 1",side:"w",goal:"Setze mit Turm und König matt. Der Turm verkleinert die Box, der König geht in Opposition.",plan:["Der Turm schneidet eine Reihe oder Linie ab.","Der König stellt sich dem gegnerischen König gegenüber (Opposition).","Dann Schach mit dem Turm und die Box wird kleiner."]},
-  {id:"lucena",t:"Lucena-Stellung",fen:"1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1",side:"w",goal:"Gewinne mit dem Brückenbau: Td1+, dann den Turm auf die vierte Reihe, um die Schachs abzuschirmen.",plan:["Zuerst den schwarzen König mit Td1+ weiter abdrängen.","Turm auf die vierte Reihe (Td4) – das ist die Brücke.","Mit dem König heraus und Schachs mit dem Turm abblocken."]},
-  {id:"philidor",t:"Philidor-Stellung",fen:"4k3/8/r7/3PK3/8/8/8/7R b - - 0 1",side:"b",goal:"Halte das Remis als Schwarz: Turm auf der sechsten Reihe, bis der weiße Bauer vorrückt – dann Schachs von hinten.",plan:["Der Turm bleibt auf der sechsten Reihe und hält den weißen König fern.","Sobald der Bauer auf die sechste Reihe zieht, geht der Turm auf die erste Reihe.","Von hinten Schach geben – der weiße König findet keinen Schutz."]},
-  {id:"berlin",t:"Berliner Endspiel",moves:"e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6 dxe5 Nf5 Qxd8+ Kxd8",side:"w",goal:"Das Endspiel aus der Berliner Mauer: Spiele mit Weiß auf die Bauernmehrheit am Königsflügel.",plan:["Nc3, h3 und Ld2 oder Tad1 – solide entwickeln.","Mehrheit am Königsflügel mit f4–f5 oder g4 mobilisieren.","Schwarz hat das Läuferpaar – Stellung nicht zu früh öffnen."]}
+  {id:"kq",c:"mate",t:"Matt mit Dame",fen:"8/8/8/3k4/8/8/8/3QK3 w - - 0 1",side:"w",goal:"Setze den schwarzen König mit Dame und König matt. Dränge ihn mit der Dame an den Rand, ohne Patt zu geben.",plan:["Die Dame schneidet den König ab – immer einen Springerzug entfernt.","Der eigene König kommt zur Unterstützung.","Vorsicht vor Patt, wenn der König am Rand steht."]},
+  {id:"kr",c:"mate",t:"Matt mit Turm",fen:"8/8/8/4k3/8/8/8/R3K3 w - - 0 1",side:"w",goal:"Setze mit Turm und König matt. Der Turm verkleinert die Box, der König geht in Opposition.",plan:["Der Turm schneidet eine Reihe oder Linie ab.","Der König stellt sich dem gegnerischen König gegenüber (Opposition).","Dann Schach mit dem Turm und die Box wird kleiner."]},
+  {id:"lucena",c:"rook",t:"Lucena-Stellung",fen:"1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1",side:"w",goal:"Gewinne mit dem Brückenbau: Td1+, dann den Turm auf die vierte Reihe, um die Schachs abzuschirmen.",plan:["Zuerst den schwarzen König mit Td1+ weiter abdrängen.","Turm auf die vierte Reihe (Td4) – das ist die Brücke.","Mit dem König heraus und Schachs mit dem Turm abblocken."]},
+  {id:"philidor",c:"rook",t:"Philidor-Stellung",fen:"4k3/8/r7/3PK3/8/8/8/7R b - - 0 1",side:"b",goal:"Halte das Remis als Schwarz: Turm auf der sechsten Reihe, bis der weiße Bauer vorrückt – dann Schachs von hinten.",plan:["Der Turm bleibt auf der sechsten Reihe und hält den weißen König fern.","Sobald der Bauer auf die sechste Reihe zieht, geht der Turm auf die erste Reihe.","Von hinten Schach geben – der weiße König findet keinen Schutz."]},
+  {id:"krr",c:"mate",t:"Matt mit zwei Türmen",fen:"8/8/8/4k3/8/8/8/R3K2R w - - 0 1",side:"w",goal:"Die Treppe: Die Türme geben abwechselnd Schach und drängen den König Reihe für Reihe an den Rand.",plan:["Ein Turm sperrt eine Reihe ab, der andere gibt auf der nächsten Reihe Schach.","Kommt der König einem Turm zu nahe, zieht dieser weit weg auf die andere Seite.","Der eigene König wird gar nicht gebraucht."]},
+  {id:"kbb",c:"mate",t:"Matt mit zwei Läufern",fen:"8/8/8/4k3/8/8/8/2B1KB2 w - - 0 1",side:"w",goal:"Mit zwei Läufern und König in die Ecke drängen und matt setzen. Die Läufer stehen nebeneinander und bilden eine Wand.",plan:["Läufer nebeneinander auf benachbarte Diagonalen – sie bilden eine Sperre.","Der König kommt dicht heran und nimmt dem gegnerischen König Felder.","In der Ecke abschließen und auf Patt achten."]},
+  {id:"keysq",c:"pawn",t:"König vor dem Bauern",fen:"4k3/8/4K3/4P3/8/8/8/8 w - - 0 1",side:"w",goal:"Ein Bauer, König davor auf der sechsten Reihe: Das gewinnt immer. Bring den Bauern zur Dame.",plan:["Der König geht seitlich am Bauern vorbei, nicht nach vorn ins Patt.","Opposition: Der König steht dem gegnerischen König mit einem Feld Abstand gegenüber.","Erst wenn das Umwandlungsfeld kontrolliert ist, zieht der Bauer."]},
+  {id:"square",c:"pawn",t:"Die Quadratregel",fen:"8/8/8/P7/8/5k2/8/7K w - - 0 1",side:"w",goal:"Der schwarze König steht außerhalb des Quadrats deines Bauern. Lauf einfach los – er holt ihn nicht mehr ein.",plan:["Das Quadrat reicht vom Bauern bis zur Grundreihe – hier a5 bis d8.","Steht der König außerhalb und du bist am Zug, läuft der Bauer durch.","Nach der Umwandlung mit Dame und König matt setzen."]},
+  {id:"kqkr",c:"rook",t:"Dame gegen Turm",fen:"8/2r5/8/4k3/8/8/8/K2Q4 w - - 0 1",side:"w",goal:"Die Dame gewinnt gegen den Turm – trenne Turm und König mit Schachs und Gabeln.",plan:["Den König an den Rand drängen, bis der Turm nicht mehr neben ihm stehen kann.","Auf Gabeln achten: Schach und gleichzeitig Angriff auf den Turm.","Nach dem Turmgewinn normal matt setzen."]},
+  {id:"berlin",c:"open",t:"Berliner Endspiel",moves:"e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6 dxe5 Nf5 Qxd8+ Kxd8",side:"w",goal:"Das Endspiel aus der Berliner Mauer: Spiele mit Weiß auf die Bauernmehrheit am Königsflügel.",plan:["Nc3, h3 und Ld2 oder Tad1 – solide entwickeln.","Mehrheit am Königsflügel mit f4–f5 oder g4 mobilisieren.","Schwarz hat das Läuferpaar – Stellung nicht zu früh öffnen."]}
 ];
 
 /* ---------------- Stockfish 17.1 (gleicher Server) mit Rückfall auf Stockfish 10 ---------------- */
@@ -259,7 +265,7 @@ const winPct=cp=>50+50*(2/(1+Math.exp(-0.00368208*Math.max(-1500,Math.min(1500,c
 const fmtEval=(cp,mateTxt)=>mateTxt||((cp===0?"0.0":(cp>0?"+":"")+(cp/100).toFixed(1)));
 
 /* ================= Brett-Zustand ================= */
-let op=null,mode="train",hist=[],fens=[],mvs=[],flags=[],view=0,shown=null,target=null,forced=null,busy=false,done=false,mistakes=0,usedHelp=false,hintLvl=0,sel=null,timer=null,lock=false,badge=null,liveStatus=null,curStatus=null,tab="ex",flipped=false,sess=null,game=null,sfStart=0,sfEval=null,drill=null,puz=null,tried=new Set(),blindOn=false,peeked=false,vtab="list",evalCp=null,evalTok=0,blitzT=null,blitzLeft=0,startFen=null;
+let op=null,mode="train",hist=[],fens=[],mvs=[],flags=[],view=0,shown=null,target=null,forced=null,busy=false,done=false,mistakes=0,usedHelp=false,hintLvl=0,sel=null,timer=null,lock=false,badge=null,liveStatus=null,curStatus=null,tab="ex",flipped=false,sess=null,game=null,sfStart=0,sfEval=null,drill=null,puz=null,tried=new Set(),blindOn=false,peeked=false,vtab="list",evalCp=null,evalTok=0,blitzT=null,blitzLeft=0,startFen=null,learn=false,learnNext=null;
 const boardEl=$("board"),sqsEl=$("sqs"),pcsEl=$("pcs"),ovl=$("ovl"),ideasEl=$("ideas"),marksEl=$("marks"),badgesEl=$("badges");
 const live=()=>view===hist.length;
 const consistent=h=>op&&op.lines?consistentIn(op,h):[];
@@ -278,6 +284,7 @@ function pickTarget(){
   return rnd(pool);
 }
 function resetBoard(fen){
+  clearTimeout(learnNext);learnNext=null;learn=false;
   sfEnd=null;clearTimeout(timer);stopBlitz();cancelAuto();if(wrongT){clearTimeout(wrongT);wrongT=null;wrongRevert=null}const g=new Chess(fen||undefined);startFen=fen||null;
   hist=[];fens=[g.fen()];mvs=[];flags=[];view=0;shown=g;target=null;done=false;mistakes=0;usedHelp=false;hintLvl=0;sel=null;busy=false;lock=false;badge=null;sfEval=null;tried=new Set();peeked=false;evalCp=null;
   marks.a.clear();marks.c.clear();
@@ -292,9 +299,11 @@ function selectOpening(o,line,keepSess){
   stopEngine();mode="train";game=null;drill=null;puz=null;op=o;forced=(line===undefined||line===null)?null:line;flipped=false;
   store.set("et-last",o.id);showView("train");renderList();startTrain();
 }
-function startTrain(){
-  resetBoard();mode="train";drill=null;target=pickTarget();buildSquares();renderChrome();render();
+function learnWanted(){return mode==="train"&&!drill&&!op.endId&&target!==null&&op.lines&&op.lines.length&&!(sess&&(sess.blitz||sess.blind))&&S.set.learnFirst!==false&&P(op.id,target)===0&&!S.srs[lk(op.id,target)]}
+function startTrain(noLearn,forceLearn){
+  resetBoard();mode="train";drill=null;target=pickTarget();learn=!noLearn&&(learnWanted()||(!!forceLearn&&target!==null));if(learn)forced=target;if(learn&&shown.turn()===op.side)hintLvl=2;buildSquares();renderChrome();render();
   const fl=forced!==null&&op.lines[forced]?" Variante: "+op.lines[forced].n+".":"";
+  if(learn){setStatus("turn","Lernmodus: "+op.lines[target].n,shown.turn()===op.side?learnTxt():"Schau zu und spiel die markierten Züge nach. Danach prüfst du dich ohne Hilfe.");if(shown.turn()!==op.side)engineSoon();return}
   if(shown.turn()!==op.side){setStatus("turn","Das Buch eröffnet","Weiß macht gleich den ersten Zug."+fl);engineSoon()}
   else{setStatus("turn","Du bist am Zug","Spiel den ersten Zug: "+op.name+"."+fl);startBlitz()}
 }
@@ -316,8 +325,9 @@ async function bookMove(){
   busy=false;target=tgt;if(target===null)return;
   const g=new Chess(fens[hist.length]);const mv=findMove(g,op.lines[target].m[hist.length]);
   const wasLive=live();const r=commit(mv,"b");
-  if(wasLive){view=hist.length;shown=new Chess(fens[view]);hintLvl=0;render({fwd:r});playSound(r)}else render();
+  if(wasLive){view=hist.length;shown=new Chess(fens[view]);hintLvl=learn?2:0;render({fwd:r});playSound(r)}else render();
   if(hist.length===op.lines[target].m.length)return finish();
+  if(learn){const s=["turn","Lernmodus: "+op.lines[target].n,learnTxt()];if(wasLive)setStatus(...s);else liveStatus=s;return}
   const n=consistent(hist).length;
   const s=["turn","Du bist am Zug",n>1?`${n} Varianten sind noch möglich. Welcher Buchzug folgt?`:`Variante: ${op.lines[target].n}`];
   if(wasLive){setStatus(...s);startBlitz()}else liveStatus=s;
@@ -325,21 +335,21 @@ async function bookMove(){
 function trainMove(mv,animate,help){
   const h=hist.slice(0,view);
   const ok=bookMoves(h).indexOf(strip(mv.san))>=0;
-  if(!tried.has(view)&&!help){tried.add(view);posReview(op.id,h,ok&&hintLvl===0?5:1)}
+  if(!tried.has(view)&&!help&&!learn){tried.add(view);posReview(op.id,h,ok&&hintLvl===0?5:1)}
   if(!ok){wrongMove(mv,animate,h);return}
   stopBlitz();
   if(!live()){clearTimeout(timer);busy=false;truncate(view);done=false;target=null;mistakes++;if(sfEnd){sfEnd=null;renderChrome()}}
   const r=commit(mv,"u");view=hist.length;shown=new Chess(fens[view]);sel=null;hintLvl=0;
-  if(help)opStat(op.id).err++;else opStat(op.id).mv++;
+  if(learn){}else if(help)opStat(op.id).err++;else opStat(op.id).mv++;
   badge={ply:view,sq:r.to,type:"book"};
   target=pickTarget();render(animate?{fwd:r}:null);playSound(r);
   if(drill){finishDrill(mistakes===0&&!usedHelp);return}
   if(target!==null&&hist.length===op.lines[target].m.length){finish();return}
-  setStatus("good",de(r.san)+" ist ein Buchzug","Das Buch antwortet …");engineSoon();
+  setStatus("good",de(r.san)+" ist ein Buchzug",learn?explain(fens[view-1],r,view>1?mvs[view-2]:null).text:"Das Buch antwortet …");engineSoon();
 }
 function wrongMove(mv,animate,h){
   mistakes++;lock=true;sel=null;
-  if(mode==="train"){const s=opStat(op.id);s.err++;const key=op.id+"|"+h.join(" ");const H=st.hard[key]||(st.hard[key]={id:op.id,pre:h.slice(),n:0});H.n++;H.last=Date.now();saveStats()}
+  if(mode==="train"&&!learn){const s=opStat(op.id);s.err++;const key=op.id+"|"+h.join(" ");const H=st.hard[key]||(st.hard[key]={id:op.id,pre:h.slice(),n:0});H.n++;H.last=Date.now();saveStats()}
   const tmp=new Chess(shown.fen());const r=tmp.move(mv.san);
   const keep=shown;shown=tmp;badge={ply:-1,sq:r.to,type:"no"};
   render(animate?{fwd:r}:null,{bad:[r.from,r.to]});sfx("wrong");
@@ -351,6 +361,9 @@ function wrongMove(mv,animate,h){
 }
 let wrongT=null,wrongRevert=null;
 function finish(){
+  if(learn){done=true;stopBlitz();const i=target;learn=false;if(badge&&badge.ply===hist.length)badge.type="ok";
+    setStatus("done","Gelernt: "+op.lines[i].n,"Jetzt ohne Hilfe: Gleich spielst du die Variante noch einmal aus dem Gedächtnis.");setTimeout(()=>sfx("done"),180);render();renderChrome();
+    clearTimeout(learnNext);learnNext=setTimeout(()=>startLearnTest(i),S.set.calm?600:1800);return}
   done=true;stopBlitz();const i=target;const k=lk(op.id,i);const clean=mistakes===0&&!usedHelp;const firstClean=clean&&P(op.id,i)<2;
   S.prog[op.id]=S.prog[op.id]||{};S.prog[op.id][i]=Math.max(P(op.id,i),clean?2:1);save("prog");
   srsReview(k,clean?5:mistakes<=1?3:1);
@@ -482,7 +495,7 @@ async function startEngine(fromEnd){
 }
 async function sfThink(){
   const tok=sfToken;busy=true;renderBars();setStatus("sf","Stockfish denkt …","");
-  const fen=fens[hist.length];const r=await sfRun(fen,{skill:S.set.sf,ms:250+S.set.sf*45});
+  const fen=fens[hist.length];const styled=op&&op.bot&&op.botStyle&&op.botStyle!=="bal";const r=await sfRun(fen,{skill:S.set.sf,ms:250+S.set.sf*45,multi:styled?4:1});if(styled)r.best=botPick(fen,r)||r.best;
   if(tok!==sfToken||mode!=="engine")return;busy=false;
   if(!r.best||r.best==="(none)"){gameOverCheck();return}
   const g=new Chess(fen);const mv=g.moves({verbose:true}).find(m=>m.from===r.best.slice(0,2)&&m.to===r.best.slice(2,4)&&(!m.promotion||m.promotion===(r.best[4]||"q")));
@@ -547,11 +560,14 @@ function openGame(gm){
 }
 
 /* ================= Eigene Variante ================= */
-function openEditor(){
+function openEditor(o){
+  o=o||{};if(o.side)$("edSide").value=o.side;if(o.group!=null)$("edGroup").value=o.group;
   stopEngine();sess=null;mode="edit";game=null;drill=null;puz=null;flipped=false;
   op={id:"__edit",g:"c",side:$("edSide").value,name:"Eigene Variante",eco:"Editor",d:"Spiel beide Seiten und speichere die Folge als eigene Trainingsvariante.",plan:[],lines:[]};
-  resetBoard();mode="edit";showView("train");buildSquares();renderChrome();render();
-  setStatus("turn","Spiel eine Zugfolge ein","Ziehe für beide Seiten. Mit ← kannst du zurück und einen anderen Zug wählen.");
+  resetBoard();mode="edit";
+  if(o.pre&&o.pre.length){for(const m of o.pre){const g=new Chess(fens[hist.length]);const mv=findMove(g,m);if(!mv)break;commit(mv,"p")}view=hist.length;shown=new Chess(fens[view])}
+  showView("train");buildSquares();renderChrome();render();
+  setStatus("turn",o.pre&&o.pre.length?"Neue Abzweigung":"Spiel eine Zugfolge ein",o.pre&&o.pre.length?`Ab ${fmtMoves(o.pre.slice(-2),o.pre.length-Math.min(2,o.pre.length))}: Spiel die neue Fortsetzung und speichere sie.`:"Ziehe für beide Seiten. Mit ← kannst du zurück und einen anderen Zug wählen.");
 }
 function editMove(mv,animate){
   if(!live())truncate(view);
@@ -764,7 +780,11 @@ function buildSquares(){
 function sizeVar(){boardEl.style.setProperty("--s",(boardEl.clientWidth/8||60)+"px")}
 const tf=sq=>{const p=xy(sq);return `translate(${p.x*100}%,${p.y*100}%)`};
 function rookMove(r,rev){if(!r||!(r.flags.indexOf("k")>=0||r.flags.indexOf("q")>=0))return null;const rank=r.color==="w"?"1":"8";const k=r.flags.indexOf("k")>=0;const a=(k?"h":"a")+rank,b=(k?"f":"d")+rank;return rev?{from:b,to:a}:{from:a,to:b}}
-function hintMove(){if((mode!=="train"&&mode!=="puzzle")||!hintLvl||lock||busy||!userTurnShown())return null;const b=expected();return b.length?findMove(shown,b[0]):null}
+function hintMove(){if((mode!=="train"&&mode!=="puzzle")||!hintLvl||lock||busy||!userTurnShown())return null;const lm=learn&&mode==="train"&&target!==null&&live()&&op.lines[target]&&op.lines[target].m[view];const b=lm?[strip(lm)]:expected();return b.length?findMove(shown,b[0]):null}
+function startLearnTest(i){clearTimeout(learnNext);learnNext=null;if(mode==="train"&&curView==="train"&&done&&target===i){forced=i;startTrain(true);setStatus("turn","Prüfung: "+op.lines[i].n,shown.turn()===op.side?"Spiel die Variante ohne Hilfe.":"Das Buch beginnt – spiel die Variante ohne Hilfe.")}}
+$("lmLearn").onclick=()=>{if(learn||target===null)return;forced=target;startTrain(false,true)};
+$("lmTest").onclick=()=>{if(!learn||target===null)return;forced=target;startTrain(true);setStatus("turn","Prüfung: "+op.lines[target].n,"Spiel die Variante ohne Hilfe.")};
+function learnTxt(){const m=target!==null&&op.lines[target]&&op.lines[target].m[hist.length];if(!m)return "";const mv=findMove(shown,m);return mv?`Spiel ${de(mv.san)}: ${explain(shown.fen(),mv,hist.length?mvs[hist.length-1]:null).text}`:""}
 function arrowPath(from,to,color,w){
   const a=xy(from),b=xy(to);const ax=a.x+.5,ay=a.y+.5,bx=b.x+.5,by=b.y+.5;
   const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy);if(!L)return "";const ux=dx/L,uy=dy/L,hl=.42,hw=w*1.5,sw=w;
@@ -779,6 +799,7 @@ function canMoveNow(){
   if(mode==="edit")return true;
   if(mode==="replay")return !!game;
   if(mode==="online")return onCanMove();
+  if(mode==="guess")return live()&&!!guess&&!done&&shown.turn()===guess.side;
   return false;
 }
 const ownPiece=p=>p&&(mode==="edit"||mode==="replay"?p.color===shown.turn():mode==="online"?p.color===ON.color:p.color===op.side);
@@ -846,6 +867,8 @@ function render(anim,extra){
   $("actsSfEnd").hidden=!(sfEnd&&mode==="train");
   $("sfUndo").disabled=busy||hist.length<=sfStart;
   $("moveInput").disabled=false;updateRevActs();
+  const lmOk=mode==="train"&&!drill&&!op.endId&&op.lines&&op.lines.length&&target!==null&&!(sess&&(sess.blitz||sess.blind))&&!sfEnd;
+  $("lmRow").hidden=!lmOk;if(lmOk){$("lmLearn").setAttribute("aria-pressed",String(learn));$("lmTest").setAttribute("aria-pressed",String(!learn))}
 }
 function renderChrome(){
   const inSess=!!sess;$("sessBar").hidden=!inSess;
@@ -864,6 +887,7 @@ function renderChrome(){
   else if(mode==="replay"&&game){av.className="avatar bookav";av.innerHTML=ICON.crown}
   else if(mode==="edit"){av.className="avatar bookav";av.innerHTML=ICON.pen;$("oppName").textContent="Gegenseite"}
   else if(mode==="puzzle"){av.className="avatar bookav";av.innerHTML=ICON.puzzle;$("oppName").textContent="Gegner"}
+  else if(mode==="guess"){av.className="avatar bookav";av.innerHTML=ICON.crown;$("oppName").textContent=op.guessName||"Gegner"}
   else if(sfEnd||op.endId){av.className="avatar sfav";av.innerHTML=ICON.cpu;$("oppName").textContent=(op.botName||sfName||"Stockfish")+" · Stufe "+S.set.sf}
   else{av.className="avatar bookav";av.innerHTML=ICON.bookL;$("oppName").textContent="Eröffnungsbuch"}
   if(mode==="replay"&&game){const pl=(game.players||" – ").split(" – ");const o=orient();$("youName").textContent=(o==="w"?pl[0]:pl[1])||"";$("oppName").textContent=(o==="w"?pl[1]:pl[0])||"";$("youTag").textContent="";$("oppTag").textContent=""}
@@ -879,7 +903,7 @@ function renderBars(){
   if(mode==="replay"){const t=game&&game.free?"Analyse":game&&game.review?"Review":"Partie";$("youClock").textContent=t;$("oppClock").textContent=t;return}
   if(mode==="edit"){$("youClock").textContent=(tm==="w"?"Weiß":"Schwarz")+" zieht";$("oppClock").textContent="Editor";return}
   $("youClock").textContent=done?"Fertig":yourTurn?"Am Zug":live()?"Wartet":"Ansicht";
-  $("oppClock").textContent=mode==="engine"?(busy?"Denkt …":"Stockfish"):oppTurn?"Denkt …":mode==="puzzle"?"Rätsel":sfEnd||op.endId?"Stockfish":"Buch";
+  $("oppClock").textContent=mode==="guess"?"Meister":mode==="engine"?(busy?"Denkt …":"Stockfish"):oppTurn?"Denkt …":mode==="puzzle"?"Rätsel":sfEnd||op.endId?"Stockfish":"Buch";
 }
 function renderMoves(){
   const m=$("moves");m.innerHTML="";const R=game&&game.review;
@@ -965,7 +989,7 @@ function renderMaterial(){
   $("youMat").innerHTML=lost(opp)+(d>0?`<em>+${d}</em>`:"");$("oppMat").innerHTML=lost(me)+(d<0?`<em>+${-d}</em>`:"");
 }
 $("restartBtn").onclick=()=>{if(drill){startPosition(op,drill.pre,drill.info);return}if(mode==="puzzle"){startPuzzle(puz);return}startTrain()};
-$("nextBtn").onclick=()=>{cancelAuto();if(sess){if(!done&&!(mode==="puzzle"&&puz&&puz.reported)){toast("Löse die Aufgabe erst oder nutze »Lösung«.");return}sessNext()}else{forced=null;drill=null;startTrain()}};
+$("nextBtn").onclick=()=>{cancelAuto();if(learnNext&&done){startLearnTest(target);return}if(sess){if(!done&&!(mode==="puzzle"&&puz&&puz.reported)){toast("Löse die Aufgabe erst oder nutze »Lösung«.");return}sessNext()}else{forced=null;drill=null;startTrain()}};
 
 /* ---------------- Umwandlung & Züge ---------------- */
 function pickPromotion(color){
@@ -981,7 +1005,7 @@ function tryMove(from,to,animate,promo){
   if(!canMoveNow())return false;
   const cands=shown.moves({verbose:true}).filter(m=>m.from===from&&m.to===to);
   if(!cands.length)return false;
-  const go=mv=>{if(mode==="train")trainMove(mv,animate);else if(mode==="puzzle")puzzleMove(mv,animate);else if(mode==="engine")engineUserMove(mv,animate);else if(mode==="edit")editMove(mv,animate);else if(mode==="replay")anaMove(mv,animate);else if(mode==="online")onlineMove(mv,animate)};
+  const go=mv=>{if(mode==="train")trainMove(mv,animate);else if(mode==="puzzle")puzzleMove(mv,animate);else if(mode==="engine")engineUserMove(mv,animate);else if(mode==="edit")editMove(mv,animate);else if(mode==="replay")anaMove(mv,animate);else if(mode==="online")onlineMove(mv,animate);else if(mode==="guess")guessMove(mv,animate)};
   if(cands.length>1){const pre=cands.find(m=>m.promotion===(promo||(S.set.autoQueen?"q":"")));if(pre){go(pre);return true}
     lock=true;pickPromotion(cands[0].color).then(p=>{lock=false;const mv=cands.find(m=>m.promotion===p);if(mv)go(mv);else render()});return true}
   go(cands[0]);return true;
@@ -1036,7 +1060,7 @@ if(window.ResizeObserver)new ResizeObserver(sizeVar).observe(boardEl);
 let curView="home";
 const SECTIONS=[["home","Start","home"],["train","Training","learn"],["play","Spielen","swords"],["analyse","Analyse","search"],["me","Profil","profile"]];
 function subnavOf(sec){
-  return {train:[["learn","Übersicht"],["openings","Eröffnungen"],["tactics","Taktik"],["end","Endspiele"],["quiz","Quiz"],["games","Musterpartien"]],
+  return {train:[["learn","Übersicht"],["courses","Kurse"],["openings","Eröffnungen"],["tactics","Taktik"],["end","Endspiele"],["quiz","Quiz"],["games","Musterpartien"]],
     play:[["online:play","Online"],["bots","Computer"],["online:live","Live"]],
     analyse:[["analyse","Partie analysieren"],["chess",siteName()]],
     me:[["profile:stats","Statistik"],["profile:badges","Abzeichen"],["online:leader","Bestenliste"],["online:friends","Freunde"],["profile:settings","Einstellungen"],["online:account","Konto"],["profile:sync","Daten"]].concat(isAdmin()?[["online:admin","Admin"]]:[],[["legal","Rechtliches"]])}[sec]||[];
@@ -1063,7 +1087,7 @@ function showView(v){
   const prev=curView;curView=base;
   document.querySelectorAll(".view").forEach(el=>{const on=el.id==="v-"+base;el.hidden=!on;if(on&&prev!==base&&!calmNow()){el.classList.remove("enter");void el.offsetWidth;el.classList.add("enter")}});
   if(base!=="train"){stopEngine();stopBlitz()}
-  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,analyse:renderAnalyse,legal:renderLegal}[base]||(()=>{}))();
+  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,analyse:renderAnalyse,legal:renderLegal,courses:renderCourses,repedit:renderRepEdit,coords:renderCoords,guess:renderGuessPick}[base]||(()=>{}))();
   if(base!=="train"){const sec=sectionOf();secLast[sec]=routeKey();store.set("et-seclast",secLast)}
   renderTabbar();applyBlind();if(base!=="train")window.scrollTo(0,0);else sizeVar();
 }
@@ -1182,6 +1206,7 @@ function renderLearn(){
   v.innerHTML=pageHead("Training","Alles zum Üben, nach Themen geordnet. Das Tagestraining findest du auf der Startseite.","learn")+
   `<div class="colls">`+
   coll("op","book","Eröffnungen",`${cl} von ${tot} Varianten fehlerfrei · ${S.rep.length} im Repertoire`,tot?cl/tot:0,
+    item("courses","learn","Kurse",`${COURSES.length} Kurse: Schritt für Schritt vom Einsteiger bis stark`,`${COURSES.filter(c=>{const p=courseProg(c);return p.n&&p.cl===p.n}).length}/${COURSES.length}`)+
     item("openings","list","Alle Eröffnungen",`${ALL.length} Eröffnungen mit Suche und Filtern`)+
     item("review","review","Fällige Varianten","Wiederholung nach Lernkurve",due,due>0)+
     item("positions","target","Schwache Stellungen","Nur die Züge, bei denen du danebenliegst",dp,dp>0)+
@@ -1192,12 +1217,15 @@ function renderLearn(){
   coll("drill","daily","Drills","Damit die Züge automatisch kommen",null,
     item("blitz","bolt","Blitz-Drill",`10 Varianten, ${S.set.blitzSec} Sekunden pro Zug`)+
     item("blind","eye","Blind-Training","Figuren unsichtbar, nur die Notation hilft")+
-    item("quiz","quiz","Quiz","Buchzug, Eröffnung und Plan erkennen",st.quiz.ok?st.quiz.ok+" ✓":null))+
+    item("quiz","quiz","Quiz","Buchzug, Eröffnung und Plan erkennen",st.quiz.ok?st.quiz.ok+" ✓":null)+
+    item("coords","target","Koordinaten","Felder in 30 Sekunden finden oder benennen",CO.best.find||null))+
   coll("end","king","Endspiele & Partien",`${ends} von ${ENDGAMES.length} Endspielen gespielt`,ENDGAMES.length?ends/ENDGAMES.length:0,
     item("end","king","Endspiele","Grundmatts, Lucena, Philidor gegen Stockfish",ends+"/"+ENDGAMES.length)+
-    item("games","games","Musterpartien","Berühmte Partien und Meisterpartien",GAMES.length))+
+    item("games","games","Musterpartien","Berühmte Partien und Meisterpartien",GAMES.length)+
+    item("guess","games","Finde den Meisterzug","Rate die Züge berühmter Partien"))+
   coll("rep","edit","Dein Repertoire","Eigene Varianten, Import und Teilen",null,
     item("edit","edit","Eigene Variante","Zugfolge einspielen und trainieren")+
+    item("repedit","list","Varianten-Baum","Eigene Varianten ansehen, abzweigen und löschen",ALL.filter(o=>o.g==="c").reduce((a,o)=>a+o.lines.length,0)||null)+
     item("import","import","Repertoire importieren","PGN-Datei oder Lichess-Studie")+
     item("share","share","Repertoire teilen","Link für Freunde erzeugen"))+
   `</div>`;
@@ -1296,11 +1324,11 @@ function renderGames(){
 
 /* ---------------- Endspiele ---------------- */
 function renderEndPage(){
-  const v=$("v-end");
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.king}</span><div><h2>Endspiele</h2><p>Grundtechniken und ein typisches Eröffnungs-Endspiel. Du spielst gegen Stockfish – stell die Stärke unter Profil → Einstellungen ein.</p></div></div>
-  <div class="grid3">${ENDGAMES.map(e=>{return `<div class="gcard">${st.ends[e.id]?'<span class="done-tag">Gespielt</span>':""}<h4>${esc(e.t)}</h4><div id="eb-${e.id}"></div><p>${esc(e.goal)}</p><button class="btn grn" data-end="${e.id}">Gegen Stockfish spielen (${e.side==="w"?"Weiß":"Schwarz"})</button></div>`}).join("")}</div>`;
-  wireBack(v);
-  ENDGAMES.forEach(e=>{const fen=e.fen||(()=>{const g=new Chess();e.moves.split(" ").forEach(m=>g.move(m));return g.fen()})();$("eb-"+e.id).appendChild(staticBoard(fen,e.side))});
+  const v=$("v-end");const done=Object.keys(st.ends).length;
+  v.innerHTML=pageHead("Endspiele",`${done} von ${ENDGAMES.length} gespielt. Du spielst gegen Stockfish – die Stärke stellst du unter Profil → Einstellungen ein.`,"king")+
+  END_CH.map(([c,t,d])=>{const es=ENDGAMES.filter(e=>(e.c||"open")===c);if(!es.length)return "";const n=es.filter(e=>st.ends[e.id]).length;
+    return `<div class="sec-h"><h3>${t}</h3><small>${n}/${es.length} · ${d}</small></div><div class="grid3">${es.map(e=>`<div class="gcard">${st.ends[e.id]?'<span class="done-tag">Gespielt</span>':""}<h4>${esc(e.t)}</h4><div id="eb-${e.id}"></div><p>${esc(e.goal)}</p><button class="btn grn" data-end="${e.id}">Gegen Stockfish spielen (${e.side==="w"?"Weiß":"Schwarz"})</button></div>`).join("")}</div>`}).join("");
+  ENDGAMES.forEach(e=>{const box=$("eb-"+e.id);if(!box)return;const fen=e.fen||(()=>{const g=new Chess();e.moves.split(" ").forEach(m=>g.move(m));return g.fen()})();box.appendChild(staticBoard(fen,e.side))});
   v.querySelectorAll("[data-end]").forEach(b=>b.onclick=()=>startEndgame(ENDGAMES.find(e=>e.id===b.dataset.end)));
 }
 
@@ -1430,6 +1458,7 @@ function renderSettings(v){
   <div class="card"><h3>Brett</h3><div class="opts">${THEMES.map(t=>`<button class="optc" data-theme="${t[0]}" aria-pressed="${S.set.theme===t[0]}"><span class="mini-board">${[0,1,2,3,4,5,6,7].map(i=>`<i style="background:${((i+(i>3?1:0))%2)?t[3]:t[2]}"></i>`).join("")}</span>${t[1]}</button>`).join("")}</div></div>
   <div class="card"><h3>Figuren</h3><div class="opts">${PSETS.map(p=>`<button class="optc pv-${p[0]}" data-pset="${p[0]}" aria-pressed="${S.set.pieces===p[0]}"><span class="piece-prev">${["wk","wq","wn","bk","bq","bn"].map(x=>`<span class="pp ${x}"></span>`).join("")}</span>${p[1]}</button>`).join("")}</div><p class="hint" style="margin-top:8px">„Klassisch“: Colin M.L. Burnett (GPLv2+). „Staunty“: lichess-Set, CC BY-NC-SA 4.0.</p></div>
   <div class="card"><h3>Training</h3>
+    ${sw("swLearn",S.set.learnFirst!==false,"Neue Varianten vorzeigen","Unbekannte Varianten erst mit Pfeilen lernen, dann ohne Hilfe prüfen")}
     ${sw("swSound",S.set.sound,"Ton","Geräusche für Züge, Fehler und Erfolge")}
     ${sw("swIdeas",S.set.ideas,"Ideen-Pfeile","Blaue Pfeile zeigen, was der letzte Zug angreift oder fesselt")}
     ${sw("swCoords",S.set.coords,"Koordinaten","Buchstaben und Zahlen am Brettrand")}
@@ -1458,7 +1487,7 @@ function renderSettings(v){
   v.querySelectorAll("[data-pset]").forEach(b=>b.onclick=()=>{S.set.pieces=b.dataset.pset;save("set");applySettings();renderProfile()});
   const tg=(id,key)=>$(id).onclick=()=>{S.set[key]=!S.set[key];save("set");applySettings();$(id).setAttribute("aria-pressed",String(S.set[key]));if(op&&curView==="train")render()};
   tg("swSound","sound");tg("swIdeas","ideas");tg("swCoords","coords");tg("swEval","evalbar");tg("swReal","realistic");
-  tg("swAuto","autoNext");tg("swQueen","autoQueen");tg("swSwipe","swipe");tg("swSync","autoSync");tg("swCalm","calm");
+  tg("swLearn","learnFirst");tg("swAuto","autoNext");tg("swQueen","autoQueen");tg("swSwipe","swipe");tg("swSync","autoSync");tg("swCalm","calm");
   v.querySelectorAll("[data-fz]").forEach(b=>b.onclick=()=>{S.set.font=+b.dataset.fz;save("set");applySettings();v.querySelectorAll("[data-fz]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
   $("onbAgain").onclick=()=>openOnboarding();
   v.querySelectorAll("[data-rv]").forEach(b=>b.onclick=()=>{S.set.revMs=+b.dataset.rv;save("set");v.querySelectorAll("[data-rv]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
@@ -2077,8 +2106,9 @@ function anaInputHtml(){return `<div class="card"><h3>Link oder PGN</h3><p class
 function wireAnaInput(){const b=$("anaGo");if(!b)return;b.onclick=async()=>{b.disabled=true;try{await analyzeInput($("anaIn").value,t=>{if($("anaMsg"))$("anaMsg").textContent=t})}finally{b.disabled=false}}}
 
 /* ================= Taktik: Lichess-Rätsel mit Fortschrittssystem ================= */
-const PZ=Object.assign({r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10},store.get("et-tac",{}));
-fixT(PZ,{r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10});fixT(PZ.day,{date:"",n:0});fixT(PZ.streak,{last:"",n:0,best:0});if(PZ.streak.last==="")PZ.streak.last=null;PZ.hist=PZ.hist.filter(x=>x&&typeof x==="object");PZ.fails=PZ.fails.filter(x=>x&&x.p);for(const k in PZ.paths)if(!PZ.paths[k]||typeof PZ.paths[k]!=="object")delete PZ.paths[k];
+const PZ=Object.assign({r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,rushBest:{s5:0,surv:0},day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10},store.get("et-tac",{}));
+fixT(PZ,{r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,rushBest:{s5:0,surv:0},day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10});fixT(PZ.day,{date:"",n:0});fixT(PZ.streak,{last:"",n:0,best:0});if(PZ.streak.last==="")PZ.streak.last=null;PZ.hist=PZ.hist.filter(x=>x&&typeof x==="object");PZ.fails=PZ.fails.filter(x=>x&&x.p);for(const k in PZ.paths)if(!PZ.paths[k]||typeof PZ.paths[k]!=="object")delete PZ.paths[k];
+fixT(PZ.rushBest,{s5:0,surv:0});
 let pzCache=store.get("et-pzcache",[]);
 const savePZ=()=>{store.set("et-tac",PZ);savedAt=Date.now();store.set("et-savedAt",savedAt);cloudDirty()};
 const savePzCache=()=>store.set("et-pzcache",pzCache.slice(-400));
@@ -2167,20 +2197,20 @@ function tacticSession(kind,arg){
   if(kind==="theme"){s.title="Pfad: "+TTH[arg][0];s.theme=arg}
   if(kind==="opening"){s.title="Taktik: "+byId(arg).name;s.angle=OPENING_ANGLE[arg]}
   if(kind==="fails"){if(!PZ.fails.length){toast("Keine offenen Fehler – stark!");return}s.title="Taktik-Fehler wiederholen";s.list=PZ.fails.slice(0,20).map(f=>f.p)}
-  if(kind==="sprint"){s.title="Taktik-Sprint";s.lives=3;s.end=Date.now()+180000;s.level=0}
+  if(kind==="sprint"||kind==="sprint5"||kind==="survival"){s.rush=true;s.dur=kind==="sprint"?180000:kind==="sprint5"?300000:0;s.title=kind==="survival"?"Taktik-Rush: Überleben":`Taktik-Rush: ${s.dur/60000} Minuten`;s.lives=3;s.end=s.dur?Date.now()+s.dur:0;s.level=0}
   s.next=()=>loadNextTactic(s);
-  s.countText=()=>kind==="sprint"?`${s.solved} gelöst · ${"♥".repeat(Math.max(0,s.lives))}`:kind==="theme"?`Stufe ${Math.min(PATH_STEPS,pathOf(s.theme).step+1)}/${PATH_STEPS} · ${pathOf(s.theme).n}/${PATH_N}`:`${s.solved} gelöst · ${s.failed} falsch`;
-  s.progress=()=>kind==="sprint"?Math.max(0,(s.end-Date.now())/180000):kind==="theme"?pathOf(s.theme).n/PATH_N:0;
+  s.countText=()=>s.rush?`${s.solved} gelöst · ${"♥".repeat(Math.max(0,s.lives))}`:kind==="theme"?`Stufe ${Math.min(PATH_STEPS,pathOf(s.theme).step+1)}/${PATH_STEPS} · ${pathOf(s.theme).n}/${PATH_N}`:`${s.solved} gelöst · ${s.failed} falsch`;
+  s.progress=()=>s.rush?(s.dur?Math.max(0,(s.end-Date.now())/s.dur):Math.max(0,s.lives/3)):kind==="theme"?pathOf(s.theme).n/PATH_N:0;
   sess=s;showView("train");
-  if(kind==="sprint")startSprintTimer(s);
+  if(s.rush&&s.dur)startSprintTimer(s);
   loadNextTactic(s);
 }
 let sprintT=null;
-function startSprintTimer(s){clearInterval(sprintT);const t=$("timer");sprintT=setInterval(()=>{if(sess!==s){clearInterval(sprintT);t.hidden=true;return}const left=Math.max(0,s.end-Date.now());t.hidden=false;t.textContent=Math.floor(left/60000)+":"+String(Math.floor(left/1000)%60).padStart(2,"0");t.classList.toggle("low",left<20000);$("sessProg").style.width=(left/180000*100)+"%";if(left<=0){clearInterval(sprintT);endSprint(s)}},250)}
+function startSprintTimer(s){clearInterval(sprintT);const t=$("timer");sprintT=setInterval(()=>{if(sess!==s){clearInterval(sprintT);t.hidden=true;return}const left=Math.max(0,s.end-Date.now());t.hidden=false;t.textContent=Math.floor(left/60000)+":"+String(Math.floor(left/1000)%60).padStart(2,"0");t.classList.toggle("low",left<20000);$("sessProg").style.width=(left/s.dur*100)+"%";if(left<=0){clearInterval(sprintT);endSprint(s)}},250)}
 function endSprint(s){
-  if(sess!==s)return;const best=s.solved>PZ.sprintBest;if(best)PZ.sprintBest=s.solved;savePZ();checkBadges();
+  if(sess!==s)return;const rk=s.kind==="sprint"?null:s.kind==="sprint5"?"s5":"surv";const prev=rk?PZ.rushBest[rk]||0:PZ.sprintBest;const best=s.solved>prev;if(best){if(rk)PZ.rushBest[rk]=s.solved;else PZ.sprintBest=s.solved}savePZ();checkBadges();clearInterval(sprintT);
   sess=null;done=true;lock=false;busy=false;$("timer").hidden=true;renderChrome();render();
-  setStatus("done",`Sprint vorbei: ${s.solved} gelöst`,best?"Neuer Rekord!":`Dein Rekord: ${PZ.sprintBest}`);sfx("done");
+  setStatus("done",`Rush vorbei: ${s.solved} gelöst`,best?"Neuer Rekord!":`Dein Rekord: ${Math.max(prev,s.solved)}`);sfx("done");if(best&&s.solved>=10)confetti();
 }
 async function loadNextTactic(s){
   if(sess!==s)return;
@@ -2190,16 +2220,16 @@ async function loadNextTactic(s){
     if(s.kind==="fails"){if(s.idx>=s.list.length){sess=null;busy=false;renderChrome();setStatus("done","Fehler wiederholt",`${s.solved} von ${s.list.length} gelöst.`);return}p=s.list[s.idx]}
     else if(s.kind==="theme"){const ps=pathOf(s.theme);p=await nextPuzzle(s.theme,DIFF[Math.min(PATH_STEPS-1,ps.step)][0])}
     else if(s.kind==="opening"){try{p=await nextPuzzle(s.angle,diffFor(PZ.r))}catch(e){if(String(e.message)==="angle"){toast("Für diese Eröffnung gibt es keine eigene Auswahl – gemischte Aufgaben.");s.angle="mix";p=await nextPuzzle("mix",diffFor(PZ.r))}else throw e}}
-    else if(s.kind==="sprint"){const lv=Math.min(4,Math.floor(s.solved/4));p=await nextPuzzle("mix",DIFF[lv][0])}
+    else if(s.rush){const lv=Math.min(4,Math.floor(s.solved/4));p=await nextPuzzle("mix",DIFF[lv][0])}
     else p=await nextPuzzle("mix",diffFor(PZ.r));
   }catch(e){busy=false;if(sess===s){sess=null;renderChrome()}setStatus("bad","Keine Aufgabe verfügbar",String(e&&e.message)==="ratelimit"?"Lichess meldet zu viele Anfragen – warte eine Minute.":String(e&&e.message)==="empty"?"Lichess hat gerade keine neuen Aufgaben geliefert – versuch es gleich noch einmal.":"Für neue Aufgaben braucht es eine Internetverbindung.");return}
   if(!p){busy=false;if(sess===s){sess=null;renderChrome()}setStatus("bad","Keine Aufgabe verfügbar","Versuch es gleich noch einmal.");return}
   if(sess!==s)return;busy=false;s.cur=p;
   const rated=s.kind==="rated"||s.kind==="opening";
-  playTactic(p,{title:s.title,rated,silentFail:s.kind==="sprint",
+  playTactic(p,{title:s.title,rated,silentFail:!!s.rush,
     onResult:(ok)=>{s.res.push({clean:ok});if(ok)s.solved++;else s.failed++;
       if(s.kind==="theme"&&ok){const ps=pathOf(s.theme);ps.n++;if(ps.n>=PATH_N){ps.step=Math.min(PATH_STEPS,ps.step+1);ps.n=0;savePZ();setTimeout(()=>toast(ps.step>=PATH_STEPS?`Pfad „${TTH[s.theme][0]}“ gemeistert!`:`Stufe ${ps.step} geschafft – ★ ${ps.step}/${PATH_STEPS}`),600);if(ps.step>=PATH_STEPS){setTimeout(()=>{if(sess===s){sess=null;renderChrome();setStatus("done","Pfad gemeistert!","Alle fünf Sterne gesammelt. Neue Pfade schaltest du mit Sternen frei.")}},1500)}}savePZ()}
-      if(s.kind==="sprint"){if(!ok){s.lives--;sfx("wrong")}renderChrome();
+      if(s.rush){if(!ok){s.lives--;sfx("wrong")}renderChrome();
         if(s.lives<=0){setTimeout(()=>endSprint(s),600);return}
         setTimeout(()=>{if(sess===s)s.next()},ok?500:900)}
       if(s.kind==="fails")s.idx++;
@@ -2226,11 +2256,11 @@ function renderTactics(){
   v.innerHTML=`<div class="tac-hero">
     <div class="tac-r"><small>Taktik-Wertung</small><b>${PZ.r}</b><span>${PZ.n} Aufgaben · ${PZ.n?pct(PZ.ok/PZ.n):"–"} gelöst</span></div>
     <div class="tac-lv"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Level ${lv} · ${rankOf(lv)}</b><small>${PZ.xp-a}/${b-a} XP</small></div><div class="xpbar"><i style="width:${(PZ.xp-a)/(b-a)*100}%"></i></div>
-      <div class="tac-mini"><span><b>${d.n}/${PZ.goal}</b> heute</span><span><b>${PZ.streak.last===today()||PZ.streak.last===yesterday()?PZ.streak.n:0}</b> Tage Serie</span><span><b>${stars}</b> ★ Sterne</span><span><b>${PZ.sprintBest}</b> Sprint-Rekord</span></div></div>
+      <div class="tac-mini"><span><b>${d.n}/${PZ.goal}</b> heute</span><span><b>${PZ.streak.last===today()||PZ.streak.last===yesterday()?PZ.streak.n:0}</b> Tage Serie</span><span><b>${stars}</b> ★ Sterne</span><span><b>${Math.max(PZ.sprintBest,PZ.rushBest.s5||0,PZ.rushBest.surv||0)}</b> Rush-Rekord</span></div></div>
   </div>
   <div class="hubgrid">
     <button class="hc" data-tac="rated"><span class="ic" style="background:#81B64C">${NI.bolt}</span><b>Wertungstraining</b><small>Endlos Aufgaben passend zu deiner Wertung. Jede Lösung verändert deine Taktik-Wertung.</small><span class="meta">${PZ.r}</span></button>
-    <button class="hc" data-tac="sprint"><span class="ic" style="background:#E6912C">${NI.review}</span><b>Taktik-Sprint</b><small>3 Minuten, 3 Leben: Löse so viele Aufgaben wie möglich. Sie werden immer schwerer.</small><span class="meta">${PZ.sprintBest}</span></button>
+    <div class="hc rushc"><span class="ic">${NI.review}</span><b>Taktik-Rush</b><small>Löse so viele Aufgaben wie möglich – sie werden immer schwerer. Drei Fehler, und es ist vorbei.</small><span class="rush-b">${[["sprint","3 Min",PZ.sprintBest],["sprint5","5 Min",PZ.rushBest.s5],["survival","Überleben",PZ.rushBest.surv]].map(r=>`<button class="btn" data-tac="${r[0]}">${r[1]}<small>Rekord ${r[2]||0}</small></button>`).join("")}</span></div>
     <button class="hc" data-tac="fails" ${PZ.fails.length?"":"disabled"}><span class="ic" style="background:#B9483C">${NI.target}</span><b>Fehler wiederholen</b><small>Aufgaben, die du nicht gelöst hast. Zweimal richtig, dann verschwinden sie.</small><span class="meta${PZ.fails.length?" hot":""}">${PZ.fails.length}</span></button>
   </div>
   ${repOps.length?`<div class="sec-h"><h3>Taktik aus deinen Eröffnungen</h3><small>Aufgaben aus Partien mit deinem Repertoire</small></div><div class="chips">${repOps.map(o=>`<button class="chip" data-tacop="${o.id}">${esc(o.name)}</button>`).join("")}</div>`:`<p class="hint">Tipp: Markiere Eröffnungen mit einem Stern, dann bekommst du hier Taktikaufgaben aus genau diesen Eröffnungen.</p>`}
@@ -2250,7 +2280,8 @@ BADGES.push(
   {id:"t1500",t:"Taktik 1500",d:"Taktik-Wertung von 1500 erreicht",ok:()=>PZ.r>=1500},
   {id:"t1800",t:"Taktik 1800",d:"Taktik-Wertung von 1800 erreicht",ok:()=>PZ.r>=1800},
   {id:"t2100",t:"Taktik 2100",d:"Taktik-Wertung von 2100 erreicht",ok:()=>PZ.r>=2100},
-  {id:"sprint15",t:"Sprinter",d:"15 Aufgaben in einem Sprint",ok:()=>PZ.sprintBest>=15},
+  {id:"sprint15",t:"Sprinter",d:"15 Aufgaben in einem 3-Minuten-Rush",ok:()=>PZ.sprintBest>=15},
+  {id:"surv20",t:"Überlebenskünstler",d:"20 Aufgaben im Überlebens-Rush",ok:()=>(PZ.rushBest.surv||0)>=20},
   {id:"path",t:"Pfadfinder",d:"Einen Themen-Pfad gemeistert",ok:()=>Object.values(PZ.paths).some(p=>p.step>=PATH_STEPS)},
   {id:"stars50",t:"Sternensammler",d:"50 Sterne in Themen-Pfaden",ok:()=>totalStars()>=50}
 );
@@ -3062,13 +3093,14 @@ function renderHome(){
 
 /* ---- Gegen den Computer ---- */
 const BOTS=[{lvl:1,name:"Bauer",elo:"ca. 600",d:"Übersieht vieles – ideal zum Reinkommen."},{lvl:4,name:"Springer",elo:"ca. 1000",d:"Spielt solide, macht aber Fehler."},{lvl:7,name:"Läufer",elo:"ca. 1300",d:"Bestraft grobe Fehler."},{lvl:10,name:"Turm",elo:"ca. 1700",d:"Ein starker Vereinsspieler."},{lvl:15,name:"Dame",elo:"ca. 2100",d:"Kaum Fehler, sehr taktisch."},{lvl:20,name:"König",elo:"über 2800",d:"Stockfish mit voller Stärke."}];
-const BOTCFG=Object.assign({lvl:4,col:"r",start:"std",oid:""},store.get("et-bot",{}));
+const BOTCFG=Object.assign({lvl:4,col:"r",start:"std",oid:"",style:"bal"},store.get("et-bot",{}));
 function renderBots(){
   const v=$("v-bots");if(!v)return;const rep=S.rep.map(byId).filter(o=>o&&o.lines&&o.lines.length);const pool=rep.length?rep:ALL.filter(o=>o.g!=="c"&&o.lines.length);
   if(!pool.some(o=>o.id===BOTCFG.oid))BOTCFG.oid=pool[0]?pool[0].id:"";
   v.innerHTML=pageHead("Gegen den Computer","Wähle einen Gegner. Danach kannst du die Partie im Game Review analysieren.","bot")+
   `<div class="bots">${BOTS.map(b=>`<button class="botc" data-lvl="${b.lvl}" aria-pressed="${BOTCFG.lvl===b.lvl}"><span class="bot-av">${b.name[0]}</span><span><b>${b.name}</b><small>Stufe ${b.lvl} · ${b.elo}</small><em>${b.d}</em></span></button>`).join("")}</div>
   <div class="card"><div class="setrow"><span><b>Deine Farbe</b></span><span class="seg">${[["w","Weiß"],["r","Zufall"],["b","Schwarz"]].map(c=>`<button data-bcol="${c[0]}" aria-pressed="${BOTCFG.col===c[0]}">${c[1]}</button>`).join("")}</span></div>
+  <div class="setrow"><span><b>Spielstil</b><small>${esc((BOTSTYLES.find(x=>x[0]===BOTCFG.style)||BOTSTYLES[0])[2])}</small></span><span class="seg">${BOTSTYLES.map(c=>`<button data-bsty="${c[0]}" aria-pressed="${BOTCFG.style===c[0]}">${c[1]}</button>`).join("")}</span></div>
   <div class="setrow"><span><b>Start</b><small>${BOTCFG.start==="op"?"Die Hauptvariante wird zuerst gespielt, du hast die Farbe der Eröffnung.":"Normale Grundstellung."}</small></span><span class="seg">${[["std","Grundstellung"],["op","Eröffnung"]].map(c=>`<button data-bst="${c[0]}" aria-pressed="${BOTCFG.start===c[0]}">${c[1]}</button>`).join("")}</span></div>
   ${BOTCFG.start==="op"?`<div class="setrow"><span><b>Eröffnung</b><small>${rep.length?"Aus deinem Repertoire":"Markiere Eröffnungen mit einem Stern, um nur dein Repertoire zu sehen"}</small></span><select class="txt" id="botOp" style="width:auto;max-width:56%">${pool.map(o=>`<option value="${o.id}" ${o.id===BOTCFG.oid?"selected":""}>${esc(o.name)}</option>`).join("")}</select></div>`:""}
   <button class="big" id="botGo" style="margin:14px 0 0;width:100%">Partie starten</button></div>`;
@@ -3076,6 +3108,7 @@ function renderBots(){
   v.querySelectorAll("[data-lvl]").forEach(b=>b.onclick=()=>{BOTCFG.lvl=+b.dataset.lvl;sv();v.querySelectorAll("[data-lvl]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
   v.querySelectorAll("[data-bcol]").forEach(b=>b.onclick=()=>{BOTCFG.col=b.dataset.bcol;sv();renderBots()});
   v.querySelectorAll("[data-bst]").forEach(b=>b.onclick=()=>{BOTCFG.start=b.dataset.bst;sv();renderBots()});
+  v.querySelectorAll("[data-bsty]").forEach(b=>b.onclick=()=>{BOTCFG.style=b.dataset.bsty;sv();renderBots()});
   if($("botOp"))$("botOp").onchange=e=>{BOTCFG.oid=e.target.value;sv()};
   $("botGo").onclick=()=>startBot();
 }
@@ -3085,7 +3118,8 @@ function startBot(){
   S.set.sf=b.lvl;save("set");
   const src=BOTCFG.start==="op"?byId(BOTCFG.oid):null;
   const side=src?src.side:BOTCFG.col==="r"?(Math.random()<.5?"w":"b"):BOTCFG.col;
-  op={id:"__bot",bot:true,botName:b.name,g:"c",side,name:src?src.name+" gegen "+b.name:"Partie gegen "+b.name,eco:"Computer",d:`${b.name} · Stufe ${b.lvl} (${b.elo}). ${b.d}`,plan:[],lines:[]};
+  const sty=BOTSTYLES.find(x=>x[0]===BOTCFG.style)||BOTSTYLES[0];
+  op={id:"__bot",bot:true,botStyle:sty[0],botName:b.name+(sty[0]!=="bal"?" ("+sty[1]+")":""),g:"c",side,name:src?src.name+" gegen "+b.name:"Partie gegen "+b.name,eco:"Computer",d:`${b.name} · Stufe ${b.lvl} (${b.elo}). ${b.d}`,plan:[],lines:[]};
   resetBoard();mode="train";
   if(src&&src.lines[0]){for(const m of src.lines[0].m){const g=new Chess(fens[hist.length]);const mv=findMove(g,m);if(!mv)break;commit(mv,"b")}view=hist.length;shown=new Chess(fens[view])}
   showView("train");buildSquares();startEngine(!src);
@@ -3205,6 +3239,154 @@ function renderLegal(){
 /* Sprungadressen wie #impressum oder #computer – auch wenn die Seite schon offen ist */
 const HASHV={"#start":"home","#analyse":"analyse","#chess":"chess","#quiz":"quiz","#statistik":"profile:stats","#profil":"profile:stats","#partien":"games","#lernen":"learn","#training":"learn","#eroeffnungen":"openings","#einstellungen":"profile:settings","#computer":"bots","#online":"online:play","#bestenliste":"online:leader","#datenschutz":"legal","#impressum":"legal"};
 window.addEventListener("hashchange",()=>{const h=location.hash;if(!HASHV[h])return;if(h==="#impressum")legalTab="imp";else if(h==="#datenschutz")legalTab="priv";history.replaceState(null,"",location.pathname);showView(HASHV[h])});
+
+/* ================= Phase 2: Kurse, Baum-Editor, Koordinaten, Meisterzug, Bot-Stile ================= */
+
+/* ---- Kurse: Eröffnungen als Kapitel in sinnvoller Reihenfolge ---- */
+const COURSES=[
+  {id:"w_start",t:"Erste Schritte mit Weiß",lvl:"Einsteiger",side:"w",d:"Ein einfaches, aktives Repertoire mit 1.e4 und dem Londoner System – dazu die wichtigsten Fallen.",ch:[["italienisch","Italienisch – schnell entwickeln"],["fallen_w","Fallen, die jeder kennen muss"],["londoner","Londoner System – ein Aufbau gegen alles"]]},
+  {id:"b_start",t:"Erste Schritte mit Schwarz",lvl:"Einsteiger",side:"b",d:"Mit 1...e5 und Skandinavisch kommst du sicher aus der Eröffnung – und tappst in keine Falle.",ch:[["e5_schwarz","1...e5 gegen die Offenen Spiele"],["skandinavisch","Skandinavisch gegen 1.e4"],["fallen_b","Fallen für Schwarz"]]},
+  {id:"w_e4",t:"Weiß mit 1.e4 – das komplette Repertoire",lvl:"Fortgeschritten",side:"w",d:"Antworten auf alle großen Verteidigungen: Sizilianisch, Französisch, Caro-Kann, Skandinavisch und 1...e5.",ch:[["spanisch","Spanisch gegen 1...e5"],["offen_siz_w","Offenes Sizilianisch"],["gegen_franz_w","Gegen Französisch"],["gegen_caro_w","Gegen Caro-Kann"],["gegen_skandi_w","Gegen Skandinavisch"]]},
+  {id:"w_d4",t:"Weiß mit 1.d4 – solide und strategisch",lvl:"Fortgeschritten",side:"w",d:"Damengambit und Katalanisch, dazu Pläne gegen Königsindisch und Holländisch.",ch:[["damengambit","Damengambit"],["katalanisch","Katalanisch"],["gegen_ki_w","Gegen Königsindisch"],["gegen_holl_w","Gegen Holländisch"]]},
+  {id:"b_solid",t:"Schwarz: solide gegen alles",lvl:"Fortgeschritten",side:"b",d:"Caro-Kann gegen 1.e4 und das abgelehnte Damengambit gegen 1.d4 – bewährt bis in die Weltspitze.",ch:[["carokann","Caro-Kann"],["dg_abgelehnt","Damengambit abgelehnt"],["nimzo","Nimzo-Indisch als Waffe"]]},
+  {id:"b_sharp",t:"Schwarz: scharf und dynamisch",lvl:"Stark",side:"b",d:"Najdorf und Königsindisch – komplexe Stellungen mit Gewinnchancen.",ch:[["najdorf","Sizilianisch Najdorf"],["drachen","Sizilianisch Drachen"],["koenigsindisch","Königsindisch"],["gruenfeld","Grünfeld-Indisch"]]},
+  {id:"gambits",t:"Gambits und Überfälle",lvl:"Für Mutige",side:"wb",d:"Bauernopfer für schnellen Angriff – ideal für Blitz und Schnellschach.",ch:[["evans","Evans-Gambit"],["koenigsgambit","Königsgambit"],["friedliver","Fegatello (Fried Liver)"],["stafford","Stafford-Gambit"],["englund","Englund-Gambit"]]}
+];
+const courseKeys=c=>[].concat(...c.ch.map(([id])=>{const o=byId(id);return o?o.lines.map((l,i)=>lk(id,i)):[]}));
+const courseProg=c=>{const ks=courseKeys(c);return {n:ks.length,cl:ks.filter(k=>Pk(k)===2).length}};
+let courseOpen=null;
+function renderCourses(){
+  const v=$("v-courses");if(!v)return;
+  if(courseOpen){const c=COURSES.find(x=>x.id===courseOpen);if(c){renderCourse(v,c);return}courseOpen=null}
+  v.innerHTML=pageHead("Kurse","Schritt für Schritt: Jede Variante wird erst vorgezeigt, dann prüfst du dich ohne Hilfe.","learn")+
+  `<div class="crs">${COURSES.map(c=>{const p=courseProg(c);const f=p.n?p.cl/p.n:0;return `<button class="crc" data-crs="${c.id}"><span class="crc-top"><span class="crc-tag">${esc(c.lvl)}</span><span class="crc-side">${c.side==="w"?"Weiß":c.side==="b"?"Schwarz":"Weiß & Schwarz"}</span></span><b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-p"><span class="prog"><i style="width:${f*100}%"></i></span><small>${p.cl}/${p.n} Varianten · ${c.ch.length} Kapitel</small></span></button>`}).join("")}</div>`;
+  v.querySelectorAll("[data-crs]").forEach(b=>b.onclick=()=>{courseOpen=b.dataset.crs;renderCourses();window.scrollTo(0,0)});
+}
+function renderCourse(v,c){
+  const p=courseProg(c);const open=courseKeys(c).filter(k=>Pk(k)<2);
+  v.innerHTML=`<button class="back" data-cback>← Alle Kurse</button>`+pageHead(esc(c.t),`${esc(c.lvl)} · ${p.cl} von ${p.n} Varianten fehlerfrei`,"learn")+
+  `<div class="card crs-go"><p class="hint" style="margin:0 0 10px">${esc(c.d)}</p><div class="prog" style="margin-bottom:12px"><i style="width:${p.n?p.cl/p.n*100:0}%"></i></div><button class="btn grn wide" id="crsGo">${open.length?(p.cl?"Weiterlernen":"Kurs starten")+` (${Math.min(open.length,8)} Varianten)`:"Alles gelernt – wiederholen"}</button></div>
+  ${c.ch.map(([id,t],ci)=>{const o=byId(id);if(!o)return "";const cl=o.lines.filter((l,i)=>P(id,i)===2).length;
+    return `<section class="coll"><div class="coll-h"><span class="coll-ic chn">${ci+1}</span><div><h3>${esc(t)}</h3><small>${esc(o.name)} · ${cl}/${o.lines.length} gelernt</small></div></div><div class="coll-items">${o.lines.map((l,i)=>{const st2=P(id,i);const due=isDue(lk(id,i));return `<button class="ci" data-cl="${id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}</small></span>${due?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></section>`}).join("")}`;
+  v.querySelector("[data-cback]").onclick=()=>{courseOpen=null;renderCourses()};
+  $("crsGo").onclick=()=>{const ks=open.length?open.slice(0,8):courseKeys(c).filter(k=>isDue(k)).concat(shuffle(courseKeys(c))).slice(0,8);startSession("course",[...new Set(ks)],c.t)};
+  v.querySelectorAll("[data-cl]").forEach(b=>b.onclick=()=>{const [id,i]=pk(b.dataset.cl);selectOpening(byId(id),i)});
+}
+
+/* ---- Repertoire-Baum: eigene Varianten ansehen, abzweigen, löschen ---- */
+function renderRepEdit(){
+  const v=$("v-repedit");if(!v)return;const groups=ALL.filter(o=>o.g==="c");
+  const tree=o=>{const root={k:{},end:[]};o.lines.forEach(l=>{let n=root;l.m.forEach(m=>{n=n.k[m]||(n.k[m]={k:{},end:[]})});n.end.push(l)});
+    const walk=(n,path)=>{let html="";const keys=Object.keys(n.k);
+      keys.forEach(m=>{let node=n.k[m];const seq=[m];let p=path.concat(m);
+        while(Object.keys(node.k).length===1&&!node.end.length){const nm=Object.keys(node.k)[0];seq.push(nm);p=p.concat(nm);node=node.k[nm]}
+        const label=fmtMoves(seq,p.length-seq.length);
+        html+=`<li><div class="rt-row"><span class="rt-mv">${esc(label)}</span>${node.end.map(l=>`<span class="rt-end">${esc(l.n)}<button class="rt-del" data-del="${o.side}|${l.ci}" title="Variante löschen" aria-label="Variante ${esc(l.n)} löschen">✕</button></span>`).join("")}<button class="rt-add" data-br="${esc(o.id)}|${esc(p.join(" "))}" title="Hier abzweigen" aria-label="Hier eine neue Variante abzweigen">+</button></div>${Object.keys(node.k).length?`<ul>${walk(node,p)}</ul>`:""}</li>`});
+      return html};
+    return `<ul class="rtree">${walk(root,[])}</ul>`};
+  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Eigene Varianten","Dein Repertoire als Baum: Mit + zweigst du an jeder Stelle eine neue Variante ab, mit ✕ löschst du eine.","edit")+
+  (groups.length?groups.map(o=>`<section class="card"><div class="rt-h"><div><h3 style="margin:0">${esc(o.grp)}</h3><small class="sub">${o.side==="w"?"Weiß":"Schwarz"} · ${o.lines.length} Varianten</small></div><span class="btnrow"><button class="btn" data-trn="${esc(o.id)}">Trainieren</button><button class="btn" data-br="${esc(o.id)}|">Neue Variante</button></span></div>${tree(o)}</section>`).join(""):emptyState("edit","Noch keine eigenen Varianten","Spiel eine Zugfolge im Editor ein oder importiere eine PGN-Datei.",`<span class="btnrow" style="justify-content:center"><button class="btn grn" id="reNew">Eigene Variante</button><button class="btn" id="reImp">Importieren</button></span>`));
+  wireBack(v);
+  if($("reNew"))$("reNew").onclick=()=>openEditor();if($("reImp"))$("reImp").onclick=()=>showView("import");
+  v.querySelectorAll("[data-trn]").forEach(b=>b.onclick=()=>selectOpening(byId(b.dataset.trn)));
+  v.querySelectorAll("[data-br]").forEach(b=>b.onclick=()=>{const [id,pre]=b.dataset.br.split("|");const o=byId(id);if(!o)return;openEditor({side:o.side,group:o.grp,pre:pre?pre.split(" "):[]})});
+  v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Löschen?";b.classList.add("sure");setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent="✕";b.classList.remove("sure")}},2500);return}
+    const [side,ci]=b.dataset.del.split("|");S.custom[side].splice(+ci,1);save("custom");buildAll();renderList();toast("Variante gelöscht");renderRepEdit()});
+}
+
+/* ---- Koordinaten-Trainer ---- */
+const CO=Object.assign({mode:"find",side:"w",best:{find:0,name:0}},store.get("et-coord",{}));fixT(CO,{mode:"find",side:"w",best:{find:0,name:0}});
+let coRun=null,coTapFn=null;
+function renderCoords(){
+  const v=$("v-coords");if(!v)return;
+  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Koordinaten","Finde Felder blitzschnell – das hilft beim Lesen von Notation und beim Blind-Training.","target")+
+  `<div class="co-wrap"><div class="co-left"><div class="co-board" id="coBoard"></div><div class="co-big" id="coBig" hidden></div></div>
+  <div class="card co-side"><div class="setrow"><span><b>Aufgabe</b></span><span class="seg">${[["find","Feld finden"],["name","Feld benennen"]].map(m=>`<button data-com="${m[0]}" aria-pressed="${CO.mode===m[0]}">${m[1]}</button>`).join("")}</span></div>
+  <div class="setrow"><span><b>Brett von</b></span><span class="seg">${[["w","Weiß"],["b","Schwarz"]].map(m=>`<button data-cos="${m[0]}" aria-pressed="${CO.side===m[0]}">${m[1]}</button>`).join("")}</span></div>
+  <div class="co-stat"><div><small>Zeit</small><b id="coTime">0:30</b></div><div><small>Punkte</small><b id="coPts">0</b></div><div><small>Rekord</small><b>${CO.best[CO.mode]}</b></div></div>
+  <div class="co-opts" id="coOpts" hidden></div>
+  <button class="big" id="coGo" style="margin:12px 0 0;width:100%">Start (30 Sekunden)</button></div></div>`;
+  wireBack(v);
+  const draw=hl=>{const el=$("coBoard");let h="";for(let y=0;y<8;y++)for(let x=0;x<8;x++){const f=CO.side==="b"?7-x:x,r=CO.side==="b"?y:7-y;const n="abcdefgh"[f]+(r+1);h+=`<button class="co-sq ${(x+y)%2?"d":"l"}${hl===n?" hl":""}" data-sq="${n}" aria-label="Feld"></button>`}el.innerHTML=h;el.querySelectorAll("[data-sq]").forEach(b=>b.onclick=()=>coTap(b.dataset.sq))};
+  draw(null);
+  v.querySelectorAll("[data-com]").forEach(b=>b.onclick=()=>{if(coRun)return;CO.mode=b.dataset.com;store.set("et-coord",CO);renderCoords()});
+  v.querySelectorAll("[data-cos]").forEach(b=>b.onclick=()=>{if(coRun)return;CO.side=b.dataset.cos;store.set("et-coord",CO);renderCoords()});
+  const rndSq=()=>"abcdefgh"[Math.random()*8|0]+(1+(Math.random()*8|0));
+  const next=()=>{const r=coRun;let t;do{t=rndSq()}while(t===r.t);r.t=t;
+    if(CO.mode==="find"){$("coBig").hidden=false;$("coBig").textContent=t;draw(null)}
+    else{draw(t);const o=new Set([t]);while(o.size<4)o.add(rndSq());const arr=shuffle([...o]);$("coOpts").hidden=false;$("coOpts").innerHTML=arr.map(s=>`<button class="btn" data-coa="${s}">${s}</button>`).join("");$("coOpts").querySelectorAll("[data-coa]").forEach(b=>b.onclick=()=>coTap(b.dataset.coa))}};
+  const end=()=>{const r=coRun;coRun=null;clearInterval(r.iv);const best=r.pts>CO.best[CO.mode];if(best){CO.best[CO.mode]=r.pts;store.set("et-coord",CO)}
+    $("coBig").hidden=false;$("coBig").textContent=r.pts+" ✓";$("coOpts").hidden=true;$("coGo").disabled=false;$("coGo").textContent="Nochmal";toast(best?`Neuer Rekord: ${r.pts} Felder!`:`${r.pts} Felder · Rekord ${CO.best[CO.mode]}`);if(best&&r.pts>=10)confetti();sfx(best?"badge":"done")};
+  coTapFn=sq=>{const r=coRun;if(!r)return;const ok=sq===r.t;const el=$("coBoard").querySelector(`[data-sq="${CO.mode==="find"?sq:r.t}"]`);
+    if(ok){r.pts++;$("coPts").textContent=r.pts;sfx("move")}else{r.miss++;sfx("wrong");if(CO.mode==="find"){const right=$("coBoard").querySelector(`[data-sq="${r.t}"]`);if(right){right.classList.add("hint");setTimeout(()=>right.classList.remove("hint"),400)}}}
+    if(el){el.classList.add(ok?"ok":"no");setTimeout(()=>el.classList.remove("ok","no"),300)}next()};
+  $("coGo").onclick=()=>{if(coRun)return;coRun={pts:0,miss:0,t:null,end:Date.now()+30000};$("coPts").textContent="0";$("coGo").disabled=true;$("coGo").textContent="Läuft …";next();
+    coRun.iv=setInterval(()=>{const r=coRun;if(!r)return;if(curView!=="coords"){clearInterval(r.iv);coRun=null;return}const left=Math.max(0,r.end-Date.now());$("coTime").textContent="0:"+String(Math.ceil(left/1000)).padStart(2,"0");if(left<=0)end()},200)};
+}
+function coTap(sq){if(coTapFn)coTapFn(sq)}
+
+/* ---- Finde den Meisterzug ---- */
+let guess=null;
+const GUESSB=store.get("et-guess",{});
+function renderGuessPick(){
+  const v=$("v-guess");if(!v)return;
+  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Finde den Meisterzug","Spiel eine berühmte Partie aus Sicht einer Seite nach und rate jeden Zug. Der Meisterzug bringt 5 Punkte, ein fast gleich guter Zug laut Stockfish 1–3 Punkte.","games")+
+  `<div class="grid3">${GAMES.map(g=>{const pl=g.players.split(" – ");return `<div class="gcard"><h4>${esc(g.title)}</h4><div class="sub">${esc(g.players)} · ${esc(g.year)}</div><p>${esc(g.d)}</p><div class="btnrow">${["w","b"].map(s=>{const bs=GUESSB[g.id+s];return `<button class="btn${s==="w"?" grn":""}" data-gs="${g.id}|${s}">Als ${esc(pl[s==="w"?0:1]||(s==="w"?"Weiß":"Schwarz"))}${bs?` · ${bs} %`:""}</button>`}).join("")}</div></div>`}).join("")}</div>`;
+  wireBack(v);
+  v.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{const [id,s]=b.dataset.gs.split("|");startGuess(GAMES.find(g=>g.id===id),s)});
+}
+function startGuess(gm,side){
+  if(!gm)return;stopEngine();sess=null;drill=null;puz=null;game=null;flipped=false;forced=null;
+  const pl=gm.players.split(" – ");
+  op={id:"__guess",guessName:pl[side==="w"?1:0]||"Gegner",g:"c",side,name:"Meisterzug: "+gm.title,eco:"Meisterzug raten",d:`${gm.players}, ${gm.year}. Du spielst ${side==="w"?"Weiß":"Schwarz"} (${pl[side==="w"?0:1]||""}).`,plan:[],lines:[]};
+  resetBoard();mode="guess";guess={gm,moves:gm.moves.split(" "),side,pts:0,max:0,n:0,exact:0,last:""};
+  showView("train");buildSquares();renderChrome();render();guessAdvance(true);
+}
+function guessAdvance(first){
+  if(mode!=="guess"||!guess)return;const G=guess;let last=null;
+  while(hist.length<G.moves.length&&new Chess(fens[hist.length]).turn()!==G.side){const g=new Chess(fens[hist.length]);const mv=findMove(g,G.moves[hist.length]);if(!mv){G.moves.length=hist.length;break}last=commit(mv,"g")}
+  view=hist.length;shown=new Chess(fens[view]);badge=null;render(last&&!first?{fwd:last}:null);if(last&&!first)playSound(last);renderChrome();
+  if(hist.length>=G.moves.length){guessEnd();return}
+  setStatus("turn",`Zug ${Math.floor(hist.length/2)+1}: Was hat ${G.side==="w"?"Weiß":"Schwarz"} gespielt?`,`${G.last?G.last+" · ":""}${G.pts} von ${G.max} Punkten`);
+}
+async function guessMove(mv,animate){
+  const G=guess;if(!G||busy)return;const k=hist.length;const g0=new Chess(fens[k]);const real=findMove(g0,G.moves[k]);if(!real){guessEnd();return}
+  const exact=strip(mv.san)===strip(real.san);busy=true;sel=null;
+  let pts=exact?5:0;
+  if(!exact){const a=new Chess(fens[k]);a.move(mv.san);
+    if(a.in_checkmate())pts=5;
+    else{setStatus("view","Stockfish vergleicht …",`Dein Zug: ${de(mv.san)}`,true);
+      try{const b2=new Chess(fens[k]);b2.move(real.san);const ea=await evalFen(a.fen()),eb=await evalFen(b2.fen());const sg=G.side==="w"?1:-1;const diff=(eb-ea)*sg;pts=diff<=25?3:diff<=70?1:0}catch(e){}}}
+  if(mode!=="guess"||guess!==G){busy=false;return}
+  G.pts+=pts;G.max+=5;G.n++;if(exact)G.exact++;
+  const r=commit(real,"u");view=hist.length;shown=new Chess(fens[view]);badge={ply:view,sq:r.to,type:exact||pts>=3?"ok":"no"};render(animate?{fwd:r}:null);playSound(r);
+  G.last=exact?`${de(real.san)} – genau der Meisterzug, +5`:`Gespielt wurde ${de(real.san)}. Dein Zug ${de(mv.san)}: ${pts?"+"+pts:"0 Punkte"}`;
+  setStatus(exact?"good":pts?"view":"bad",exact?`${de(real.san)} – genau der Meisterzug!`:`Gespielt wurde ${de(real.san)}`,exact?"+5 Punkte":pts?`Dein Zug ${de(mv.san)} ist laut Stockfish fast so gut: +${pts}`:`Dein Zug ${de(mv.san)} war schwächer. ${explain(fens[k],real,k?mvs[k-1]:null).text}`,true);
+  if(exact)sfx("done");else if(!pts)sfx("wrong");
+  setTimeout(()=>{busy=false;if(mode==="guess"&&guess===G)guessAdvance()},exact?900:1900);
+}
+function guessEnd(){
+  const G=guess;if(!G)return;done=true;const p=G.max?Math.round(G.pts/G.max*100):0;const key=G.gm.id+G.side;const best=p>(GUESSB[key]||0);if(best){GUESSB[key]=p;store.set("et-guess",GUESSB)}
+  st.games[G.gm.id]=true;saveStats();
+  setStatus("done",`Partie zu Ende: ${G.pts} von ${G.max} Punkten (${p} %)`,`${G.exact} von ${G.n} Zügen genau wie der Meister.${best?" Neuer Rekord!":""}`,true);
+  if(p>=70)confetti();sfx("done");render();renderChrome();
+}
+
+/* ---- Bot-Stile: aus den besten Stockfish-Linien einen passenden Zug wählen ---- */
+const BOTSTYLES=[["bal","Ausgewogen","Spielt einfach gute Züge."],["att","Angreifer","Sucht Schachs, Schläge und Angriffe auf den König."],["def","Verteidiger","Spielt ruhig, tauscht gern und vermeidet Risiko."]];
+function botPick(fen,r){
+  const st0=op&&op.botStyle;if(!st0||st0==="bal"||!r.lines||r.lines.length<2)return r.best;
+  const g=new Chess(fen);const turn=g.turn();const top=cpOf(r.lines[0].score,turn)*(turn==="w"?1:-1);
+  const margin=40+(20-S.set.sf)*6;const ek=(()=>{const b=g.board();for(let y=0;y<8;y++)for(let x=0;x<8;x++){const p=b[y][x];if(p&&p.type==="k"&&p.color!==turn)return [x,y]}return [4,0]})();
+  let best=r.best,bs=-1e9;
+  r.lines.forEach(l=>{const u=l.pv&&l.pv[0];if(!u)return;const v=cpOf(l.score,turn)*(turn==="w"?1:-1);if(top-v>margin)return;
+    const mv=g.moves({verbose:true}).find(m=>m.from+m.to+(m.promotion||"")===u||(m.from+m.to===u.slice(0,4)&&!u[4]));if(!mv)return;
+    const t=new Chess(fen);t.move(mv.san);const fx=mv.to.charCodeAt(0)-97,fy=8-+mv.to[1];const dist=Math.max(Math.abs(fx-ek[0]),Math.abs(fy-ek[1]));
+    const adv=turn==="w"?(+mv.to[1]-+mv.from[1]):(+mv.from[1]-+mv.to[1]);
+    let sc=0;if(st0==="att"){sc+=(t.in_check()?3:0)+(mv.captured?2:0)+(adv>0?1:0)+(dist<=2?1.5:0)}else{sc+=(mv.captured&&mv.piece!=="p"?1.5:0)+(adv<=0?1:0)+(t.in_check()?-1:0)+(mv.flags.indexOf("k")>=0||mv.flags.indexOf("q")>=0?2:0)}
+    sc+=-(top-v)/60;if(sc>bs){bs=sc;best=u}});
+  return best;
+}
 
 /* ================= Start ================= */
 applySettings();
