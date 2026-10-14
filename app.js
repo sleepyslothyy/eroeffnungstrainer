@@ -2684,7 +2684,7 @@ window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#play=([
 
 /* ================= Admin-Bereich ================= */
 /* Nutzer-IDs mit Admin-Rechten (müssen auch in den Firestore-Regeln stehen) */
-const ADMIN_UIDS=[];
+const ADMIN_UIDS=["iJ4m56bUDeW1mclGgpg6np59GVN2"];
 function isAdmin(){if(!ON.user)return false;if(ADMIN_UIDS.indexOf(ON.user.uid)>=0)return true;try{return !!window.__MOCKNET&&sessionStorage.getItem("mock-admin")==="1"}catch(e){return false}}
 const ADM={tab:"overview",users:null,games:null,names:null,priv:{},loading:false,err:"",q:"",sort:"new",gf:"all",sel:null,at:0};
 const relTime=t=>{if(!t)return "nie";const d=Date.now()-t;if(d<60000)return "gerade eben";if(d<3600000)return "vor "+Math.round(d/60000)+" Min.";if(d<86400000)return "vor "+Math.round(d/3600000)+" Std.";const n=Math.round(d/86400000);return n===1?"gestern":"vor "+n+" Tagen"};
