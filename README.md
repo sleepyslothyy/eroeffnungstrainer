@@ -26,7 +26,7 @@ Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline
 
 ## Komfort
 - Startseite „Weitermachen“ mit letzter Eröffnung, fälligen Wiederholungen und Tagesziel; Ersteinrichtung beim ersten Öffnen
-- Handy-Layout mit Knöpfen direkt unter dem Brett, Zugliste als Streifen, Tab-Leiste blendet sich beim Scrollen aus
+- Handy-Layout mit Knöpfen direkt unter dem Brett, Zugliste als Streifen
 - Wischen auf dem Brett zum Blättern, vergrößerte Figur beim Ziehen mit dem Finger, Zug zurücknehmen, automatisch Dame
 - Automatisch weiter nach gelösten Varianten und Aufgaben, Materialanzeige, Konfetti und Serien-Feier
 - Chess.com/Lichess beim Öffnen automatisch abgleichen, neue Partien im Hintergrund analysieren

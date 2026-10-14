@@ -712,16 +712,16 @@ const fmtN=n=>n>=1e6?(n/1e6).toFixed(1)+" Mio.":n>=1e3?Math.round(n/1e3)+" Tsd."
 let dbTok=0,dbKey="";
 async function renderDb(force){
   const el=$("tabDb");if(tab!=="db"||!el)return;const h=hist.slice(0,view);
-  if(mode==="online"&&ON.g&&ON.g.status!=="over"){el.innerHTML='<div class="excard"><p>Während einer laufenden Online-Partie ist die Datenbank aus – fair bleiben! Nach der Partie ist sie wieder da.</p></div>';dbKey="";return}
+  if(mode==="online"&&ON.g&&ON.g.status!=="over"){el.innerHTML='<div class="excard"><p>Während einer laufenden Online-Partie ist die Datenbank aus – fair bleiben! Nach der Partie ist sie wieder da.</p></div>';dbKey="";dbTok++;return}
   const key=(op?op.id:"")+"|"+h.join(" ");if(!force&&key===dbKey)return;dbKey=key;const tok=++dbTok;
   const myRows=myTreeAt(h);
   const bk=op&&op.lines&&op.lines.length?bookMoves(h):[];
   el.innerHTML=`<div class="excard"><div class="exh"><span>Lichess-Spieler (1600–2500)</span></div><div id="dbL">${SKEL}</div></div><div class="excard"><div class="exh"><span>Meisterpartien</span></div><div id="dbM">${SKEL}</div></div>${myRows}`;
   const rowsHtml=d=>d.moves.length?d.moves.map(m=>`<div class="dbrow${bk.indexOf(strip(m.san))>=0?" book":""}" data-san="${esc(m.san)}"><b>${esc(de(m.san))}</b><small>${fmtN(m.white+m.draws+m.black)}</small>${dbBar(m)}</div>`).join(""):'<p class="sub">Keine Partien in dieser Stellung.</p>';
   const err=e=>String(e&&e.message)==="auth"?`<p class="sub">Lichess verlangt für die Datenbank eine Anmeldung. Trag unter Profil → Einstellungen einen kostenlosen Lichess-Token ein.</p>`:`<p class="sub">Die Lichess-Datenbank ist gerade nicht erreichbar.</p>`;
-  explorer("lichess",h).then(d=>{if(tok!==dbTok)return;$("dbL").innerHTML=rowsHtml(d)+`<p class="leads">${fmtN(d.white+d.draws+d.black)} Partien · ● = Buchzug im Trainer</p>`;wireDbRows()}).catch(e=>{if(tok===dbTok)$("dbL").innerHTML=err(e)});
-  explorer("masters",h).then(d=>{if(tok!==dbTok)return;$("dbM").innerHTML=rowsHtml(d)+(d.topGames&&d.topGames.length?`<div class="exh" style="margin-top:8px"><span>Top-Partien</span></div>`+d.topGames.map(g=>`<div class="mgame" data-mid="${esc(g.id)}" data-t="${esc(g.white.name+" – "+g.black.name)}" data-y="${esc(g.year||"")}"><span>${esc(g.white.name)} (${g.white.rating}) – ${esc(g.black.name)} (${g.black.rating})</span><small>${g.winner==="white"?"1–0":g.winner==="black"?"0–1":"½–½"} · ${esc(g.year||"")}</small></div>`).join(""):"");wireDbRows();
-    $("dbM").querySelectorAll("[data-mid]").forEach(x=>x.onclick=()=>loadMasterGame(x.dataset.mid,x.dataset.t,x.dataset.y,h.length))}).catch(e=>{if(tok===dbTok)$("dbM").innerHTML=err(e)});
+  explorer("lichess",h).then(d=>{if(tok!==dbTok||!$("dbL"))return;$("dbL").innerHTML=rowsHtml(d)+`<p class="leads">${fmtN(d.white+d.draws+d.black)} Partien · ● = Buchzug im Trainer</p>`;wireDbRows()}).catch(e=>{if(tok===dbTok&&$("dbL"))$("dbL").innerHTML=err(e)});
+  explorer("masters",h).then(d=>{if(tok!==dbTok||!$("dbM"))return;$("dbM").innerHTML=rowsHtml(d)+(d.topGames&&d.topGames.length?`<div class="exh" style="margin-top:8px"><span>Top-Partien</span></div>`+d.topGames.map(g=>`<div class="mgame" data-mid="${esc(g.id)}" data-t="${esc(g.white.name+" – "+g.black.name)}" data-y="${esc(g.year||"")}"><span>${esc(g.white.name)} (${g.white.rating}) – ${esc(g.black.name)} (${g.black.rating})</span><small>${g.winner==="white"?"1–0":g.winner==="black"?"0–1":"½–½"} · ${esc(g.year||"")}</small></div>`).join(""):"");wireDbRows();
+    $("dbM").querySelectorAll("[data-mid]").forEach(x=>x.onclick=()=>loadMasterGame(x.dataset.mid,x.dataset.t,x.dataset.y,h.length))}).catch(e=>{if(tok===dbTok&&$("dbM"))$("dbM").innerHTML=err(e)});
 }
 function wireDbRows(){$("tabDb").querySelectorAll("[data-san]").forEach(x=>x.onclick=()=>{if(mode==="replay"||mode==="edit"||(mode==="train"&&!done&&userTurnShown())){const mv=findMove(shown,x.dataset.san);if(mv&&!tryMove(mv.from,mv.to,true,mv.promotion))toast("Dieser Zug ist hier nicht spielbar.")}else toast("Zum Ausprobieren eignet sich der Editor unter Lernen → Eigene Variante.")})}
 async function loadMasterGame(id,title,year,ply){
@@ -1025,7 +1025,7 @@ if(window.ResizeObserver)new ResizeObserver(sizeVar).observe(boardEl);
 let curView="train";
 const VIEW_TAB={online:"online",tactics:"tactics",train:"train",learn:"learn",quiz:"learn",games:"learn",import:"learn",end:"learn",openings:"openings",chess:"chess",profile:"profile"};
 function showView(v){
-  if(v!==curView)cancelAuto();const tbb=$("tabbar");if(tbb)tbb.classList.remove("hide");
+  if(v!==curView)cancelAuto();
   curView=v;document.querySelectorAll(".view").forEach(el=>el.hidden=el.id!=="v-"+v);
   if(v!=="train"){stopEngine();stopBlitz()}
   ({tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage}[v]||(()=>{}))();
@@ -1382,7 +1382,6 @@ function renderSettings(v){
     ${sw("swAuto",S.set.autoNext,"Automatisch weiter","Nach einer gelösten Variante oder Aufgabe startet kurz darauf die nächste")}
     ${sw("swQueen",S.set.autoQueen,"Automatisch Dame","Bei der Umwandlung ohne Nachfrage eine Dame nehmen")}
     ${sw("swSwipe",S.set.swipe,"Wischen auf dem Brett","Nach links wischen: Zug vor, nach rechts: Zug zurück")}
-    ${sw("swTb",S.set.tbHide,"Tab-Leiste ausblenden","Beim Herunterscrollen am Handy verschwindet die Leiste unten")}
     ${sw("swSync",S.set.autoSync,"Chess.com automatisch abgleichen","Beim Öffnen neue Partien laden und mit Stockfish analysieren")}
     <div class="setrow"><span><b>Analyse-Tiefe</b><small>Rechenzeit pro Zug im Game Review</small></span><span class="seg">${[[150,"Schnell"],[300,"Normal"],[800,"Gründlich"]].map(f=>`<button data-rv="${f[0]}" aria-pressed="${(S.set.revMs||300)===f[0]}">${f[1]}</button>`).join("")}</span></div>
     ${sw("swCalm",S.set.calm,"Weniger Animationen","Keine Bewegungen, kein Konfetti")}
@@ -1397,7 +1396,7 @@ function renderSettings(v){
   v.querySelectorAll("[data-pset]").forEach(b=>b.onclick=()=>{S.set.pieces=b.dataset.pset;save("set");applySettings();renderProfile()});
   const tg=(id,key)=>$(id).onclick=()=>{S.set[key]=!S.set[key];save("set");applySettings();$(id).setAttribute("aria-pressed",String(S.set[key]));if(op&&curView==="train")render()};
   tg("swSound","sound");tg("swIdeas","ideas");tg("swCoords","coords");tg("swEval","evalbar");tg("swReal","realistic");
-  tg("swAuto","autoNext");tg("swQueen","autoQueen");tg("swSwipe","swipe");tg("swTb","tbHide");tg("swSync","autoSync");tg("swCalm","calm");
+  tg("swAuto","autoNext");tg("swQueen","autoQueen");tg("swSwipe","swipe");tg("swSync","autoSync");tg("swCalm","calm");
   v.querySelectorAll("[data-fz]").forEach(b=>b.onclick=()=>{S.set.font=+b.dataset.fz;save("set");applySettings();v.querySelectorAll("[data-fz]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
   $("onbAgain").onclick=()=>openOnboarding();
   v.querySelectorAll("[data-rv]").forEach(b=>b.onclick=()=>{S.set.revMs=+b.dataset.rv;save("set");v.querySelectorAll("[data-rv]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
@@ -2279,13 +2278,7 @@ async function autoSync(force){
   syncing=false;
 }
 
-/* ---- Tab-Leiste beim Herunterscrollen ausblenden (Handy) ---- */
-(function(){let lastY=window.scrollY||0;
-  window.addEventListener("scroll",()=>{const tb=$("tabbar");if(!tb)return;const y=window.scrollY;
-    if(!S.set.tbHide||window.innerWidth>820){tb.classList.remove("hide");lastY=y;return}
-    const atEnd=window.innerHeight+y>=document.documentElement.scrollHeight-8;
-    if(y>lastY+6&&y>80&&!atEnd)tb.classList.add("hide");else if(y<lastY-6||y<80||atEnd)tb.classList.remove("hide");lastY=y},{passive:true});
-})();
+
 /* ---- Eröffnungskopf am Handy antippen: Beschreibung ein-/ausklappen ---- */
 document.querySelector(".ph").addEventListener("click",e=>{e.currentTarget.classList.toggle("open")});
 
@@ -2615,7 +2608,7 @@ function renderOnline(){
   if(!ON.authKnown){v.innerHTML=`<div class="card">${SKEL}</div>`;return}
   if(!ON.user){renderAuth(v);return}
   if(!ON.profile){v.innerHTML=`<div class="card"><h3>Wähle deinen Benutzernamen</h3><p class="hint">So finden dich deine Freunde. Er lässt sich später nicht ändern.</p><input class="txt" id="onName" maxlength="20" placeholder="z. B. Springer_Max" autocapitalize="off"><div class="btnrow" style="margin-top:10px"><button class="btn grn" id="onNameGo">Speichern</button><button class="btn" id="onOut">Abmelden</button><span class="hint" id="onMsg"></span></div></div>`;
-    $("onNameGo").onclick=async()=>{const n=$("onName").value.trim();if(!NAME_RE.test(n)){$("onMsg").textContent="3–20 Zeichen: Buchstaben, Ziffern, _ oder -.";return}try{await claimName(n)}catch(e){$("onMsg").textContent=String(e.message)==="name-taken"?"Schon vergeben.":netErr(e)}};$("onOut").onclick=doLogout;return}
+    $("onNameGo").onclick=async()=>{const n=$("onName").value.trim();if(!NAME_RE.test(n)){$("onMsg").textContent="3–20 Zeichen: Buchstaben, Ziffern, _ oder -.";return}try{await claimName(n)}catch(e){const m=$("onMsg"),t=String(e.message)==="name-taken"?"Schon vergeben.":netErr(e);if(m)m.textContent=t;else toast(t)}};$("onOut").onclick=doLogout;return}
   const P=ON.profile,me=ON.user.uid;const G=ON.games;
   const inv=G.filter(g=>g.status==="waiting"&&g.invite===me);const mine=G.filter(g=>g.status==="waiting"&&g.creator===me);
   const act=G.filter(g=>g.status==="active");const over=G.filter(g=>g.status==="over"&&g.result!=="-").slice(0,20);
@@ -2654,14 +2647,14 @@ function renderOnline(){
   if($("onChal"))$("onChal").onclick=()=>{const f=fr($("onFr").value);if(f)createGame(f)};
   v.querySelectorAll("[data-chf]").forEach(b=>b.onclick=()=>{const f=fr(b.dataset.chf);if(f){ON.tab="play";createGame(f)}});
   v.querySelectorAll("[data-rmf]").forEach(b=>b.onclick=()=>{NET.set("users/"+me,{friends:friends.filter(f=>f.uid!==b.dataset.rmf)},true).catch(e=>toast(netErr(e)))});
-  if($("frAdd"))$("frAdd").onclick=async()=>{const n=$("frName").value.trim();const msg=t=>$("frMsg").textContent=t;if(!n)return;
+  if($("frAdd"))$("frAdd").onclick=async()=>{const n=$("frName").value.trim();const msg=t=>{const m=$("frMsg");if(m)m.textContent=t;else if(t)toast(t)};if(!n)return;
     try{const u=await NET.get("usernames/"+n.toLowerCase());if(!u){msg(`„${n}“ gibt es nicht.`);return}if(u.uid===me){msg("Das bist du selbst.");return}if(friends.some(f=>f.uid===u.uid)){msg("Ist schon in deiner Liste.");return}
       const p=await NET.get("users/"+u.uid);await NET.set("users/"+me,{friends:friends.concat({uid:u.uid,name:(p&&p.name)||n})},true);toast(`${(p&&p.name)||n} hinzugefügt`)}catch(e){msg(netErr(e))}};
   if($("onOut"))$("onOut").onclick=doLogout;
   if($("onUid"))$("onUid").onclick=()=>{const t=ON.user.uid;if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast("Nutzer-ID kopiert")).catch(()=>linkBox(t));else linkBox(t)};
   if(ON.tab==="admin"&&isAdmin()){renderAdmin(v);return}
   if($("onSync"))$("onSync").onclick=()=>cloudPush(true).then(()=>toast("Fortschritt gesichert"));
-  if($("onDel"))$("onDel").onclick=()=>{const b=$("onDel");if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich endgültig löschen?";return}doDeleteAccount(t=>$("onDelMsg").textContent=t)};
+  if($("onDel"))$("onDel").onclick=()=>{const b=$("onDel");if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich endgültig löschen?";return}doDeleteAccount(t=>{const m=$("onDelMsg");if(m)m.textContent=t;else toast(t)})};
 }
 function renderAuth(v){
   const reg=ON.authMode==="reg";
@@ -2674,7 +2667,7 @@ function renderAuth(v){
   <p class="hint" id="auMsg" style="margin:0"></p></form>
   <p class="hint" style="margin:12px 0 0">Gespeichert werden nur dein Benutzername, deine E-Mail-Adresse (für die Anmeldung), deine Partien und dein Trainingsfortschritt. Du kannst dein Konto jederzeit löschen.</p></div>`;
   v.querySelectorAll("[data-am]").forEach(b=>b.onclick=()=>{ON.authMode=b.dataset.am;renderAuth(v)});
-  const msg=t=>$("auMsg").textContent=t;
+  const msg=t=>{const m=$("auMsg");if(m)m.textContent=t;else if(t)toast(t)};
   $("authForm").onsubmit=async e=>{e.preventDefault();const bt=e.target.querySelector("[type=submit]");bt.disabled=true;msg("");
     try{if(reg)await doRegister($("auName").value,$("auMail").value,$("auPw").value,msg);else await doLogin($("auMail").value,$("auPw").value,msg)}finally{if(bt.isConnected)bt.disabled=false}};
   if($("auReset"))$("auReset").onclick=()=>doReset($("auMail").value,msg);
