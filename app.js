@@ -2314,6 +2314,7 @@ async function fbNet(){
     del:p=>F.deleteDoc(ref(p)),
     add:async(c,d)=>(await F.addDoc(F.collection(db,c),d)).id,
     watch:(p,cb)=>F.onSnapshot(ref(p),s=>cb(s.exists()?s.data():null),e=>cb(null,e)),
+    list:async c=>(await F.getDocs(F.collection(db,c))).docs.map(x=>Object.assign({id:x.id},x.data())),
     watchQ:(c,f,op,v,cb)=>F.onSnapshot(F.query(F.collection(db,c),F.where(f,op,v)),q=>cb(q.docs.map(x=>Object.assign({id:x.id},x.data()))),e=>cb(null,e)),
     tx:(p,fn)=>F.runTransaction(db,async t=>{const r=ref(p);const s=await t.get(r);const u=fn(s.exists()?s.data():null);if(!u)return false;t.set(r,u,{merge:true});return true})
   };
@@ -2340,6 +2341,7 @@ function mockNet(){
     del:async p=>{await delay();const D=rd();delete D[p];wr(D)},
     add:async(c,d)=>{await delay();const id=Math.random().toString(36).slice(2,12);const D=rd();D[c+"/"+id]=cl(d);wr(D);return id},
     watch:(p,cb)=>{let last;const f=()=>{const v=rd()[p];const s=JSON.stringify(v===undefined?null:v);if(s!==last){last=s;cb(v===undefined?null:cl(v))}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
+    list:async c=>{await delay();const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")===0&&k.split("/").length===2)out.push(Object.assign({id:k.slice(c.length+1)},cl(D[k])))}return out},
     watchQ:(c,fld,op,v,cb)=>{let last;const f=()=>{const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")!==0||k.split("/").length!==2)continue;const x=D[k];if(op==="array-contains"?(x[fld]||[]).indexOf(v)>=0:x[fld]===v)out.push(Object.assign({id:k.slice(c.length+1)},x))}const s=JSON.stringify(out);if(s!==last){last=s;cb(cl(out))}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
     tx:async(p,fn)=>{await delay();const D=rd();const u=fn(D[p]===undefined?null:cl(D[p]));if(!u)return false;D[p]=D[p]?merge(D[p],cl(u)):cl(u);wr(D);return true}
   };
@@ -2368,7 +2370,7 @@ async function onlineBoot(){
     ON.authKnown=true;if(ON.unsubL){ON.unsubL();ON.unsubL=null}if(ON.unsubP){ON.unsubP();ON.unsubP=null}
     ON.user=u;ON.profile=null;ON.games=[];
     if(u){
-      ON.unsubP=n.watch("users/"+u.uid,p=>{ON.profile=p;if(curView==="online")renderOnline();if(mode==="online")renderChrome()});
+      ON.unsubP=n.watch("users/"+u.uid,p=>{ON.profile=p;if(p&&ON.user&&(!p.lastSeen||Date.now()-p.lastSeen>3600000)){p.lastSeen=Date.now();n.set("users/"+ON.user.uid,{lastSeen:p.lastSeen},true).catch(()=>{})}if(curView==="online")renderOnline();if(mode==="online")renderChrome()});
       ON.unsubL=n.watchQ("games","players","array-contains",u.uid,list=>{if(!list)return;gamesChanged(list)});
       cloudPull();
     }
@@ -2404,7 +2406,7 @@ async function doDeleteAccount(msg){
 function cloudDirty(){try{if(!ON.user||!NET||!ON.synced)return}catch(e){return}clearTimeout(ON.syncT);ON.syncT=setTimeout(()=>cloudPush(),5000)}
 async function cloudPush(now){
   if(!ON.user||!NET||!ON.synced)return;clearTimeout(ON.syncT);
-  try{await NET.set("users/"+ON.user.uid+"/private/progress",{savedAt,data:JSON.stringify(exportData())});ON.syncAt=Date.now();if(curView==="online"&&ON.tab==="account")renderOnline()}catch(e){if(now)toast("Cloud-Speicherung fehlgeschlagen: "+netErr(e))}
+  try{await NET.set("users/"+ON.user.uid+"/private/progress",{savedAt,email:ON.user.email||"",data:JSON.stringify(exportData())});ON.syncAt=Date.now();if(curView==="online"&&ON.tab==="account")renderOnline()}catch(e){if(now)toast("Cloud-Speicherung fehlgeschlagen: "+netErr(e))}
 }
 const hasLocalProgress=()=>Object.keys(S.prog).length>0||Object.keys(S.srs).length>0||PZ.n>0||S.custom.w.length+S.custom.b.length>0;
 function cloudImport(r){const d=JSON.parse(r.data);importData(d);store.set("et-savedAt",r.savedAt||Date.now());store.set("et-cloud-uid",ON.user.uid);toast("Fortschritt aus deinem Konto geladen – die Seite lädt neu.");setTimeout(()=>location.reload(),900)}
@@ -2464,6 +2466,7 @@ function newGameDoc(tc,myCol,friend){
 }
 async function createGame(friend){
   if(!ON.profile){toast("Lege zuerst deinen Benutzernamen fest.");return null}
+  if(ON.profile.banned){toast("Dein Konto ist gesperrt.");return null}
   try{const id=await NET.add("games",newGameDoc(parseTc(ON.tc),ON.col,friend));openOnlineGame(id);if(!friend)shareInvite(id);return id}catch(e){toast(netErr(e));return null}
 }
 function inviteLink(id){return location.origin+location.pathname+"#play="+id}
@@ -2471,6 +2474,7 @@ function shareInvite(id){const link=inviteLink(id);
   if(navigator.share){navigator.share({title:"Schach gegen mich",text:`${myName()} lädt dich zu einer Partie ein`,url:link}).catch(e=>{if(!e||e.name!=="AbortError")linkBox(link)})}
   else if(navigator.clipboard){navigator.clipboard.writeText(link).then(()=>toast("Einladungslink kopiert – schick ihn deinem Freund.")).catch(()=>linkBox(link))}else linkBox(link)}
 async function joinGame(id,d){
+  if(ON.profile&&ON.profile.banned){toast("Dein Konto ist gesperrt.");return false}
   const me=ON.user.uid,now=Date.now();
   return NET.tx("games/"+id,x=>{if(!x||x.status!=="waiting")return null;
     if(x.invite){if(x.invite!==me)return null;return {status:"active",lastAt:now,updated:now,names:{[me]:myName()}}}
@@ -2620,7 +2624,8 @@ function renderOnline(){
   const tcs=[["1+0","1 Min"],["3+2","3 | 2"],["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["30+0","30 Min"],["none","Ohne Uhr"]];
   const friends=(P.friends||[]);
   v.innerHTML=`<div class="onhead"><span class="onav">${esc(P.name[0].toUpperCase())}</span><div><h2>${esc(P.name)}</h2><small>${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>
-  <div class="subtabs">${[["play","Spielen"],["friends","Freunde"],["account","Konto"]].map(t=>`<button data-ot="${t[0]}" aria-pressed="${ON.tab===t[0]}">${t[1]}${t[0]==="play"&&ON.badge?` <span class="dotn2">${ON.badge}</span>`:""}</button>`).join("")}</div>
+  ${P.banned?`<div class="err">Dein Konto wurde gesperrt. Du kannst keine neuen Partien starten.</div>`:""}
+  <div class="subtabs">${[["play","Spielen"],["friends","Freunde"],["account","Konto"]].concat(isAdmin()?[["admin","Admin"]]:[]).map(t=>`<button data-ot="${t[0]}" aria-pressed="${ON.tab===t[0]}">${t[1]}${t[0]==="play"&&ON.badge?` <span class="dotn2">${ON.badge}</span>`:""}</button>`).join("")}</div>
   ${ON.tab==="play"?`
   ${inv.length?`<div class="card"><h3>Herausforderungen</h3>${inv.map(g=>row(g,`<span class="onbtns"><button class="btn grn" data-acc="${esc(g.id)}">Annehmen</button><button class="btn" data-dec="${esc(g.id)}">Ablehnen</button></span>`)).join("")}</div>`:""}
   <div class="card"><h3>Neue Partie</h3>
@@ -2632,7 +2637,7 @@ function renderOnline(){
   ${over.length?`<div class="card"><h3>Beendete Partien</h3>${over.map(g=>row(g)).join("")}</div>`:""}`:""}
   ${ON.tab==="friends"?`<div class="card"><h3>Freund hinzufügen</h3><div class="btnrow"><input class="txt" id="frName" placeholder="Benutzername" autocapitalize="off" style="flex:1;width:auto;min-width:140px"><button class="btn grn" id="frAdd" style="padding:10px 16px">Hinzufügen</button></div><p class="hint" id="frMsg" style="margin:8px 0 0">Dein Benutzername: <b>${esc(P.name)}</b> – gib ihn deinen Freunden.</p></div>
     <div class="card"><h3>Deine Freunde</h3>${friends.length?friends.map(f=>`<div class="onrow"><span class="onn" style="padding:8px 4px"><b>${esc(f.name)}</b></span><span class="onbtns"><button class="btn grn" data-chf="${esc(f.uid)}">Herausfordern</button><button class="btn" data-rmf="${esc(f.uid)}">Entfernen</button></span></div>`).join(""):'<p class="hint" style="margin:0">Noch keine Freunde.</p>'}</div>`:""}
-  ${ON.tab==="account"?`<div class="card"><h3>Konto</h3><p class="hint" style="margin:0 0 10px">Angemeldet als <b>${esc(ON.user.email)}</b>. Dein Trainingsfortschritt (Varianten, Wiederholungen, Taktik, Einstellungen) wird automatisch in deinem Konto gesichert und ist auf allen Geräten gleich.</p>
+  ${ON.tab==="account"?`<div class="card"><h3>Konto</h3><p class="hint" style="margin:0 0 10px">Angemeldet als <b>${esc(ON.user.email)}</b>. Deine Nutzer-ID: <code class="uid">${esc(ON.user.uid)}</code> <button class="chip" id="onUid">Kopieren</button> Dein Trainingsfortschritt (Varianten, Wiederholungen, Taktik, Einstellungen) wird automatisch in deinem Konto gesichert und ist auf allen Geräten gleich.</p>
     <p class="hint" style="margin:0 0 12px">${ON.syncAt?"Zuletzt gesichert: "+new Date(ON.syncAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"Noch nicht gesichert."}</p>
     <div class="btnrow"><button class="btn" id="onSync">Jetzt sichern</button><button class="btn" id="onOut">Abmelden</button></div></div>
     <div class="card"><h3>Konto löschen</h3><p class="hint" style="margin:0 0 10px">Löscht dein Profil, deinen Benutzernamen und den Cloud-Fortschritt. Dein Fortschritt in diesem Browser bleibt erhalten.</p><div class="btnrow"><button class="btn red" id="onDel">Konto löschen</button><span class="hint" id="onDelMsg"></span></div></div>`:""}`;
@@ -2653,6 +2658,8 @@ function renderOnline(){
     try{const u=await NET.get("usernames/"+n.toLowerCase());if(!u){msg(`„${n}“ gibt es nicht.`);return}if(u.uid===me){msg("Das bist du selbst.");return}if(friends.some(f=>f.uid===u.uid)){msg("Ist schon in deiner Liste.");return}
       const p=await NET.get("users/"+u.uid);await NET.set("users/"+me,{friends:friends.concat({uid:u.uid,name:(p&&p.name)||n})},true);toast(`${(p&&p.name)||n} hinzugefügt`)}catch(e){msg(netErr(e))}};
   if($("onOut"))$("onOut").onclick=doLogout;
+  if($("onUid"))$("onUid").onclick=()=>{const t=ON.user.uid;if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast("Nutzer-ID kopiert")).catch(()=>linkBox(t));else linkBox(t)};
+  if(ON.tab==="admin"&&isAdmin()){renderAdmin(v);return}
   if($("onSync"))$("onSync").onclick=()=>cloudPush(true).then(()=>toast("Fortschritt gesichert"));
   if($("onDel"))$("onDel").onclick=()=>{const b=$("onDel");if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich endgültig löschen?";return}doDeleteAccount(t=>$("onDelMsg").textContent=t)};
 }
@@ -2674,6 +2681,131 @@ function renderAuth(v){
 }
 /* Einladungslink, während die Seite schon offen ist */
 window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#play=([A-Za-z0-9_-]+)/);if(m){history.replaceState(null,"",location.pathname);openOnlineGame(m[1])}});
+
+/* ================= Admin-Bereich ================= */
+/* Nutzer-IDs mit Admin-Rechten (müssen auch in den Firestore-Regeln stehen) */
+const ADMIN_UIDS=[];
+function isAdmin(){if(!ON.user)return false;if(ADMIN_UIDS.indexOf(ON.user.uid)>=0)return true;try{return !!window.__MOCKNET&&sessionStorage.getItem("mock-admin")==="1"}catch(e){return false}}
+const ADM={tab:"overview",users:null,games:null,names:null,priv:{},loading:false,err:"",q:"",sort:"new",gf:"all",sel:null,at:0};
+const relTime=t=>{if(!t)return "nie";const d=Date.now()-t;if(d<60000)return "gerade eben";if(d<3600000)return "vor "+Math.round(d/60000)+" Min.";if(d<86400000)return "vor "+Math.round(d/3600000)+" Std.";const n=Math.round(d/86400000);return n===1?"gestern":"vor "+n+" Tagen"};
+const fmtKB=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":n>=1024?Math.round(n/1024)+" KB":n+" B";
+function privSum(r){
+  if(!r)return null;let d={};try{d=JSON.parse(r.data||"{}")}catch(e){}
+  const prog=d.prog||{};let clean=0,seen=0;for(const o in prog)for(const i in prog[o]){if(prog[o][i]===2)clean++;else if(prog[o][i])seen++}
+  const tac=d.tac||{},stats=d.stats||{},cu=d.custom||{};
+  return {email:r.email||"",savedAt:r.savedAt||0,size:(r.data||"").length,clean,seen,rep:(d.rep||[]).length,tacR:tac.n?tac.r:null,tacN:tac.n||0,tacXp:tac.xp||0,streak:(d.streak&&d.streak.best)||0,days:Object.keys(stats.days||{}).length,reviews:stats.reviews||0,custom:(cu.w||[]).length+(cu.b||[]).length,trained:Object.values(stats.days||{}).reduce((a,b)=>a+(+b||0),0)};
+}
+async function adminLoad(){
+  if(ADM.loading)return;ADM.loading=true;ADM.err="";renderAdminBox();
+  try{
+    const [users,games,names]=await Promise.all([NET.list("users"),NET.list("games"),NET.list("usernames")]);
+    ADM.users=users;ADM.games=games;ADM.names=names;ADM.at=Date.now();
+    const pr=await Promise.all(users.map(u=>NET.get("users/"+u.id+"/private/progress").catch(()=>null)));
+    ADM.priv={};users.forEach((u,i)=>ADM.priv[u.id]=privSum(pr[i]));
+  }catch(e){ADM.err=netErr(e)}
+  ADM.loading=false;renderAdminBox();
+}
+function renderAdmin(v){v.insertAdjacentHTML("beforeend",'<div id="admBox" class="adm"></div>');if(!ADM.users&&!ADM.loading)adminLoad();else renderAdminBox()}
+/* Kleine Balkendiagramme */
+function barsHtml(rows,col){const max=Math.max(1,...rows.map(r=>r[1]));return `<div class="abars">${rows.map(r=>`<div class="abar"><span class="al">${esc(r[0])}</span><span class="at"><i style="width:${r[1]/max*100}%;background:${col||"var(--green)"}"></i></span><b>${r[1]}</b></div>`).join("")}</div>`}
+function colsHtml(vals,labels,col){const max=Math.max(1,...vals);return `<div class="acols">${vals.map((x,i)=>`<div class="acol" title="${esc(labels[i])}: ${x}"><span><i style="height:${x/max*100}%;background:${col}"></i></span><small>${esc(labels[i])}</small></div>`).join("")}</div>`}
+function perDay(times,days){const out=[],lab=[];const d0=startOfDay(Date.now());for(let i=days-1;i>=0;i--){const a=d0-i*DAY,b=a+DAY;out.push(times.filter(t=>t>=a&&t<b).length);const dt=new Date(a);lab.push(i===0?"heute":dt.getDate()+".")}return [out,lab]}
+const tile=(n,l,sub,hot)=>`<div class="atile${hot?" hot":""}"><b>${n}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+function renderAdminBox(){
+  const box=$("admBox");if(!box)return;
+  const tabs=[["overview","Übersicht"],["users","Nutzer"],["games","Partien"],["clean","Aufräumen"]];
+  let h=`<div class="admbar"><div class="filters">${tabs.map(t=>`<button class="chip${ADM.tab===t[0]?" on":""}" data-at="${t[0]}">${t[1]}</button>`).join("")}</div><button class="btn" id="admRe" ${ADM.loading?"disabled":""}>${ADM.loading?"Lädt …":"Aktualisieren"}</button></div>`;
+  if(ADM.err)h+=`<div class="err">${esc(ADM.err)}${/Berechtigung/.test(ADM.err)?" – die Admin-Regeln sind in Firestore noch nicht veröffentlicht.":""}</div>`;
+  if(!ADM.users){box.innerHTML=h+(ADM.loading?`<div class="card">${SKEL}</div>`:"");wireAdmin(box);return}
+  const U=ADM.users,G=ADM.games,P=ADM.priv,now=Date.now(),wk=now-7*DAY;
+  const nameOf=uid=>{const u=U.find(x=>x.id===uid);return u?u.name:"?"};
+  const gamesOf=uid=>G.filter(g=>(g.players||[]).indexOf(uid)>=0);
+  if(ADM.tab==="overview"){
+    const over=G.filter(g=>g.status==="over"&&g.result&&g.result!=="-");const act=G.filter(g=>g.status==="active"),wait=G.filter(g=>g.status==="waiting");
+    const moves=over.map(g=>(g.moves||[]).length);const avgM=moves.length?Math.round(moves.reduce((a,b)=>a+b,0)/moves.length/2):0;
+    const res={"1-0":0,"0-1":0,"1/2-1/2":0};over.forEach(g=>{res[g.result]=(res[g.result]||0)+1});
+    const why={};over.forEach(g=>{why[g.reason||"?"]=(why[g.reason||"?"]||0)+1});
+    const tcs={};G.filter(g=>g.status!=="cancelled"&&g.status!=="declined").forEach(g=>{const t=tcTxt(g.tc);tcs[t]=(tcs[t]||0)+1});
+    const [gd,gl]=perDay(G.map(g=>g.created||0),14);const [ud,ul]=perDay(U.map(u=>u.created||0),14);
+    const pv=Object.values(P).filter(Boolean);const tacs=pv.filter(p=>p.tacR);const avgT=tacs.length?Math.round(tacs.reduce((a,p)=>a+p.tacR,0)/tacs.length):null;
+    const top=U.map(u=>({n:u.name,g:(u.w||0)+(u.d||0)+(u.l||0),w:u.w||0})).sort((a,b)=>b.g-a.g).slice(0,5);
+    h+=`<div class="card"><h3>Nutzer</h3><div class="atiles">${tile(U.length,"Registriert")}${tile(U.filter(u=>(u.created||0)>wk).length,"Neu (7 Tage)")}${tile(U.filter(u=>(u.lastSeen||0)>wk).length,"Aktiv (7 Tage)")}${tile(U.filter(u=>(u.lastSeen||0)>now-DAY).length,"Heute aktiv")}${tile(U.filter(u=>u.banned).length,"Gesperrt","",U.some(u=>u.banned))}</div>
+      <div class="exh" style="margin-top:12px"><span>Registrierungen pro Tag</span></div>${colsHtml(ud,ul,"#8A63B8")}</div>
+    <div class="card"><h3>Partien</h3><div class="atiles">${tile(G.length,"Gesamt")}${tile(act.length,"Laufend","",act.length>0)}${tile(wait.length,"Offene Einladungen")}${tile(over.length,"Beendet")}${tile(G.filter(g=>(g.created||0)>now-DAY).length,"Heute gestartet")}${tile(avgM,"Ø Züge pro Partie")}</div>
+      <div class="exh" style="margin-top:12px"><span>Partien pro Tag</span></div>${colsHtml(gd,gl,"#81B64C")}
+      <div class="agrid"><div><div class="exh"><span>Ergebnisse</span></div>${barsHtml([["Weiß gewinnt",res["1-0"]],["Schwarz gewinnt",res["0-1"]],["Remis",res["1/2-1/2"]]],"#5A7FB5")}</div>
+      <div><div class="exh"><span>Wie sie endeten</span></div>${barsHtml(Object.entries(why).sort((a,b)=>b[1]-a[1]).slice(0,6),"#E58F2A")}</div>
+      <div><div class="exh"><span>Beliebte Bedenkzeiten</span></div>${barsHtml(Object.entries(tcs).sort((a,b)=>b[1]-a[1]).slice(0,6),"#26C2A3")}</div>
+      <div><div class="exh"><span>Meiste Partien</span></div>${barsHtml(top.map(t=>[t.n,t.g]),"#E9B949")}</div></div></div>
+    <div class="card"><h3>Training (aus der Cloud)</h3><div class="atiles">${tile(pv.reduce((a,p)=>a+p.clean,0),"Varianten fehlerfrei")}${tile(pv.reduce((a,p)=>a+p.trained,0),"Varianten trainiert")}${tile(avgT==null?"–":avgT,"Ø Taktik-Wertung")}${tile(pv.reduce((a,p)=>a+p.tacN,0),"Taktikaufgaben")}${tile(Math.max(0,...pv.map(p=>p.streak)),"Längste Serie")}${tile(pv.reduce((a,p)=>a+p.reviews,0),"Game Reviews")}</div>
+      <p class="hint" style="margin:10px 0 0">Gespeicherte Daten: ${fmtKB(pv.reduce((a,p)=>a+p.size,0))} Fortschritt · ${G.length+U.length*2+ADM.names.length} Dokumente. Kostenloses Firebase-Kontingent: 1 GB Speicher, 50.000 Lesezugriffe und 20.000 Schreibzugriffe pro Tag.</p>
+      <p class="hint" style="margin:6px 0 0">Stand: ${new Date(ADM.at).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}</p></div>`;
+  }
+  if(ADM.tab==="users"){
+    const q=ADM.q.toLowerCase();
+    let list=U.filter(u=>!q||(u.name||"").toLowerCase().indexOf(q)>=0||((P[u.id]&&P[u.id].email)||"").toLowerCase().indexOf(q)>=0);
+    const ng=u=>gamesOf(u.id).length;
+    list.sort({new:(a,b)=>(b.created||0)-(a.created||0),seen:(a,b)=>(b.lastSeen||0)-(a.lastSeen||0),games:(a,b)=>ng(b)-ng(a),name:(a,b)=>(a.name||"").localeCompare(b.name||"")}[ADM.sort]);
+    h+=`<div class="card"><div class="btnrow"><input class="txt" id="admQ" placeholder="Name oder E-Mail suchen" value="${esc(ADM.q)}" style="flex:1;width:auto;min-width:150px"><select id="admSort" class="txt" style="width:auto">${[["new","Neueste"],["seen","Zuletzt aktiv"],["games","Meiste Partien"],["name","Name"]].map(s=>`<option value="${s[0]}" ${ADM.sort===s[0]?"selected":""}>${s[1]}</option>`).join("")}</select></div>
+      <p class="hint" style="margin:8px 0 0">${list.length} von ${U.length} Nutzern</p></div>
+    <div class="card aul">${list.map(u=>{const p=P[u.id];const n=ng(u);const open=ADM.sel===u.id;
+      return `<div class="aurow${open?" open":""}"><button class="auhead" data-us="${esc(u.id)}"><span class="onav sm">${esc((u.name||"?")[0].toUpperCase())}</span><span class="onn"><b>${esc(u.name||"(ohne Namen)")}${u.banned?' <span class="abadge red">gesperrt</span>':""}${ADMIN_UIDS.indexOf(u.id)>=0?' <span class="abadge">Admin</span>':""}</b><small>${p&&p.email?esc(p.email)+" · ":""}seit ${u.created?fmtDate(u.created):"?"} · aktiv ${relTime(u.lastSeen)}</small></span><span class="aunum"><b>${n}</b><small>Partien</small></span></button>
+      ${open?userDetail(u,p,gamesOf(u.id),nameOf):""}</div>`}).join("")||'<p class="hint" style="margin:0">Keine Nutzer gefunden.</p>'}</div>`;
+  }
+  if(ADM.tab==="games"){
+    const F=[["all","Alle"],["active","Laufend"],["waiting","Offen"],["over","Beendet"],["gone","Abgebrochen"]];
+    const fit=g=>ADM.gf==="all"||(ADM.gf==="gone"?(g.status==="cancelled"||g.status==="declined"||g.result==="-"):ADM.gf==="over"?(g.status==="over"&&g.result!=="-"):g.status===ADM.gf);
+    const list=G.filter(fit).sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,150);
+    h+=`<div class="card"><div class="filters">${F.map(f=>`<button class="chip${ADM.gf===f[0]?" on":""}" data-gf2="${f[0]}">${f[1]} (${G.filter(g=>{const o=ADM.gf;ADM.gf=f[0];const r=fit(g);ADM.gf=o;return r}).length})</button>`).join("")}</div></div>
+    <div class="card">${list.map(g=>gameRow(g,nameOf)).join("")||'<p class="hint" style="margin:0">Keine Partien.</p>'}</div>`;
+  }
+  if(ADM.tab==="clean"){
+    const stale=G.filter(g=>g.status==="waiting"&&(g.created||0)<now-3*DAY);const gone=G.filter(g=>g.status==="cancelled"||g.status==="declined"||(g.status==="over"&&g.result==="-"));
+    const orphan=ADM.names.filter(n=>!U.some(u=>u.id===n.uid));const stuck=G.filter(g=>g.status==="active"&&(g.updated||0)<now-14*DAY);
+    const sec=(t,d,arr,act)=>`<div class="card"><h3>${t} <span class="abadge">${arr.length}</span></h3><p class="hint" style="margin:0 0 10px">${d}</p><button class="btn ${arr.length?"red":""}" data-clean="${act}" ${arr.length?"":"disabled"}>${arr.length?"Alle löschen":"Nichts zu tun"}</button></div>`;
+    h+=sec("Alte Einladungen","Einladungen, die seit mehr als 3 Tagen niemand angenommen hat.",stale,"stale")+sec("Abgebrochene und abgelehnte Partien","Partien ohne Ergebnis, die nur noch Platz belegen.",gone,"gone")+sec("Hängende Partien","Laufende Partien ohne Zug seit 14 Tagen.",stuck,"stuck")+sec("Verwaiste Benutzernamen","Benutzernamen ohne zugehöriges Profil (z. B. nach abgebrochener Registrierung).",orphan,"orphan");
+  }
+  box.innerHTML=h;wireAdmin(box);
+}
+function gameRow(g,nameOf){
+  const w=g.white?nameOf(g.white):"(offen)",b=g.black?nameOf(g.black):"(offen)";const n=(g.moves||[]).length;
+  const st={waiting:"offen",active:"läuft",over:g.result==="-"?"abgebrochen":g.result,cancelled:"gelöscht",declined:"abgelehnt"}[g.status]||g.status;
+  return `<div class="onrow"><button class="onopen" data-gv="${esc(g.id)}"><span class="abadge ${g.status==="active"?"grn":""}">${esc(st)}</span><span class="onn"><b>${esc(w)} – ${esc(b)}</b><small>${tcTxt(g.tc)} · ${Math.ceil(n/2)} Züge${g.reason?" · "+esc(g.reason):""} · ${fmtDate(g.created||0)} · ${relTime(g.updated)}</small></span></button>
+    <span class="onbtns">${g.status==="active"?`<button class="btn" data-gend="${esc(g.id)}">Beenden</button>`:""}<button class="btn" data-gdel="${esc(g.id)}">Löschen</button></span></div>`;
+}
+function userDetail(u,p,games,nameOf){
+  const fr=(u.friends||[]).map(f=>f.name).join(", ")||"keine";
+  return `<div class="audet">
+    <div class="akv"><span>Nutzer-ID</span><code class="uid">${esc(u.id)}</code><span>E-Mail</span><b>${esc(p&&p.email||"unbekannt")}</b><span>Registriert</span><b>${u.created?new Date(u.created).toLocaleString("de-DE"):"?"}</b><span>Zuletzt aktiv</span><b>${u.lastSeen?new Date(u.lastSeen).toLocaleString("de-DE"):"nie"}</b><span>Bilanz online</span><b>${u.w||0} S · ${u.d||0} R · ${u.l||0} N</b><span>Freunde</span><b>${esc(fr)}</b></div>
+    ${p?`<div class="exh" style="margin-top:12px"><span>Training</span></div><div class="atiles sm">${tile(p.clean,"Varianten fehlerfrei")}${tile(p.trained,"Varianten trainiert")}${tile(p.rep,"Im Repertoire")}${tile(p.tacR==null?"–":p.tacR,"Taktik-Wertung",p.tacN+" Aufgaben")}${tile(p.streak,"Beste Serie")}${tile(p.days,"Trainingstage")}${tile(p.reviews,"Game Reviews")}${tile(p.custom,"Eigene Varianten")}</div><p class="hint" style="margin:6px 0 0">Cloud-Stand ${relTime(p.savedAt)} · ${fmtKB(p.size)}</p>`:`<p class="hint">Noch kein Trainingsstand in der Cloud.</p>`}
+    <div class="exh" style="margin-top:12px"><span>Partien (${games.length})</span></div>${games.sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,10).map(g=>gameRow(g,nameOf)).join("")||'<p class="hint" style="margin:0">Keine.</p>'}
+    <div class="exh" style="margin-top:12px"><span>Aktionen</span></div>
+    <div class="btnrow"><button class="btn ${u.banned?"grn":"red"}" data-ban="${esc(u.id)}">${u.banned?"Entsperren":"Sperren"}</button><input class="txt" id="admRen" placeholder="Neuer Name" maxlength="20" style="flex:1;width:auto;min-width:120px"><button class="btn" data-ren="${esc(u.id)}">Umbenennen</button></div>
+    <div class="btnrow" style="margin-top:8px"><button class="btn red" data-udel="${esc(u.id)}">Profildaten löschen</button><span class="hint" id="admMsg"></span></div>
+    <p class="hint" style="margin:8px 0 0">Das Anmeldekonto (E-Mail und Passwort) selbst löschst du in der Firebase-Konsole unter Authentication → Nutzer.</p></div>`;
+}
+function wireAdmin(box){
+  const msg=t=>{const m=$("admMsg");if(m)m.textContent=t;else toast(t)};
+  const act=async(fn,ok)=>{try{await fn();if(ok)toast(ok);await adminLoad()}catch(e){msg(netErr(e))}};
+  const sure=(b,txt)=>{if(b.dataset.sure)return true;b.dataset.sure="1";b.textContent=txt;setTimeout(()=>{if(b.isConnected)delete b.dataset.sure},4000);return false};
+  box.querySelectorAll("[data-at]").forEach(b=>b.onclick=()=>{ADM.tab=b.dataset.at;renderAdminBox()});
+  const re=$("admRe");if(re)re.onclick=()=>adminLoad();
+  const q=$("admQ");if(q)q.oninput=()=>{ADM.q=q.value;clearTimeout(ADM.qt);ADM.qt=setTimeout(()=>{renderAdminBox();const n=$("admQ");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},250)};
+  const so=$("admSort");if(so)so.onchange=()=>{ADM.sort=so.value;renderAdminBox()};
+  box.querySelectorAll("[data-us]").forEach(b=>b.onclick=()=>{ADM.sel=ADM.sel===b.dataset.us?null:b.dataset.us;renderAdminBox()});
+  box.querySelectorAll("[data-gf2]").forEach(b=>b.onclick=()=>{ADM.gf=b.dataset.gf2;renderAdminBox()});
+  box.querySelectorAll("[data-gv]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.gv));
+  box.querySelectorAll("[data-gend]").forEach(b=>b.onclick=()=>{if(!sure(b,"Wirklich?"))return;act(()=>NET.set("games/"+b.dataset.gend,{status:"over",result:"-",reason:"Vom Admin beendet",updated:Date.now()},true),"Partie beendet")});
+  box.querySelectorAll("[data-gdel]").forEach(b=>b.onclick=()=>{if(!sure(b,"Wirklich löschen?"))return;act(()=>NET.del("games/"+b.dataset.gdel),"Partie gelöscht")});
+  box.querySelectorAll("[data-ban]").forEach(b=>b.onclick=()=>{const u=ADM.users.find(x=>x.id===b.dataset.ban);if(!u)return;if(u.id===ON.user.uid){msg("Du kannst dich nicht selbst sperren.");return}act(()=>NET.set("users/"+u.id,{banned:!u.banned},true),u.banned?"Entsperrt":"Gesperrt")});
+  box.querySelectorAll("[data-ren]").forEach(b=>b.onclick=()=>{const u=ADM.users.find(x=>x.id===b.dataset.ren);const n=($("admRen").value||"").trim();if(!u)return;if(!NAME_RE.test(n)){msg("3–20 Zeichen: Buchstaben, Ziffern, _ oder -.");return}
+    act(async()=>{const low=n.toLowerCase();const ok=await NET.tx("usernames/"+low,d=>d?null:{uid:u.id});if(!ok)throw new Error("Dieser Name ist schon vergeben.");if(u.nameLower&&u.nameLower!==low)await NET.del("usernames/"+u.nameLower).catch(()=>{});await NET.set("users/"+u.id,{name:n,nameLower:low},true)},"Umbenannt in "+n)});
+  box.querySelectorAll("[data-udel]").forEach(b=>b.onclick=()=>{const u=ADM.users.find(x=>x.id===b.dataset.udel);if(!u)return;if(u.id===ON.user.uid){msg("Dein eigenes Konto löschst du unter „Konto“.");return}if(!sure(b,"Wirklich alles löschen?"))return;
+    act(async()=>{if(u.nameLower)await NET.del("usernames/"+u.nameLower).catch(()=>{});await NET.del("users/"+u.id+"/private/progress").catch(()=>{});await NET.del("users/"+u.id);ADM.sel=null},"Profildaten gelöscht")});
+  box.querySelectorAll("[data-clean]").forEach(b=>b.onclick=()=>{if(!sure(b,"Wirklich alle löschen?"))return;const k=b.dataset.clean,now=Date.now(),G=ADM.games;
+    const ids=k==="stale"?G.filter(g=>g.status==="waiting"&&(g.created||0)<now-3*DAY).map(g=>"games/"+g.id):k==="gone"?G.filter(g=>g.status==="cancelled"||g.status==="declined"||(g.status==="over"&&g.result==="-")).map(g=>"games/"+g.id):k==="stuck"?G.filter(g=>g.status==="active"&&(g.updated||0)<now-14*DAY).map(g=>"games/"+g.id):ADM.names.filter(n=>!ADM.users.some(u=>u.id===n.uid)).map(n=>"usernames/"+n.id);
+    act(async()=>{for(const p of ids)await NET.del(p)},ids.length+" Einträge gelöscht")});
+}
 
 /* ================= Start ================= */
 applySettings();
