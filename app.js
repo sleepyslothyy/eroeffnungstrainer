@@ -2308,6 +2308,7 @@ async function fbNet(){
     add:async(c,d)=>(await F.addDoc(F.collection(db,c),d)).id,
     watch:(p,cb)=>F.onSnapshot(ref(p),s=>cb(s.exists()?s.data():null),e=>cb(null,e)),
     list:async c=>(await F.getDocs(F.collection(db,c))).docs.map(x=>Object.assign({id:x.id},x.data())),
+    query:async(c,f,op,v)=>(await F.getDocs(F.query(F.collection(db,c),F.where(f,op,v)))).docs.map(x=>Object.assign({id:x.id},x.data())),
     watchQ:(c,f,op,v,cb)=>F.onSnapshot(F.query(F.collection(db,c),F.where(f,op,v)),q=>cb(q.docs.map(x=>Object.assign({id:x.id},x.data()))),e=>cb(null,e)),
     tx:(p,fn)=>F.runTransaction(db,async t=>{const r=ref(p);const s=await t.get(r);const u=fn(s.exists()?s.data():null);if(!u)return false;t.set(r,u,{merge:true});return true})
   };
@@ -2334,6 +2335,7 @@ function mockNet(){
     del:async p=>{await delay();const D=rd();delete D[p];wr(D)},
     add:async(c,d)=>{await delay();const id=Math.random().toString(36).slice(2,12);const D=rd();D[c+"/"+id]=cl(d);wr(D);return id},
     watch:(p,cb)=>{let last;const f=()=>{const v=rd()[p];const s=JSON.stringify(v===undefined?null:v);if(s!==last){last=s;cb(v===undefined?null:cl(v))}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
+    query:async(c,fld,op,v)=>{await delay();const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")!==0||k.split("/").length!==2)continue;const x=D[k];if(op==="array-contains"?(x[fld]||[]).indexOf(v)>=0:x[fld]===v)out.push(Object.assign({id:k.slice(c.length+1)},cl(x)))}return out},
     list:async c=>{await delay();const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")===0&&k.split("/").length===2)out.push(Object.assign({id:k.slice(c.length+1)},cl(D[k])))}return out},
     watchQ:(c,fld,op,v,cb)=>{let last;const f=()=>{const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")!==0||k.split("/").length!==2)continue;const x=D[k];if(op==="array-contains"?(x[fld]||[]).indexOf(v)>=0:x[fld]===v)out.push(Object.assign({id:k.slice(c.length+1)},x))}const s=JSON.stringify(out);if(s!==last){last=s;cb(cl(out))}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
     tx:async(p,fn)=>{await delay();const D=rd();const u=fn(D[p]===undefined?null:cl(D[p]));if(!u)return false;D[p]=D[p]?merge(D[p],cl(u)):cl(u);wr(D);return true}
@@ -2360,12 +2362,12 @@ async function onlineBoot(){
   if(!onlineReady()||ON.booted)return;ON.booted=true;
   let n;try{n=await netInit()}catch(e){ON.netErr=true;if(curView==="online")renderOnline();return}
   n.onAuth(async u=>{
-    ON.authKnown=true;if(ON.unsubL){ON.unsubL();ON.unsubL=null}if(ON.unsubP){ON.unsubP();ON.unsubP=null}
+    ON.authKnown=true;socialStop();if(ON.unsubL){ON.unsubL();ON.unsubL=null}if(ON.unsubP){ON.unsubP();ON.unsubP=null}
     ON.user=u;ON.profile=null;ON.games=[];
     if(u){
       ON.unsubP=n.watch("users/"+u.uid,p=>{ON.profile=p;if(p&&ON.user&&(!p.lastSeen||Date.now()-p.lastSeen>3600000)){p.lastSeen=Date.now();n.set("users/"+ON.user.uid,{lastSeen:p.lastSeen},true).catch(()=>{})}if(curView==="online")renderOnline();if(mode==="online")renderChrome()});
       ON.unsubL=n.watchQ("games","players","array-contains",u.uid,list=>{if(!list)return;gamesChanged(list)});
-      cloudPull();
+      cloudPull();socialStart();
     }
     if(curView==="online")renderOnline();renderTabbar();
     if(u&&ON.pendingJoin){const id=ON.pendingJoin;ON.pendingJoin=null;openOnlineGame(id)}
@@ -2399,7 +2401,7 @@ async function doDeleteAccount(msg){
 function cloudDirty(){try{if(!ON.user||!NET||!ON.synced)return}catch(e){return}clearTimeout(ON.syncT);ON.syncT=setTimeout(()=>cloudPush(),5000)}
 async function cloudPush(now){
   if(!ON.user||!NET||!ON.synced)return;clearTimeout(ON.syncT);
-  try{await NET.set("users/"+ON.user.uid+"/private/progress",{savedAt,email:ON.user.email||"",data:JSON.stringify(exportData())});ON.syncAt=Date.now();if(curView==="online"&&ON.tab==="account")renderOnline()}catch(e){if(now)toast("Cloud-Speicherung fehlgeschlagen: "+netErr(e))}
+  try{await NET.set("users/"+ON.user.uid+"/private/progress",{savedAt,email:ON.user.email||"",data:JSON.stringify(exportData())});ON.syncAt=Date.now();publishStats();if(curView==="online"&&ON.tab==="account")renderOnline()}catch(e){if(now)toast("Cloud-Speicherung fehlgeschlagen: "+netErr(e))}
 }
 const hasLocalProgress=()=>Object.keys(S.prog).length>0||Object.keys(S.srs).length>0||PZ.n>0||S.custom.w.length+S.custom.b.length>0;
 function cloudImport(r){const d=JSON.parse(r.data);importData(d);store.set("et-savedAt",r.savedAt||Date.now());store.set("et-cloud-uid",ON.user.uid);toast("Fortschritt aus deinem Konto geladen – die Seite lädt neu.");setTimeout(()=>location.reload(),900)}
@@ -2445,7 +2447,12 @@ function countResult(g){
   const ck="et-oncount-"+ON.user.uid;const done=store.get(ck,[]);if(done.indexOf(g.id)>=0||!g.result||g.result==="-"||!ON.profile)return;
   const me=myColorIn(g);if(!me)return;done.push(g.id);store.set(ck,done.slice(-300));
   const k=g.result==="1/2-1/2"?"d":(g.result==="1-0")===(me==="w")?"w":"l";
-  NET.set("users/"+ON.user.uid,{[k]:(ON.profile[k]||0)+1},true).catch(()=>{});st.online=(st.online||0)+1;saveStats();
+  const P=ON.profile;const upd={[k]:(P[k]||0)+1};
+  const opp=oppUid(g);const my=(g.elo&&g.elo[ON.user.uid])||P.elo||1200;
+  const finish=or=>{const n=(P.w||0)+(P.d||0)+(P.l||0);const K=n<20?40:24;const sc=k==="w"?1:k==="d"?.5:0;const E=1/(1+Math.pow(10,(or-my)/400));
+    upd.elo=Math.round((P.elo||my)+K*(sc-E));upd.eloHist=(P.eloHist||[]).concat({t:Date.now(),r:upd.elo}).slice(-60);NET.set("users/"+ON.user.uid,upd,true).catch(()=>{})};
+  if(g.elo&&opp&&g.elo[opp])finish(g.elo[opp]);else if(opp)NET.get("users/"+opp).then(p=>finish((p&&p.elo)||1200)).catch(()=>finish(1200));else NET.set("users/"+ON.user.uid,upd,true).catch(()=>{});
+  st.online=(st.online||0)+1;saveStats();SOC.usersAt=0;
 }
 
 /* ---- Partien anlegen, beitreten, Revanche ---- */
@@ -2469,10 +2476,11 @@ function shareInvite(id){const link=inviteLink(id);
 async function joinGame(id,d){
   if(ON.profile&&ON.profile.banned){toast("Dein Konto ist gesperrt.");return false}
   const me=ON.user.uid,now=Date.now();
-  return NET.tx("games/"+id,x=>{if(!x||x.status!=="waiting")return null;
-    if(x.invite){if(x.invite!==me)return null;return {status:"active",lastAt:now,updated:now,names:{[me]:myName()}}}
+  let elo=null;try{const g0=d||await NET.get("games/"+id);if(g0&&g0.creator){const cr=await NET.get("users/"+g0.creator);elo={[g0.creator]:(cr&&cr.elo)||1200,[me]:(ON.profile&&ON.profile.elo)||1200}}}catch(e){}
+  return NET.tx("games/"+id,x=>{if(!x||x.status!=="waiting")return null;const e=elo?{elo}:{};
+    if(x.invite){if(x.invite!==me)return null;return Object.assign({status:"active",lastAt:now,updated:now,names:{[me]:myName()}},e)}
     if((x.players||[]).length!==1||x.players[0]===me)return null;
-    const free=x.white?"black":"white";return {players:[x.players[0],me],[free]:me,names:{[me]:myName()},status:"active",lastAt:now,updated:now}});
+    const free=x.white?"black":"white";return Object.assign({players:[x.players[0],me],[free]:me,names:{[me]:myName()},status:"active",lastAt:now,updated:now},e)});
 }
 async function gameAct(fn){if(!ON.gid)return false;try{const ok=await NET.tx("games/"+ON.gid,fn);if(!ok)toast("Das geht gerade nicht – die Partie hat sich geändert.");return ok}catch(e){toast(netErr(e));return false}}
 const otherCol=c=>c==="w"?"b":"w";
@@ -2560,7 +2568,7 @@ function checkFlag(){
 /* Kopf, Spielerleisten, Knöpfe */
 function onlineChrome(){
   const g=ON.g;const me=ON.color,oc=otherCol(me);
-  $("eco").textContent="Online-Partie"+(g?" · "+tcTxt(g.tc):"");$("title").textContent=g?`${(g.names&&g.white&&g.names[g.white])||"Weiß"} – ${(g.names&&g.black&&g.names[g.black])||"Schwarz"}`:"Online-Partie";
+  $("eco").textContent="Online-Partie"+(g?" · "+tcTxt(g.tc):"")+(SOC.viewers?` · 👁 ${SOC.viewers} ${SOC.viewers===1?"Zuschauer":"Zuschauer"}`:"");$("title").textContent=g?`${(g.names&&g.white&&g.names[g.white])||"Weiß"} – ${(g.names&&g.black&&g.names[g.black])||"Schwarz"}`:"Online-Partie";
   $("desc").textContent=g?(g.status==="over"?`${resTxt(g,ON.spect?null:me)} · ${g.reason||""}`:g.status==="waiting"?"Wartet auf den Gegner":"Läuft"):"";
   $("phIcon").innerHTML=NI.online;
   const av=$("oppAv");av.className="avatar you2";av.innerHTML=ICON.face;
@@ -2616,9 +2624,9 @@ function renderOnline(){
     return `<div class="onrow"><button class="onopen" data-og="${esc(g.id)}"><span class="kchip ${c||"w"}"></span><span class="onn"><b>${esc(oppName(g))}</b><small>${tcTxt(g.tc)} · ${g.status==="over"?esc(resTxt(g,c))+" · "+esc(g.reason||""):g.status==="active"?((g.moves||[]).length+" Halbzüge"):g.invite?"Herausforderung":"Einladungslink"} · ${fmtDate(g.updated||g.created)}</small></span>${mine2?'<span class="onturn">Am Zug</span>':""}</button>${extra||""}</div>`};
   const tcs=[["1+0","1 Min"],["3+2","3 | 2"],["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["30+0","30 Min"],["none","Ohne Uhr"]];
   const friends=(P.friends||[]);
-  v.innerHTML=`<div class="onhead"><span class="onav">${esc(P.name[0].toUpperCase())}</span><div><h2>${esc(P.name)}</h2><small>${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>
+  v.innerHTML=`<div class="onhead"><span class="onav">${esc(P.name[0].toUpperCase())}</span><div><h2>${esc(P.name)}</h2><small>Wertung ${P.elo||1200} · ${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>
   ${P.banned?`<div class="err">Dein Konto wurde gesperrt. Du kannst keine neuen Partien starten.</div>`:""}
-  <div class="subtabs">${[["play","Spielen"],["friends","Freunde"],["account","Konto"]].concat(isAdmin()?[["admin","Admin"]]:[]).map(t=>`<button data-ot="${t[0]}" aria-pressed="${ON.tab===t[0]}">${t[1]}${t[0]==="play"&&ON.badge?` <span class="dotn2">${ON.badge}</span>`:""}</button>`).join("")}</div>
+  <div class="subtabs">${[["play","Spielen"],["leader","Bestenliste"],["friends","Freunde"],["live","Live"],["account","Konto"]].concat(isAdmin()?[["admin","Admin"]]:[]).map(t=>`<button data-ot="${t[0]}" aria-pressed="${ON.tab===t[0]}">${t[1]}${t[0]==="play"&&ON.badge?` <span class="dotn2">${ON.badge}</span>`:t[0]==="friends"&&SOC.inc.length?` <span class="dotn2">${SOC.inc.length}</span>`:""}</button>`).join("")}</div>
   ${ON.tab==="play"?`
   ${inv.length?`<div class="card"><h3>Herausforderungen</h3>${inv.map(g=>row(g,`<span class="onbtns"><button class="btn grn" data-acc="${esc(g.id)}">Annehmen</button><button class="btn" data-dec="${esc(g.id)}">Ablehnen</button></span>`)).join("")}</div>`:""}
   <div class="card"><h3>Neue Partie</h3>
@@ -2628,11 +2636,10 @@ function renderOnline(){
   ${act.length?`<div class="card"><h3>Laufende Partien</h3>${act.map(g=>row(g)).join("")}</div>`:""}
   ${mine.length?`<div class="card"><h3>Offene Einladungen</h3>${mine.map(g=>row(g,`<span class="onbtns"><button class="btn" data-shr="${esc(g.id)}">Teilen</button><button class="btn" data-can="${esc(g.id)}">Löschen</button></span>`)).join("")}</div>`:""}
   ${over.length?`<div class="card"><h3>Beendete Partien</h3>${over.map(g=>row(g)).join("")}</div>`:""}`:""}
-  ${ON.tab==="friends"?`<div class="card"><h3>Freund hinzufügen</h3><div class="btnrow"><input class="txt" id="frName" placeholder="Benutzername" autocapitalize="off" style="flex:1;width:auto;min-width:140px"><button class="btn grn" id="frAdd" style="padding:10px 16px">Hinzufügen</button></div><p class="hint" id="frMsg" style="margin:8px 0 0">Dein Benutzername: <b>${esc(P.name)}</b> – gib ihn deinen Freunden.</p></div>
-    <div class="card"><h3>Deine Freunde</h3>${friends.length?friends.map(f=>`<div class="onrow"><span class="onn" style="padding:8px 4px"><b>${esc(f.name)}</b></span><span class="onbtns"><button class="btn grn" data-chf="${esc(f.uid)}">Herausfordern</button><button class="btn" data-rmf="${esc(f.uid)}">Entfernen</button></span></div>`).join(""):'<p class="hint" style="margin:0">Noch keine Freunde.</p>'}</div>`:""}
   ${ON.tab==="account"?`<div class="card"><h3>Konto</h3><p class="hint" style="margin:0 0 10px">Angemeldet als <b>${esc(ON.user.email)}</b>. Deine Nutzer-ID: <code class="uid">${esc(ON.user.uid)}</code> <button class="chip" id="onUid">Kopieren</button> Dein Trainingsfortschritt (Varianten, Wiederholungen, Taktik, Einstellungen) wird automatisch in deinem Konto gesichert und ist auf allen Geräten gleich.</p>
     <p class="hint" style="margin:0 0 12px">${ON.syncAt?"Zuletzt gesichert: "+new Date(ON.syncAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"Noch nicht gesichert."}</p>
-    <div class="btnrow"><button class="btn" id="onSync">Jetzt sichern</button><button class="btn" id="onOut">Abmelden</button></div></div>
+    <div class="btnrow"><button class="btn" id="onSync">Jetzt sichern</button><button class="btn" id="onOut">Abmelden</button></div>
+    <div class="setrow" style="margin-top:12px"><span><b>In der Bestenliste zeigen</b><small>Taktik-Wertung, gelernte Varianten und Serie erscheinen für andere Spieler. Deine Online-Bilanz ist immer sichtbar.</small></span><button class="switch" id="onLbShow" aria-pressed="${!S.set.lbHide}" aria-label="In der Bestenliste zeigen"></button></div></div>
     <div class="card"><h3>Konto löschen</h3><p class="hint" style="margin:0 0 10px">Löscht dein Profil, deinen Benutzernamen und den Cloud-Fortschritt. Dein Fortschritt in diesem Browser bleibt erhalten.</p><div class="btnrow"><button class="btn red" id="onDel">Konto löschen</button><span class="hint" id="onDelMsg"></span></div></div>`:""}`;
   v.querySelectorAll("[data-ot]").forEach(b=>b.onclick=()=>{ON.tab=b.dataset.ot;renderOnline()});
   v.querySelectorAll("[data-og]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.og));
@@ -2653,6 +2660,10 @@ function renderOnline(){
   if($("onOut"))$("onOut").onclick=doLogout;
   if($("onUid"))$("onUid").onclick=()=>{const t=ON.user.uid;if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast("Nutzer-ID kopiert")).catch(()=>linkBox(t));else linkBox(t)};
   if(ON.tab==="admin"&&isAdmin()){renderAdmin(v);return}
+  if(ON.tab==="leader"){renderLeader(v);return}
+  if(ON.tab==="friends"){renderFriends(v);return}
+  if(ON.tab==="live"){renderLive(v);return}
+  if($("onLbShow"))$("onLbShow").onclick=()=>{S.set.lbHide=!S.set.lbHide;save("set");$("onLbShow").setAttribute("aria-pressed",String(!S.set.lbHide));publishStats()};
   if($("onSync"))$("onSync").onclick=()=>cloudPush(true).then(()=>toast("Fortschritt gesichert"));
   if($("onDel"))$("onDel").onclick=()=>{const b=$("onDel");if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich endgültig löschen?";return}doDeleteAccount(t=>{const m=$("onDelMsg");if(m)m.textContent=t;else toast(t)})};
 }
@@ -2799,6 +2810,141 @@ function wireAdmin(box){
     const ids=k==="stale"?G.filter(g=>g.status==="waiting"&&(g.created||0)<now-3*DAY).map(g=>"games/"+g.id):k==="gone"?G.filter(g=>g.status==="cancelled"||g.status==="declined"||(g.status==="over"&&g.result==="-")).map(g=>"games/"+g.id):k==="stuck"?G.filter(g=>g.status==="active"&&(g.updated||0)<now-14*DAY).map(g=>"games/"+g.id):ADM.names.filter(n=>!ADM.users.some(u=>u.id===n.uid)).map(n=>"usernames/"+n.id);
     act(async()=>{for(const p of ids)await NET.del(p)},ids.length+" Einträge gelöscht")});
 }
+
+/* ================= Bestenliste, Freunde, Live-Partien & Zuschauen ================= */
+const SOC={inc:[],out:[],subs:[],users:null,usersAt:0,lb:"elo",lbFriends:false,sel:null,live:[],liveSub:null,watchers:[],watchAt:0,viewers:0,vSub:null,vGid:null,watchingGid:null};
+const ONLINE_MS=5*60000;
+const isOnlineAt=t=>!!t&&Date.now()-t<ONLINE_MS;
+function socialStop(){SOC.subs.forEach(f=>{try{f()}catch(e){}});SOC.subs=[];SOC.inc=[];SOC.out=[];SOC.users=null;if(SOC.liveSub){SOC.liveSub();SOC.liveSub=null}if(SOC.vSub){SOC.vSub();SOC.vSub=null;SOC.vGid=null}}
+function socialStart(){
+  socialStop();const me=ON.user&&ON.user.uid;if(!me||!NET)return;
+  SOC.subs.push(NET.watchQ("friendreq","to","==",me,l=>{if(!l)return;const prev=SOC.inc.map(r=>r.id);SOC.inc=l.filter(r=>r.status==="pending");
+    SOC.inc.forEach(r=>{if(prev.length&&prev.indexOf(r.id)<0)toast(`${r.fromName||"Jemand"} möchte mit dir befreundet sein`)});renderTabbar();if(curView==="online")renderOnline()}));
+  SOC.subs.push(NET.watchQ("friendreq","from","==",me,l=>{if(!l)return;SOC.out=l;
+    l.filter(r=>r.status==="accepted").forEach(async r=>{const fr=(ON.profile&&ON.profile.friends)||[];
+      try{if(!fr.some(f=>f.uid===r.to))await NET.set("users/"+me,{friends:fr.concat({uid:r.to,name:r.toName||"Freund"})},true);await NET.del("friendreq/"+r.id);toast(`${r.toName||"Dein Freund"} hat deine Anfrage angenommen`)}catch(e){}});
+    if(curView==="online"&&ON.tab==="friends")renderOnline()}));
+  setTimeout(publishStats,1500);
+}
+/* Eigene Kennzahlen öffentlich für die Bestenliste (abschaltbar) */
+function myPub(){let clean=0;for(const o in S.prog)for(const i in S.prog[o])if(S.prog[o][i]===2)clean++;
+  return {tacR:PZ.n?PZ.r:null,tacN:PZ.n||0,clean,streak:Math.max(S.streak.best||0,(PZ.streak&&PZ.streak.best)||0),lv:levelOf(PZ.xp||0),hide:!!S.set.lbHide}}
+function publishStats(){
+  if(!ON.user||!ON.profile||!NET)return;const p=myPub();if(JSON.stringify(p)===JSON.stringify(ON.profile.pub||{}))return;
+  NET.set("users/"+ON.user.uid,{pub:p},true).catch(()=>{});
+}
+async function loadUsers(force){
+  if(!force&&SOC.users&&Date.now()-SOC.usersAt<60000)return SOC.users;
+  SOC.users=await NET.list("users");SOC.usersAt=Date.now();return SOC.users;
+}
+const medal=i=>i===0?"🥇":i===1?"🥈":i===2?"🥉":String(i+1);
+const userGames=u=>(u.w||0)+(u.d||0)+(u.l||0);
+const nP=n=>n+(n===1?" Partie":" Partien");
+function liveGameOf(uid){return (SOC.live||[]).find(g=>(g.players||[]).indexOf(uid)>=0)}
+
+/* ---- Bestenliste ---- */
+function renderLeader(v){
+  v.insertAdjacentHTML("beforeend",'<div id="socBox" class="adm"></div>');const box=$("socBox");
+  if(!SOC.users){box.innerHTML=`<div class="card">${SKEL}</div>`;Promise.all([loadUsers(),loadLive()]).then(()=>{if(curView==="online"&&ON.tab==="leader")renderOnline()}).catch(e=>{box.innerHTML=`<div class="err">${esc(netErr(e))}</div>`});return}
+  if(Date.now()-SOC.usersAt>15000&&!SOC.refreshing){SOC.refreshing=true;Promise.all([loadUsers(true),loadLive()]).then(()=>{SOC.refreshing=false;if(curView==="online"&&(ON.tab==="leader"||ON.tab==="friends"))renderOnline()}).catch(()=>{SOC.refreshing=false})}
+  const me=ON.user.uid,friendIds=((ON.profile&&ON.profile.friends)||[]).map(f=>f.uid).concat(me);
+  const M=[["elo","Wertung"],["wins","Siege"],["games","Partien"],["tac","Taktik"],["clean","Varianten"],["streak","Serie"]];
+  const val={elo:u=>userGames(u)?(u.elo||1200):null,wins:u=>u.w||0,games:u=>userGames(u),tac:u=>u.pub&&u.pub.tacR,clean:u=>u.pub&&u.pub.clean||0,streak:u=>u.pub&&u.pub.streak||0}[SOC.lb];
+  const sub={elo:u=>`${nP(userGames(u))} · ${u.w||0} S · ${u.d||0} R · ${u.l||0} N`,wins:u=>`${nP(userGames(u))} · Quote ${userGames(u)?Math.round((u.w||0)/userGames(u)*100):0} %`,games:u=>`${u.w||0} S · ${u.d||0} R · ${u.l||0} N`,tac:u=>`${u.pub&&u.pub.tacN||0} Aufgaben · Level ${u.pub&&u.pub.lv||1}`,clean:u=>"fehlerfrei gelernte Varianten",streak:u=>"Tage in Folge (Bestwert)"}[SOC.lb];
+  let list=SOC.users.filter(u=>u.name&&!u.banned&&!(u.pub&&u.pub.hide&&u.id!==me)&&(!SOC.lbFriends||friendIds.indexOf(u.id)>=0));
+  const ranked=list.filter(u=>val(u)!=null&&val(u)!==0||SOC.lb==="elo"&&userGames(u)).sort((a,b)=>(val(b)||0)-(val(a)||0));
+  const rest=list.filter(u=>ranked.indexOf(u)<0).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  const myRank=ranked.findIndex(u=>u.id===me);
+  const row=(u,i)=>{const lg=liveGameOf(u.id);const open=SOC.sel===u.id;const isF=friendIds.indexOf(u.id)>=0&&u.id!==me;
+    return `<div class="aurow${u.id===me?" mine":""}${open?" open":""}"><button class="auhead" data-lu="${esc(u.id)}"><span class="lrank">${i==null?"–":medal(i)}</span><span class="onav sm">${esc(u.name[0].toUpperCase())}${isOnlineAt(u.lastSeen)?'<i class="odot"></i>':""}</span><span class="onn"><b>${esc(u.name)}${u.id===me?" (du)":""}${lg?' <span class="abadge grn">spielt</span>':""}</b><small>${i==null?"noch keine Werte":esc(sub(u))}</small></span><span class="aunum"><b>${i==null?"–":(val(u)==null?"–":val(u))}</b><small>${M.find(m=>m[0]===SOC.lb)[1]}</small></span></button>
+    ${open?`<div class="audet"><div class="atiles sm">${tileS(u.elo||1200,"Online-Wertung")}${tileS(userGames(u),"Partien",`${u.w||0} S · ${u.d||0} R · ${u.l||0} N`)}${tileS(u.pub&&u.pub.tacR||"–","Taktik-Wertung")}${tileS(u.pub&&u.pub.clean||0,"Varianten fehlerfrei")}${tileS(u.pub&&u.pub.streak||0,"Beste Serie")}${tileS(isOnlineAt(u.lastSeen)?"online":relTime(u.lastSeen),"Zuletzt aktiv")}</div>
+      ${u.eloHist&&u.eloHist.length>1?`<div class="exh" style="margin-top:10px"><span>Wertungsverlauf</span></div>${sparkHtml(u.eloHist.map(h=>h.r))}`:""}
+      ${u.id!==me?`<div class="btnrow" style="margin-top:10px">${lg?`<button class="btn grn" data-watch="${esc(lg.id)}">Zuschauen</button>`:""}<button class="btn" data-chal="${esc(u.id)}">Herausfordern</button>${isF?"":`<button class="btn" data-freq="${esc(u.id)}">Als Freund hinzufügen</button>`}</div>`:""}</div>`:""}</div>`};
+  box.innerHTML=`<div class="card"><div class="filters">${M.map(m=>`<button class="chip${SOC.lb===m[0]?" on":""}" data-lb="${m[0]}">${m[1]}</button>`).join("")}</div>
+    <div class="btnrow" style="margin-top:10px;justify-content:space-between"><span class="seg"><button data-lf="0" aria-pressed="${!SOC.lbFriends}">Alle</button><button data-lf="1" aria-pressed="${SOC.lbFriends}">Freunde</button></span><button class="btn" id="lbRe" style="padding:8px 12px">Aktualisieren</button></div>
+    <p class="hint" style="margin:8px 0 0">${myRank>=0?`Du bist auf Platz <b>${myRank+1}</b> von ${ranked.length}.`:"Spiel eine Online-Partie, um in die Wertung zu kommen."} Die Online-Wertung startet bei 1200 und ändert sich nach jeder Partie (Elo).</p></div>
+    <div class="card aul">${ranked.map((u,i)=>row(u,i)).join("")}${rest.length?`<div class="exh" style="margin:12px 6px 4px"><span>Noch ohne Wertung</span></div>${rest.map(u=>row(u,null)).join("")}`:""}${!list.length?'<p class="hint" style="margin:6px">Noch keine Spieler.</p>':""}</div>`;
+  wireSocial(box);
+}
+const tileS=(n,l,sub)=>`<div class="atile"><b>${esc(String(n))}</b><span>${esc(l)}</span>${sub?`<small>${esc(sub)}</small>`:""}</div>`;
+function sparkHtml(arr){if(arr.length<2)return "";const mn=Math.min(...arr),mx=Math.max(...arr),r=Math.max(1,mx-mn);const pts=arr.map((x,i)=>`${(i/(arr.length-1)*100).toFixed(1)},${(36-(x-mn)/r*32-2).toFixed(1)}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 100 36" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--green)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg><p class="hint" style="margin:2px 0 0">${mn} – ${mx}</p>`}
+
+/* ---- Freunde mit Anfragen, Online-Status und Zuschauen ---- */
+function renderFriends(v){
+  v.insertAdjacentHTML("beforeend",'<div id="socBox" class="adm"></div>');const box=$("socBox");
+  const P=ON.profile,fr=(P.friends||[]);
+  if(!SOC.users){box.innerHTML=`<div class="card">${SKEL}</div>`;Promise.all([loadUsers(),loadLive()]).then(()=>{if(curView==="online"&&ON.tab==="friends")renderOnline()}).catch(e=>{box.innerHTML=`<div class="err">${esc(netErr(e))}</div>`});return}
+  if(Date.now()-SOC.usersAt>15000&&!SOC.refreshing){SOC.refreshing=true;Promise.all([loadUsers(true),loadLive()]).then(()=>{SOC.refreshing=false;if(curView==="online"&&(ON.tab==="leader"||ON.tab==="friends"))renderOnline()}).catch(()=>{SOC.refreshing=false})}
+  const U=id=>SOC.users.find(u=>u.id===id)||{};
+  const pendOut=SOC.out.filter(r=>r.status==="pending");
+  const sorted=fr.slice().sort((a,b)=>(isOnlineAt(U(b.uid).lastSeen)?1:0)-(isOnlineAt(U(a.uid).lastSeen)?1:0)||(a.name||"").localeCompare(b.name||""));
+  box.innerHTML=`${SOC.inc.length?`<div class="card"><h3>Freundschaftsanfragen <span class="abadge red">${SOC.inc.length}</span></h3>${SOC.inc.map(r=>`<div class="onrow"><span class="onav sm">${esc((r.fromName||"?")[0].toUpperCase())}</span><span class="onn" style="padding:8px 4px"><b>${esc(r.fromName||"Unbekannt")}</b><small>${relTime(r.at)}</small></span><span class="onbtns"><button class="btn grn" data-racc="${esc(r.id)}">Annehmen</button><button class="btn" data-rdec="${esc(r.id)}">Ablehnen</button></span></div>`).join("")}</div>`:""}
+  <div class="card"><h3>Freund hinzufügen</h3><div class="btnrow"><input class="txt" id="frName" placeholder="Benutzername" autocapitalize="off" style="flex:1;width:auto;min-width:140px"><button class="btn grn" id="frAdd" style="padding:10px 16px">Anfrage senden</button></div>
+    <p class="hint" id="frMsg" style="margin:8px 0 0">Dein Benutzername: <b>${esc(P.name)}</b> – gib ihn deinen Freunden.</p>
+    ${pendOut.length?`<p class="hint" style="margin:6px 0 0">Gesendet, wartet auf Antwort: ${pendOut.map(r=>`<b>${esc(r.toName||"?")}</b> <button class="chip" data-rcan="${esc(r.id)}">zurückziehen</button>`).join(" ")}</p>`:""}</div>
+  <div class="card aul"><h3 style="margin:6px">Deine Freunde (${fr.length})</h3>${sorted.length?sorted.map(f=>{const u=U(f.uid);const on=isOnlineAt(u.lastSeen);const lg=liveGameOf(f.uid);
+    return `<div class="onrow"><span class="onav sm">${esc((f.name||"?")[0].toUpperCase())}${on?'<i class="odot"></i>':""}</span><span class="onn" style="padding:8px 4px"><b>${esc(u.name||f.name)}${lg?' <span class="abadge grn">spielt</span>':""}</b><small>${on?"online":"zuletzt "+relTime(u.lastSeen)} · Wertung ${u.elo||1200} · ${nP(userGames(u))}</small></span><span class="onbtns">${lg?`<button class="btn grn" data-watch="${esc(lg.id)}">Zuschauen</button>`:""}<button class="btn" data-chal="${esc(f.uid)}">Herausfordern</button><button class="btn" data-rmf2="${esc(f.uid)}" title="Entfernen">✕</button></span></div>`}).join(""):'<p class="hint" style="margin:6px">Noch keine Freunde. Schick jemandem eine Anfrage oder füge Spieler aus der Bestenliste hinzu.</p>'}</div>`;
+  wireSocial(box);
+}
+async function sendFriendReq(uid,name,msg){
+  const me=ON.user.uid;msg=msg||toast;const fr=(ON.profile.friends||[]);
+  if(uid===me){msg("Das bist du selbst.");return}if(fr.some(f=>f.uid===uid)){msg("Ist schon dein Freund.");return}
+  const back=SOC.inc.find(r=>r.from===uid);if(back){await acceptReq(back);return}
+  try{await NET.set("friendreq/"+me+"_"+uid,{from:me,to:uid,fromName:myName(),toName:name,status:"pending",at:Date.now()});msg(`Anfrage an ${name} gesendet.`)}catch(e){msg(netErr(e))}
+}
+async function acceptReq(r){
+  const me=ON.user.uid,fr=(ON.profile.friends||[]);
+  try{if(!fr.some(f=>f.uid===r.from))await NET.set("users/"+me,{friends:fr.concat({uid:r.from,name:r.fromName||"Freund"})},true);await NET.set("friendreq/"+r.id,{status:"accepted"},true);toast(`${r.fromName||"Freund"} ist jetzt dein Freund`)}catch(e){toast(netErr(e))}
+}
+
+/* ---- Live-Partien ---- */
+async function loadLive(){try{SOC.live=await NET.query("games","status","==","active");SOC.watchers=await NET.list("watch").catch(()=>[]);SOC.watchAt=Date.now()}catch(e){SOC.live=SOC.live||[]}return SOC.live}
+const viewersOf=gid=>SOC.watchers.filter(w=>w.gid===gid&&Date.now()-(w.at||0)<60000).length;
+function renderLive(v){
+  v.insertAdjacentHTML("beforeend",'<div id="socBox" class="adm"></div>');const box=$("socBox");
+  if(!SOC.liveSub){SOC.liveSub=NET.watchQ("games","status","==","active",l=>{if(!l)return;SOC.live=l;NET.list("watch").then(w=>{SOC.watchers=w}).catch(()=>{}).then(()=>{if(curView==="online"&&ON.tab==="live")renderOnline()})})}
+  if(!SOC.users){loadUsers().then(()=>{if(curView==="online"&&ON.tab==="live")renderOnline()}).catch(()=>{})}
+  const me=ON.user.uid,fids=((ON.profile&&ON.profile.friends)||[]).map(f=>f.uid);
+  const elo=uid=>{const u=SOC.users&&SOC.users.find(x=>x.id===uid);return u?(u.elo||1200):""};
+  const list=(SOC.live||[]).filter(g=>g.white&&g.black).sort((a,b)=>{const fa=(a.players||[]).some(p=>fids.indexOf(p)>=0||p===me)?1:0,fb=(b.players||[]).some(p=>fids.indexOf(p)>=0||p===me)?1:0;return fb-fa||viewersOf(b.id)-viewersOf(a.id)||(b.updated||0)-(a.updated||0)});
+  box.innerHTML=`<div class="card"><h3>Live-Partien <span class="abadge grn">${list.length}</span></h3><p class="hint" style="margin:0">Laufende Partien aller Spieler. Antippen zum Zuschauen – Züge und Uhren laufen live mit. Partien deiner Freunde stehen oben.</p></div>
+  <div class="card">${list.map(g=>{const w=g.names[g.white]||"Weiß",b=g.names[g.black]||"Schwarz";const n=(g.moves||[]).length;const vw=viewersOf(g.id);const mine=(g.players||[]).indexOf(me)>=0;const fr=(g.players||[]).some(p=>fids.indexOf(p)>=0);
+    return `<div class="onrow"><button class="onopen" data-watch="${esc(g.id)}"><span class="lmini">${miniFen(g.fen)}</span><span class="onn"><b>${esc(w)} <small>${elo(g.white)}</small> – ${esc(b)} <small>${elo(g.black)}</small></b><small>${tcTxt(g.tc)} · Zug ${Math.floor(n/2)+1} · ${new Chess(g.fen||START_FEN).turn()==="w"?esc(w):esc(b)} am Zug${vw?` · 👁 ${vw}`:""}${mine?" · deine Partie":fr?" · Freund":""}</small></span></button></div>`}).join("")||'<p class="hint" style="margin:0">Gerade läuft keine Partie.</p>'}</div>`;
+  wireSocial(box);
+}
+/* Winziges Brett für die Live-Liste */
+function miniFen(fen){const rows=(fen||START_FEN).split(" ")[0].split("/");let h="";rows.forEach((r,y)=>{let x=0;for(const ch of r){if(/\d/.test(ch)){for(let k=0;k<+ch;k++){h+=`<i class="${(x+y)%2?"d":"l"}"></i>`;x++}}else{h+=`<i class="${(x+y)%2?"d":"l"} ${ch===ch.toUpperCase()?"w":"b"}"></i>`;x++}}});return h}
+
+/* ---- Gemeinsame Knöpfe ---- */
+function wireSocial(box){
+  const me=ON.user.uid;
+  box.querySelectorAll("[data-lb]").forEach(b=>b.onclick=()=>{SOC.lb=b.dataset.lb;renderOnline()});
+  box.querySelectorAll("[data-lf]").forEach(b=>b.onclick=()=>{SOC.lbFriends=b.dataset.lf==="1";renderOnline()});
+  box.querySelectorAll("[data-lu]").forEach(b=>b.onclick=()=>{SOC.sel=SOC.sel===b.dataset.lu?null:b.dataset.lu;renderOnline()});
+  const re=$("lbRe");if(re)re.onclick=()=>{re.disabled=true;Promise.all([loadUsers(true),loadLive()]).then(()=>renderOnline()).catch(e=>toast(netErr(e)))};
+  box.querySelectorAll("[data-watch]").forEach(b=>b.onclick=e=>{e.stopPropagation();openOnlineGame(b.dataset.watch)});
+  box.querySelectorAll("[data-chal]").forEach(b=>b.onclick=()=>{const u=(SOC.users||[]).find(x=>x.id===b.dataset.chal);if(!u)return;ON.tab="play";createGame({uid:u.id,name:u.name})});
+  box.querySelectorAll("[data-freq]").forEach(b=>b.onclick=()=>{const u=(SOC.users||[]).find(x=>x.id===b.dataset.freq);if(u)sendFriendReq(u.id,u.name)});
+  box.querySelectorAll("[data-racc]").forEach(b=>b.onclick=()=>{const r=SOC.inc.find(x=>x.id===b.dataset.racc);if(r)acceptReq(r)});
+  box.querySelectorAll("[data-rdec]").forEach(b=>b.onclick=()=>{NET.del("friendreq/"+b.dataset.rdec).catch(e=>toast(netErr(e)))});
+  box.querySelectorAll("[data-rcan]").forEach(b=>b.onclick=()=>{NET.del("friendreq/"+b.dataset.rcan).then(()=>{SOC.out=SOC.out.filter(r=>r.id!==b.dataset.rcan);renderOnline()}).catch(e=>toast(netErr(e)))});
+  box.querySelectorAll("[data-rmf2]").forEach(b=>b.onclick=()=>{if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Entfernen?";return}const fr=(ON.profile.friends||[]).filter(f=>f.uid!==b.dataset.rmf2);NET.set("users/"+me,{friends:fr},true).catch(e=>toast(netErr(e)))});
+  const add=$("frAdd");if(add)add.onclick=async()=>{const n=$("frName").value.trim();const msg=t=>{const m=$("frMsg");if(m)m.textContent=t;else toast(t)};if(!n)return;
+    try{const u=await NET.get("usernames/"+n.toLowerCase());if(!u){msg(`„${n}“ gibt es nicht.`);return}const p=await NET.get("users/"+u.uid);await sendFriendReq(u.uid,(p&&p.name)||n,msg)}catch(e){msg(netErr(e))}};
+}
+
+/* ---- Zuschauen: Anwesenheit melden und Zuschauer zählen; „online“-Status aktuell halten ---- */
+setInterval(()=>{try{
+  if(!ON.user||!NET)return;const me=ON.user.uid;const now=Date.now();
+  if(document.visibilityState==="visible"&&ON.profile&&(!ON.profile.lastSeen||now-ON.profile.lastSeen>110000)){ON.profile.lastSeen=now;NET.set("users/"+me,{lastSeen:now},true).catch(()=>{})}
+  const watching=mode==="online"&&ON.gid&&ON.spect&&ON.g&&ON.g.status==="active"&&document.visibilityState==="visible"?ON.gid:null;
+  if(SOC.watchingGid&&SOC.watchingGid!==watching){NET.del("watch/"+SOC.watchingGid+"_"+me).catch(()=>{});SOC.watchingGid=null}
+  if(watching&&(SOC.watchingGid!==watching||now-(SOC.wAt||0)>25000)){SOC.watchingGid=watching;SOC.wAt=now;NET.set("watch/"+watching+"_"+me,{gid:watching,uid:me,name:myName(),at:now}).catch(()=>{})}
+  const gid=mode==="online"&&ON.gid&&ON.g&&ON.g.status==="active"?ON.gid:null;
+  if(SOC.vGid!==gid){if(SOC.vSub){SOC.vSub();SOC.vSub=null}SOC.vGid=gid;SOC.viewers=0;SOC.vList=[];if(gid)SOC.vSub=NET.watchQ("watch","gid","==",gid,l=>{if(l)SOC.vList=l})}
+  if(gid){const n=(SOC.vList||[]).filter(w=>w.uid!==me&&now-(w.at||0)<60000).length;if(n!==SOC.viewers){SOC.viewers=n;if(mode==="online")onlineChrome()}}
+}catch(e){}},2000);
 
 /* ================= Start ================= */
 applySettings();

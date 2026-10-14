@@ -758,3 +758,15 @@ code.uid{font-family:var(--mono);font-size:12px;background:var(--panel-2);border
 html,body{touch-action:manipulation}
 *{-webkit-tap-highlight-color:transparent}
 button,.tb,.chip,.btn,.nb,.mv,.hc,.gi,.onopen,.auhead{-webkit-user-select:none;user-select:none;touch-action:manipulation}
+/* Bestenliste, Freunde, Live */
+.lrank{width:28px;text-align:center;font-weight:800;font-size:15px;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+.aurow.mine .auhead{background:rgba(129,182,76,.14)}
+.onav{position:relative}
+.odot{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;background:#5BC236;border:2px solid var(--panel)}
+.spark{width:100%;height:44px;display:block;background:var(--panel-2);border-radius:6px}
+.lmini{display:grid;grid-template-columns:repeat(8,1fr);width:46px;height:46px;flex:none;border-radius:4px;overflow:hidden}
+.lmini i{display:block;position:relative}
+.lmini i.l{background:var(--sq-l)}.lmini i.d{background:var(--sq-d)}
+.lmini i.w::after,.lmini i.b::after{content:"";position:absolute;inset:22%;border-radius:50%}
+.lmini i.w::after{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.5)}.lmini i.b::after{background:#222}
+.onn b small{color:var(--muted);font-weight:600;font-size:11.5px}

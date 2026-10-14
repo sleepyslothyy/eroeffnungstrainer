@@ -22,6 +22,7 @@ Schach-Eröffnungen trainieren – im Browser, als App installierbar und offline
 ## Konten & Online-Partien (Firebase)
 - Registrierung mit Benutzername, E-Mail und Passwort; Passwort vergessen; Konto löschen
 - Trainingsfortschritt wird im Konto gespeichert und auf allen Geräten synchronisiert
+- Bestenliste aller Spieler (Online-Wertung nach Elo, Siege, Partien, Taktik, Varianten, Serie), Freundschaftsanfragen mit Online-Status, Live-Liste aller laufenden Partien mit Zuschauen und Zuschauerzahl
 - Live-Partien gegen Freunde per Einladungslink oder direkter Herausforderung, Freundesliste, Bedenkzeiten mit Uhr, Remis, Aufgeben, Abbrechen, Revanche, Zuschauen und anschließende Partieanalyse
 
 ## Komfort
