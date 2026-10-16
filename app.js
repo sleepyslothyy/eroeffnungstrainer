@@ -1085,6 +1085,7 @@ function showView(v){
   v=String(v||"home");const [base,sub]=v.split(":");
   if(base==="online"&&sub)ON.tab=sub==="admin"&&!isAdmin()?"play":sub;
   if(base==="player"&&sub)playerUid=sub;
+  if(base==="tactics")tacTab=sub==="hist"?"hist":"train";
   if(base==="profile"&&sub)profTab=["stats","badges","settings","sync"].indexOf(sub)>=0?sub:"stats";
   if(base!==curView)cancelAuto();
   const prev=curView;curView=base;
@@ -1112,7 +1113,7 @@ function renderTabbar(){
   const sec=sectionOf();
   $("tabbar").innerHTML=SECTIONS.map(([id,t,ic])=>{const n=secBadge(id);return `<button class="tb" data-tab="${id}" aria-label="${t}" aria-current="${sec===id}">${NI[ic]}<span class="tl">${t}</span>${n>0?`<span class="dotn">${n>99?"99+":n}</span>`:""}</button>`}).join("");
   $("tabbar").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>goSection(b.dataset.tab));
-  renderSubnav();renderSideNav();
+  renderSubnav();renderSideNav();try{turnTitle()}catch(e){}
 }
 function renderSubnav(){
   const el=$("subnav");if(!el)return;const sec=sectionOf();const items=subnavOf(sec);
@@ -2111,7 +2112,7 @@ function wireAnaInput(){const b=$("anaGo");if(!b)return;b.onclick=async()=>{b.di
 /* ================= Taktik: Lichess-Rätsel mit Fortschrittssystem ================= */
 const PZ=Object.assign({r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,rushBest:{s5:0,surv:0},day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10},store.get("et-tac",{}));
 fixT(PZ,{r:1200,n:0,ok:0,xp:0,hist:[],themes:{},paths:{},seen:{},fails:[],sprintBest:0,rushBest:{s5:0,surv:0},day:{date:"",n:0},streak:{last:null,n:0,best:0},goal:10});fixT(PZ.day,{date:"",n:0});fixT(PZ.streak,{last:"",n:0,best:0});if(PZ.streak.last==="")PZ.streak.last=null;PZ.hist=PZ.hist.filter(x=>x&&typeof x==="object");PZ.fails=PZ.fails.filter(x=>x&&x.p);for(const k in PZ.paths)if(!PZ.paths[k]||typeof PZ.paths[k]!=="object")delete PZ.paths[k];
-fixT(PZ.rushBest,{s5:0,surv:0});
+fixT(PZ.rushBest,{s5:0,surv:0});fixT(PZ,{log:[]});PZ.log=PZ.log.filter(x=>x&&typeof x==="object"&&Array.isArray(x.sol));
 let pzCache=store.get("et-pzcache",[]);
 const savePZ=()=>{store.set("et-tac",PZ);savedAt=Date.now();store.set("et-savedAt",savedAt);cloudDirty()};
 const savePzCache=()=>store.set("et-pzcache",pzCache.slice(-400));
@@ -2173,6 +2174,7 @@ function recordTactic(p,ok,opts){
   if(opts.rated!==false){const n=PZ.n;const K=n<20?40:n<60?28:18;const E=1/(1+Math.pow(10,(p.rating-PZ.r)/400));delta=Math.round(K*((ok?1:0)-E));PZ.r=Math.max(400,PZ.r+delta);PZ.hist.push([Date.now(),PZ.r]);if(PZ.hist.length>600)PZ.hist.shift()}
   const lvBefore=levelOf(PZ.xp);let xp=0;if(ok){xp=10+Math.max(0,Math.round((p.rating-PZ.r+300)/60));PZ.xp+=xp}
   p.themes.forEach(t=>{const T=PZ.themes[t]||(PZ.themes[t]={n:0,ok:0});T.n++;if(ok)T.ok++});
+  tlogAdd(p,ok,{d:delta,x:xp,rated:opts.rated!==false,k:opts.kind});
   if(!ok&&!PZ.fails.some(f=>f.id===p.id))PZ.fails.unshift({id:p.id,p,ok:0});
   if(ok){const f=PZ.fails.find(x=>x.id===p.id);if(f){f.ok++;if(f.ok>=2)PZ.fails=PZ.fails.filter(x=>x!==f)}}
   PZ.fails=PZ.fails.slice(0,150);
@@ -2184,10 +2186,11 @@ function recordTactic(p,ok,opts){
 const ratedText=(ok,res,p)=>`${ok?"Gelöst":"Nicht gelöst"} · Aufgabe ${p.rating} · Wertung ${PZ.r} (${res.delta>=0?"+":""}${res.delta})${res.xp?` · +${res.xp} XP`:""}`;
 function playTactic(p,cfg){
   cfg=cfg||{};
-  startPuzzle({pre:p.pre,sol:p.sol,title:cfg.title||"Taktik",eco:cfg.eco||("Aufgabe "+p.rating),sub:cfg.sub||(p.themes.map(t=>TTH[t]?TTH[t][0]:null).filter(Boolean).slice(0,3).join(" · ")||"Lichess-Rätsel"),
+  p._t0=Date.now();
+  startPuzzle({fen:p.fen||null,pre:p.pre,sol:p.sol,title:cfg.title||"Taktik",eco:cfg.eco||("Aufgabe "+p.rating),sub:cfg.sub||(p.themes.map(t=>TTH[t]?TTH[t][0]:null).filter(Boolean).slice(0,3).join(" · ")||"Lichess-Rätsel"),
     prompt:`${p.side==="w"?"Weiß":"Schwarz"} am Zug – finde den besten Zug`,
     after:`Lichess-Rätsel ${p.id} aus einer echten Partie.`,
-    onResult:ok=>{const res=recordTactic(p,ok,{rated:cfg.rated!==false});if(cfg.onResult)cfg.onResult(ok,res);
+    onResult:ok=>{const res=recordTactic(p,ok,{rated:cfg.rated!==false,kind:cfg.kind});if(cfg.onResult)cfg.onResult(ok,res);
       if(!ok&&!cfg.silentFail)setStatus("bad","Leider falsch",cfg.rated!==false?ratedText(false,res,p)+". Versuch es weiter oder tippe auf »Weiter«.":"Versuch es weiter oder tippe auf »Weiter«.");
       return res},
     onSolved:(clean,res)=>{if(clean&&res)setStatus("done","Richtig gelöst!",cfg.rated!==false?ratedText(true,res,p):`+${res.xp} XP`)}
@@ -2200,6 +2203,7 @@ function tacticSession(kind,arg){
   if(kind==="theme"){s.title="Pfad: "+TTH[arg][0];s.theme=arg}
   if(kind==="opening"){s.title="Taktik: "+byId(arg).name;s.angle=OPENING_ANGLE[arg]}
   if(kind==="fails"){if(!PZ.fails.length){toast("Keine offenen Fehler – stark!");return}s.title="Taktik-Fehler wiederholen";s.list=PZ.fails.slice(0,20).map(f=>f.p)}
+  if(kind==="hist"){if(!arg||!arg.length)return;s.title="Aus deinem Verlauf";s.list=arg}
   if(kind==="sprint"||kind==="sprint5"||kind==="survival"){s.rush=true;s.dur=kind==="sprint"?180000:kind==="sprint5"?300000:0;s.title=kind==="survival"?"Taktik-Rush: Überleben":`Taktik-Rush: ${s.dur/60000} Minuten`;s.lives=3;s.end=s.dur?Date.now()+s.dur:0;s.level=0}
   s.next=()=>loadNextTactic(s);
   s.countText=()=>s.rush?`${s.solved} gelöst · ${"♥".repeat(Math.max(0,s.lives))}`:kind==="theme"?`Stufe ${Math.min(PATH_STEPS,pathOf(s.theme).step+1)}/${PATH_STEPS} · ${pathOf(s.theme).n}/${PATH_N}`:`${s.solved} gelöst · ${s.failed} falsch`;
@@ -2220,7 +2224,7 @@ async function loadNextTactic(s){
   setStatus("turn","Lade Aufgabe …","");busy=true;renderChrome();
   let p=null;
   try{
-    if(s.kind==="fails"){if(s.idx>=s.list.length){sess=null;busy=false;renderChrome();setStatus("done","Fehler wiederholt",`${s.solved} von ${s.list.length} gelöst.`);return}p=s.list[s.idx]}
+    if(s.kind==="fails"||s.kind==="hist"){if(s.idx>=s.list.length){sess=null;busy=false;renderChrome();setStatus("done",s.kind==="hist"?"Durchgang beendet":"Fehler wiederholt",`${s.solved} von ${s.list.length} gelöst.`);return}p=s.list[s.idx]}
     else if(s.kind==="theme"){const ps=pathOf(s.theme);p=await nextPuzzle(s.theme,DIFF[Math.min(PATH_STEPS-1,ps.step)][0])}
     else if(s.kind==="opening"){try{p=await nextPuzzle(s.angle,diffFor(PZ.r))}catch(e){if(String(e.message)==="angle"){toast("Für diese Eröffnung gibt es keine eigene Auswahl – gemischte Aufgaben.");s.angle="mix";p=await nextPuzzle("mix",diffFor(PZ.r))}else throw e}}
     else if(s.rush){const lv=Math.min(4,Math.floor(s.solved/4));p=await nextPuzzle("mix",DIFF[lv][0])}
@@ -2229,13 +2233,13 @@ async function loadNextTactic(s){
   if(!p){busy=false;if(sess===s){sess=null;renderChrome()}setStatus("bad","Keine Aufgabe verfügbar","Versuch es gleich noch einmal.");return}
   if(sess!==s)return;busy=false;s.cur=p;
   const rated=s.kind==="rated"||s.kind==="opening";
-  playTactic(p,{title:s.title,rated,silentFail:!!s.rush,
+  playTactic(p,{title:s.title,rated,kind:s.kind,silentFail:!!s.rush,
     onResult:(ok)=>{s.res.push({clean:ok});if(ok)s.solved++;else s.failed++;
       if(s.kind==="theme"&&ok){const ps=pathOf(s.theme);ps.n++;if(ps.n>=PATH_N){ps.step=Math.min(PATH_STEPS,ps.step+1);ps.n=0;savePZ();setTimeout(()=>toast(ps.step>=PATH_STEPS?`Pfad „${TTH[s.theme][0]}“ gemeistert!`:`Stufe ${ps.step} geschafft – ★ ${ps.step}/${PATH_STEPS}`),600);if(ps.step>=PATH_STEPS){setTimeout(()=>{if(sess===s){sess=null;renderChrome();setStatus("done","Pfad gemeistert!","Alle fünf Sterne gesammelt. Neue Pfade schaltest du mit Sternen frei.")}},1500)}}savePZ()}
       if(s.rush){if(!ok){s.lives--;sfx("wrong")}renderChrome();
         if(s.lives<=0){setTimeout(()=>endSprint(s),600);return}
         setTimeout(()=>{if(sess===s)s.next()},ok?500:900)}
-      if(s.kind==="fails")s.idx++;
+      if(s.kind==="fails"||s.kind==="hist")s.idx++;
       renderChrome();
     }});
 }
@@ -2390,10 +2394,22 @@ const START_FEN=new Chess().fen();
 const onlineReady=()=>!!(window.__MOCKNET||FB_CONFIG);
 let NET=null,netLoading=null;
 function netInit(){if(NET)return Promise.resolve(NET);if(!netLoading)netLoading=(window.__MOCKNET?Promise.resolve(mockNet()):fbNet()).then(n=>NET=n).catch(e=>{netLoading=null;throw e});return netLoading}
+/* Live-Abfragen heilen sich selbst: Bricht die Verbindung ab (Funkloch, Standby, Netzwechsel), wird mit Pause neu abonniert,
+   statt dass die Partie stillschweigend stehen bleibt. Nur „keine Berechtigung“ wird sofort gemeldet. */
+const NETST={ok:true,at:0,fails:0};
+function netState(ok){const was=NETST.ok;NETST.ok=ok;NETST.at=Date.now();if(ok)NETST.fails=0;else NETST.fails++;if(was!==ok){try{if(mode==="online")onlineStatus()}catch(e){}}}
+function relisten(mk,cb){
+  let un=null,dead=false,tries=0,tm=null;
+  const go=()=>{if(dead)return;
+    un=mk((v,m)=>{tries=0;if(!m||!m.cache)netState(true);cb(v,null,m||{})},e=>{try{if(un)un()}catch(_){}un=null;if(dead)return;
+      if(e&&e.code==="permission-denied"){cb(null,e,{});return}
+      netState(false);tm=setTimeout(go,Math.min(15000,700*Math.pow(2,tries++)))})};
+  go();return()=>{dead=true;clearTimeout(tm);try{if(un)un()}catch(_){}};
+}
 async function fbNet(){
   const B=new URL(`lib/firebase/${FB_VER}/`,location.href).href;
   const [A,U,F]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]);
-  const app=A.initializeApp(FB_CONFIG),auth=U.getAuth(app),db=F.getFirestore(app);const ref=p=>F.doc(db,p);
+  const app=A.initializeApp(FB_CONFIG),auth=U.getAuth(app);let db;try{db=F.initializeFirestore(app,{experimentalAutoDetectLongPolling:true})}catch(e){db=F.getFirestore(app)}const ref=p=>F.doc(db,p);
   const uo=u=>u?{uid:u.uid,email:u.email||""}:null;
   return {
     onAuth:cb=>U.onAuthStateChanged(auth,u=>cb(uo(u))),
@@ -2406,10 +2422,12 @@ async function fbNet(){
     set:(p,d,merge)=>F.setDoc(ref(p),d,merge?{merge:true}:{}),
     del:p=>F.deleteDoc(ref(p)),
     add:async(c,d)=>(await F.addDoc(F.collection(db,c),d)).id,
-    watch:(p,cb)=>F.onSnapshot(ref(p),s=>cb(s.exists()?s.data():null),e=>cb(null,e)),
+    watch:(p,cb,meta)=>relisten((ok,er)=>F.onSnapshot(ref(p),{includeMetadataChanges:!!meta},s=>ok(s.exists()?s.data():null,{cache:s.metadata.fromCache,pend:s.metadata.hasPendingWrites}),er),cb),
+    getSrv:async p=>{const s=await F.getDocFromServer(ref(p));return s.exists()?s.data():null},
+    srvTime:async uid=>{const r=ref("users/"+uid+"/private/clock");const t0=Date.now();await F.setDoc(r,{t:F.serverTimestamp()});const t1=Date.now();const s=await F.getDocFromServer(r);const v=s.exists()&&s.data().t;if(!v||!v.toMillis)return null;return {off:v.toMillis()-(t0+t1)/2,rtt:t1-t0}},
     list:async c=>(await F.getDocs(F.collection(db,c))).docs.map(x=>Object.assign({id:x.id},x.data())),
     query:async(c,f,op,v)=>(await F.getDocs(F.query(F.collection(db,c),F.where(f,op,v)))).docs.map(x=>Object.assign({id:x.id},x.data())),
-    watchQ:(c,f,op,v,cb)=>F.onSnapshot(F.query(F.collection(db,c),F.where(f,op,v)),q=>cb(q.docs.map(x=>Object.assign({id:x.id},x.data()))),e=>cb(null,e)),
+    watchQ:(c,f,op,v,cb)=>relisten((ok,er)=>F.onSnapshot(F.query(F.collection(db,c),F.where(f,op,v)),q=>ok(q.docs.map(x=>Object.assign({id:x.id},x.data())),{cache:q.metadata.fromCache}),er),cb),
     tx:(p,fn)=>F.runTransaction(db,async t=>{const r=ref(p);const s=await t.get(r);const u=fn(s.exists()?s.data():null);if(!u)return false;t.set(r,u,{merge:true});return true})
   };
 }
@@ -2419,7 +2437,8 @@ function mockNet(){
   const rd=()=>{try{return JSON.parse(localStorage.getItem(K)||"{}")}catch(e){return {}}};
   const subs=new Set();const fire=()=>subs.forEach(f=>f());if(bc)bc.onmessage=()=>fire();
   const wr=D=>{localStorage.setItem(K,JSON.stringify(D));if(bc)bc.postMessage(1);setTimeout(fire,0)};
-  const delay=v=>new Promise(r=>setTimeout(()=>r(v),15));const cl=o=>o==null?null:JSON.parse(JSON.stringify(o));
+  const delay=v=>new Promise(r=>setTimeout(()=>r(v),window.__MOCKLAG||15));const cl=o=>o==null?null:JSON.parse(JSON.stringify(o));
+  const realNow=()=>performance.timeOrigin+performance.now();/* „Serverzeit“: unabhängig von einer verstellten Geräteuhr */
   const merge=(a,b)=>{const o=Object.assign({},a);for(const k in b){const v=b[k];o[k]=(v&&typeof v==="object"&&!Array.isArray(v)&&o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k]))?merge(o[k],v):v}return o};
   let user=null;try{user=JSON.parse(sessionStorage.getItem("mock-user")||"null")}catch(e){}const acbs=[];
   const setU=u=>{user=u;sessionStorage.setItem("mock-user",JSON.stringify(u));acbs.forEach(c=>c(u))};
@@ -2434,11 +2453,13 @@ function mockNet(){
     set:async(p,d,m)=>{await delay();const D=rd();D[p]=m&&D[p]?merge(D[p],cl(d)):cl(d);wr(D)},
     del:async p=>{await delay();const D=rd();delete D[p];wr(D)},
     add:async(c,d)=>{await delay();const id=Math.random().toString(36).slice(2,12);const D=rd();D[c+"/"+id]=cl(d);wr(D);return id},
-    watch:(p,cb)=>{let last;const f=()=>{const v=rd()[p];const s=JSON.stringify(v===undefined?null:v);if(s!==last){last=s;cb(v===undefined?null:cl(v))}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
+    watch:(p,cb)=>{let last;const f=()=>{if(window.__MOCKDEAF)return;const v=rd()[p];const s=JSON.stringify(v===undefined?null:v);if(s!==last){last=s;cb(v===undefined?null:cl(v),null,{})}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
+    getSrv:async p=>{await delay();if(window.__MOCKOFF)throw err("unavailable");const v=rd()[p];return v===undefined?null:cl(v)},
+    srvTime:async()=>{const t0=Date.now();await delay();const srv=realNow();const t1=Date.now();return {off:srv-(t0+t1)/2,rtt:t1-t0}},
     query:async(c,fld,op,v)=>{await delay();const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")!==0||k.split("/").length!==2)continue;const x=D[k];if(op==="array-contains"?(x[fld]||[]).indexOf(v)>=0:x[fld]===v)out.push(Object.assign({id:k.slice(c.length+1)},cl(x)))}return out},
     list:async c=>{await delay();const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")===0&&k.split("/").length===2)out.push(Object.assign({id:k.slice(c.length+1)},cl(D[k])))}return out},
     watchQ:(c,fld,op,v,cb)=>{let last;const f=()=>{const D=rd();const out=[];for(const k in D){if(k.indexOf(c+"/")!==0||k.split("/").length!==2)continue;const x=D[k];if(op==="array-contains"?(x[fld]||[]).indexOf(v)>=0:x[fld]===v)out.push(Object.assign({id:k.slice(c.length+1)},x))}const s=JSON.stringify(out);if(s!==last){last=s;cb(cl(out))}};subs.add(f);setTimeout(f,5);return()=>subs.delete(f)},
-    tx:async(p,fn)=>{await delay();const D=rd();const u=fn(D[p]===undefined?null:cl(D[p]));if(!u)return false;D[p]=D[p]?merge(D[p],cl(u)):cl(u);wr(D);return true}
+    tx:async(p,fn)=>{await delay();if(window.__MOCKOFF)throw err("unavailable");const D=rd();const u=fn(D[p]===undefined?null:cl(D[p]));if(!u)return false;D[p]=D[p]?merge(D[p],cl(u)):cl(u);wr(D);return true}
   };
 }
 function netErr(e){const c=String(e&&(e.code||e.message)||e);
@@ -2449,12 +2470,20 @@ function netErr(e){const c=String(e&&(e.code||e.message)||e);
     "auth/unauthorized-domain":"Diese Seite ist im Firebase-Projekt noch nicht als autorisierte Domain eingetragen.","auth/configuration-not-found":"Die Anmeldung ist im Firebase-Projekt noch nicht eingeschaltet (Authentication → E-Mail/Passwort).","auth/admin-restricted-operation":"Die Registrierung ist im Firebase-Projekt gesperrt.","not-found":"Die Firestore-Datenbank ist noch nicht angelegt.","failed-precondition":"Die Firestore-Datenbank ist noch nicht bereit.","auth/missing-password":"Bitte gib ein Passwort ein.","auth/invalid-api-key":"Die Firebase-Konfiguration ist ungültig."}[c]||("Fehler: "+c)}
 
 /* ---- Zustand ---- */
-const ON={user:null,profile:null,games:[],seen:{},badge:0,gid:null,g:null,color:"w",unsubG:null,unsubL:null,unsubP:null,pendingJoin:null,syncAt:0,syncT:null,authKnown:false,tab:"play",busy:false,tick:null,claimT:0,tc:store.get("et-ontc","10+0"),col:store.get("et-oncol","r")};
+const ON={tickN:0,user:null,profile:null,games:[],seen:{},badge:0,gid:null,g:null,color:"w",unsubG:null,unsubL:null,unsubP:null,pendingJoin:null,syncAt:0,syncT:null,authKnown:false,tab:"play",busy:false,tick:null,claimT:0,tc:store.get("et-ontc","10+0"),col:store.get("et-oncol","r")};
 const myName=()=>ON.profile&&ON.profile.name||"Ich";
 const oppUid=g=>(g.players||[]).find(u=>u!==ON.user.uid)||null;
 const oppName=g=>{const o=oppUid(g);return o?(g.names&&g.names[o])||"Gegner":"(wartet)"};
 const myColorIn=g=>g.white===ON.user.uid?"w":g.black===ON.user.uid?"b":null;
 const tcTxt=tc=>tc?(tc.d?`${tc.d} ${tc.d===1?"Tag":"Tage"}/Zug`:`${tc.m}+${tc.i}`):"ohne Uhr";
+/* ---- Serverzeit: Geräteuhren gehen oft Sekunden falsch. Alle Partiezeiten laufen deshalb über die Serverzeit. ---- */
+const CLK={off:+store.get("et-clkoff",0)||0,at:0,rtt:0,busy:false};
+function srvNow(){return Date.now()+CLK.off}
+async function clockSync(force){
+  if(!NET||!NET.srvTime||!ON.user||CLK.busy)return;if(!force&&CLK.at&&Date.now()-CLK.at<600000)return;CLK.busy=true;
+  try{let best=null;for(let i=0;i<3;i++){const x=await NET.srvTime(ON.user.uid);if(x&&(!best||x.rtt<best.rtt))best=x;if(best&&best.rtt<150)break}
+    if(best&&Math.abs(best.off)<7*DAY_MS){CLK.off=Math.round(best.off);CLK.rtt=best.rtt;CLK.at=Date.now();store.set("et-clkoff",CLK.off)}}catch(e){}finally{CLK.busy=false}
+}
 const resTxt=(g,me)=>{if(!g.result||g.result==="-")return g.reason||"abgebrochen";if(g.result==="1/2-1/2")return "Remis";const w=g.result==="1-0"?"w":"b";return me?(w===me?"Gewonnen":"Verloren"):(w==="w"?"Weiß gewinnt":"Schwarz gewinnt")};
 
 /* ---- Anmeldung ---- */
@@ -2465,9 +2494,9 @@ async function onlineBoot(){
     ON.authKnown=true;socialStop();tourStop();mmStop();FEED.items=null;if(ON.unsubL){ON.unsubL();ON.unsubL=null}if(ON.unsubP){ON.unsubP();ON.unsubP=null}
     ON.user=u;ON.profile=null;ON.games=[];
     if(u){
-      ON.unsubP=n.watch("users/"+u.uid,p=>{ON.profile=p;if(p&&ON.user&&(!p.lastSeen||Date.now()-p.lastSeen>3600000)){p.lastSeen=Date.now();n.set("users/"+ON.user.uid,{lastSeen:p.lastSeen},true).catch(()=>{})}if(curView==="online")renderOnline();if(mode==="online")renderChrome()});
+      ON.unsubP=n.watch("users/"+u.uid,p=>{ON.profile=p;if(p&&ON.user&&(!p.lastSeen||srvNow()-p.lastSeen>3600000)){p.lastSeen=srvNow();n.set("users/"+ON.user.uid,{lastSeen:p.lastSeen},true).catch(()=>{})}if(curView==="online")renderOnline();if(mode==="online")renderChrome()});
       ON.unsubL=n.watchQ("games","players","array-contains",u.uid,list=>{if(!list)return;gamesChanged(list)});
-      cloudPull();socialStart();
+      cloudPull();socialStart();clockSync(true);
     }
     if(curView==="online")renderOnline();renderTabbar();
     if(u&&ON.pendingJoin){const id=ON.pendingJoin;ON.pendingJoin=null;openOnlineGame(id)}
@@ -2494,7 +2523,7 @@ async function doReset(email,msg){if(!email.trim()){msg("Trag zuerst deine E-Mai
 async function doLogout(){await cloudPush(true);ON.synced=false;try{await NET.signOut()}catch(e){}toast("Abgemeldet")}
 async function doDeleteAccount(msg){
   const u=ON.user;if(!u)return;const low=ON.profile&&ON.profile.nameLower;
-  try{if(low)await NET.del("usernames/"+low);await NET.del("users/"+u.uid+"/private/progress");await NET.del("users/"+u.uid);await NET.delUser();try{localStorage.removeItem("et-cloud-uid")}catch(e){}ON.synced=false;toast("Dein Konto wurde gelöscht.")}catch(e){msg(netErr(e))}
+  try{if(low)await NET.del("usernames/"+low);await NET.del("users/"+u.uid+"/private/progress");await NET.del("users/"+u.uid+"/private/clock").catch(()=>{});await NET.del("users/"+u.uid);await NET.delUser();try{localStorage.removeItem("et-cloud-uid")}catch(e){}ON.synced=false;toast("Dein Konto wurde gelöscht.")}catch(e){msg(netErr(e))}
 }
 
 /* ---- Fortschritt in der Cloud ---- */
@@ -2526,7 +2555,12 @@ function askCloudChoice(r){
   ov.querySelector('[data-c="cloud"]').onclick=()=>{ov.remove();cloudImport(r)};
   ov.querySelector('[data-c="local"]').onclick=async()=>{ov.remove();store.set("et-cloud-uid",ON.user.uid);ON.synced=true;await cloudPush(true);toast("Dieser Stand ist jetzt in deinem Konto gespeichert.")};
 }
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&ON.syncT)cloudPush()});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&ON.syncT)cloudPush();
+  if(document.visibilityState==="hidden"){if(mode==="online")presence(true)}else onlineWake()});
+window.addEventListener("online",()=>onlineWake());window.addEventListener("offline",()=>{netState(false);if(mode==="online"){ON.conn=false;onlineStatus()}});
+/* Nach Standby, Netzwechsel oder Rückkehr in den Tab: Partie und Liste direkt vom Server holen */
+function onlineWake(){try{if(!ON.user||!NET)return;clockSync();if(mode==="online"&&ON.gid){ON.seenAt=0;gamePoll(true)}
+  if(NET.query&&Date.now()-(ON.listPollAt||0)>8000){ON.listPollAt=Date.now();NET.query("games","players","array-contains",ON.user.uid).then(l=>{if(l&&ON.user)gamesChanged(l)}).catch(()=>{})}}catch(e){}}
 
 /* ---- Partienliste & Benachrichtigungen ---- */
 function gamesChanged(list){
@@ -2544,7 +2578,7 @@ function gamesChanged(list){
   });
   ON.seen=next;ON.listInit=true;ON.games=list.sort((a,b)=>(b.updated||0)-(a.updated||0));
   ON.badge=list.filter(g=>(g.status==="waiting"&&g.invite===me)||(g.status==="active"&&new Chess(g.fen||START_FEN).turn()===myColorIn(g))).length;
-  renderTabbar();if(curView==="online")renderOnline();
+  renderTabbar();if(curView==="online")renderOnline();turnTitle();
 }
 function countResult(g){
   const ck="et-oncount-"+ON.user.uid;const done=store.get(ck,[]);if(done.indexOf(g.id)>=0||!g.result||g.result==="-"||!ON.profile)return;
@@ -2553,7 +2587,7 @@ function countResult(g){
   const P=ON.profile;const upd={[k]:(P[k]||0)+1};
   const opp=oppUid(g);const my=(g.elo&&g.elo[ON.user.uid])||P.elo||1200;
   const finish=or=>{const n=(P.w||0)+(P.d||0)+(P.l||0);const K=n<20?40:24;const sc=k==="w"?1:k==="d"?.5:0;const E=1/(1+Math.pow(10,(or-my)/400));
-    upd.elo=Math.round((P.elo||my)+K*(sc-E));upd.eloHist=(P.eloHist||[]).concat({t:Date.now(),r:upd.elo}).slice(-60);NET.set("users/"+ON.user.uid,upd,true).catch(()=>{})};
+    upd.elo=Math.round((P.elo||my)+K*(sc-E));upd.eloHist=(P.eloHist||[]).concat({t:srvNow(),r:upd.elo}).slice(-60);NET.set("users/"+ON.user.uid,upd,true).catch(()=>{})};
   if(g.elo&&opp&&g.elo[opp])finish(g.elo[opp]);else if(opp)NET.get("users/"+opp).then(p=>finish((p&&p.elo)||1200)).catch(()=>finish(1200));else NET.set("users/"+ON.user.uid,upd,true).catch(()=>{});
   st.online=(st.online||0)+1;saveStats();SOC.usersAt=0;
   gain("game",{id:"on-"+g.id,src:"online",res:k==="w"?"win":k==="d"?"draw":"loss",color:me,tc:g.tc,fam:famOfMoves(g.moves||[]),opp:oppName(g),n:(g.moves||[]).length,moves:g.moves||[],term:g.reason||""});
@@ -2562,7 +2596,7 @@ function countResult(g){
 /* ---- Partien anlegen, beitreten, Revanche ---- */
 function parseTc(s){if(s==="none")return null;if(/^d\d$/.test(s))return {m:0,i:0,d:+s.slice(1)};const m=String(s).match(/^(\d+)\+(\d+)$/);return m?{m:+m[1],i:+m[2]}:null}
 function newGameDoc(tc,myCol,friend){
-  const me=ON.user.uid,now=Date.now();const col=myCol==="r"?(Math.random()<.5?"w":"b"):myCol;const other=col==="w"?"b":"w";
+  const me=ON.user.uid,now=srvNow();const col=myCol==="r"?(Math.random()<.5?"w":"b"):myCol;const other=col==="w"?"b":"w";
   const d={players:friend?[me,friend.uid]:[me],creator:me,invite:friend?friend.uid:null,white:null,black:null,names:{[me]:myName()},status:"waiting",tc:tc||null,moves:[],fen:START_FEN,
     times:tc&&!tc.d?{w:tc.m*60000,b:tc.m*60000}:null,lastAt:0,result:null,reason:"",drawOffer:null,rematch:null,created:now,updated:now};
   d[col==="w"?"white":"black"]=me;if(friend){d[other==="w"?"white":"black"]=friend.uid;d.names[friend.uid]=friend.name}
@@ -2579,30 +2613,33 @@ function shareInvite(id){const link=inviteLink(id);
   else if(navigator.clipboard){navigator.clipboard.writeText(link).then(()=>toast("Einladungslink kopiert – schick ihn deinem Freund.")).catch(()=>linkBox(link))}else linkBox(link)}
 async function joinGame(id,d){
   if(ON.profile&&ON.profile.banned){toast("Dein Konto ist gesperrt.");return false}
-  const me=ON.user.uid,now=Date.now();
+  const me=ON.user.uid,now=srvNow();
   let elo=null;try{const g0=d||await NET.get("games/"+id);if(g0&&g0.creator){const cr=await NET.get("users/"+g0.creator);elo={[g0.creator]:(cr&&cr.elo)||1200,[me]:(ON.profile&&ON.profile.elo)||1200}}}catch(e){}
   return NET.tx("games/"+id,x=>{if(!x||x.status!=="waiting")return null;const e=elo?{elo}:{};
     if(x.invite){if(x.invite!==me)return null;return Object.assign({status:"active",lastAt:now,updated:now,names:{[me]:myName()}},e)}
     if((x.players||[]).length!==1||x.players[0]===me)return null;
     const free=x.white?"black":"white";return Object.assign({players:[x.players[0],me],[free]:me,names:{[me]:myName()},status:"active",lastAt:now,updated:now},e)});
 }
-async function gameAct(fn){if(!ON.gid)return false;try{const ok=await NET.tx("games/"+ON.gid,fn);if(!ok)toast("Das geht gerade nicht – die Partie hat sich geändert.");return ok}catch(e){toast(netErr(e));return false}}
+async function gameAct(fn){if(!ON.gid)return false;try{const ok=await withTimeout(NET.tx("games/"+ON.gid,fn),15000);if(!ok)toast("Das geht gerade nicht – die Partie hat sich geändert.");return ok}catch(e){toast(netErr(e));return false}}
 const otherCol=c=>c==="w"?"b":"w";
 const winRes=c=>c==="w"?"1-0":"0-1";
-function onResign(){const c=ON.color;gameAct(d=>d&&d.status==="active"?{status:"over",result:winRes(otherCol(c)),reason:"Aufgabe",updated:Date.now(),drawOffer:null}:null)}
-function onAbort(){gameAct(d=>d&&(d.status==="active"&&(d.moves||[]).length<2)?{status:"over",result:"-",reason:"Partie abgebrochen",updated:Date.now()}:d&&d.status==="waiting"?{status:"cancelled",updated:Date.now()}:null)}
-function onOfferDraw(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.drawOffer?{drawOffer:me,updated:Date.now()}:null).then(ok=>{if(ok)toast("Remis angeboten")})}
-function onDrawAnswer(acc){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&d.drawOffer&&d.drawOffer!==me?(acc?{status:"over",result:"1/2-1/2",reason:"Remis vereinbart",drawOffer:null,updated:Date.now()}:{drawOffer:null,updated:Date.now()}):null)}
-async function onDecline(){const me=ON.user.uid;await gameAct(d=>d&&d.status==="waiting"&&d.invite===me?{status:"declined",updated:Date.now()}:null);leaveOnline()}
+function onResign(){const c=ON.color;gameAct(d=>d&&d.status==="active"?{status:"over",result:winRes(otherCol(c)),reason:"Aufgabe",updated:srvNow(),drawOffer:null}:null)}
+function onAbort(){gameAct(d=>d&&(d.status==="active"&&(d.moves||[]).length<2)?{status:"over",result:"-",reason:"Partie abgebrochen",updated:srvNow()}:d&&d.status==="waiting"?{status:"cancelled",updated:srvNow()}:null)}
+function onOfferDraw(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.drawOffer?{drawOffer:me,updated:srvNow()}:null).then(ok=>{if(ok)toast("Remis angeboten")})}
+function onDrawAnswer(acc){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&d.drawOffer&&d.drawOffer!==me?(acc?{status:"over",result:"1/2-1/2",reason:"Remis vereinbart",drawOffer:null,updated:srvNow()}:{drawOffer:null,updated:srvNow()}):null)}
+async function onDecline(){const me=ON.user.uid;await gameAct(d=>d&&d.status==="waiting"&&d.invite===me?{status:"declined",updated:srvNow()}:null);leaveOnline()}
 async function onRematch(){
   const g=ON.g;if(!g)return;const me=ON.user.uid;
   if(g.rematch&&g.rematch.by!==me){const id=g.rematch.id;const d=await NET.get("games/"+id).catch(()=>null);if(d&&d.status==="waiting"){await joinGame(id,d).catch(()=>{});}openOnlineGame(id);return}
   if(g.rematch&&g.rematch.by===me){openOnlineGame(g.rematch.id);return}
   const opp=oppUid(g);if(!opp)return;
   const d=newGameDoc(g.tc,otherCol(ON.color),{uid:opp,name:oppName(g)});
-  try{const id=await NET.add("games",d);await NET.tx("games/"+ON.gid,x=>x&&!x.rematch?{rematch:{by:me,id},updated:Date.now()}:null);openOnlineGame(id);toast("Revanche angeboten")}catch(e){toast(netErr(e))}
+  try{const id=await NET.add("games",d);const ok=await NET.tx("games/"+ON.gid,x=>x&&!x.rematch?{rematch:{by:me,id},updated:srvNow()}:null);
+    /* Beide haben gleichzeitig Revanche gedrückt: eigene Partie verwerfen und die des Gegners annehmen */
+    if(!ok){NET.set("games/"+id,{status:"cancelled",updated:srvNow()},true).catch(()=>{});const g2=await NET.getSrv("games/"+ON.gid).catch(()=>null);if(g2&&g2.rematch&&g2.rematch.by!==me){ON.g=g2;return onRematch()}toast("Revanche gerade nicht möglich.");return}
+    openOnlineGame(id);toast("Revanche angeboten")}catch(e){toast(netErr(e))}
 }
-function leaveOnline(){if(ON.unsubG){ON.unsubG();ON.unsubG=null}ON.gid=null;ON.g=null;stopOnTick();showView("online:play")}
+function leaveOnline(){presence(true);if(ON.unsubG){ON.unsubG();ON.unsubG=null}stopGameSync();ON.gid=null;ON.g=null;stopOnTick();turnTitle();showView("online:play")}
 
 /* ---- Partie auf dem Brett ---- */
 async function openOnlineGame(id){
@@ -2611,67 +2648,112 @@ async function openOnlineGame(id){
   if(!ON.user){ON.pendingJoin=id;showView("online:play");toast("Melde dich an, um der Partie beizutreten.");return}
   if(ON.unsubG){ON.unsubG();ON.unsubG=null}
   stopEngine();sess=null;game=null;drill=null;puz=null;flipped=false;
-  ON.gid=id;ON.g=null;ON.joinTried=false;
+  ON.gid=id;ON.g=null;ON.joinTried=false;ON.recv=null;ON.conn=true;ON.lastSnap=0;clockSync();
   resetBoard();mode="online";op={id:"__online",g:"c",side:"w",name:"Online-Partie",eco:"Online",d:"",plan:[],lines:[]};
   showView("train");buildSquares();renderChrome();render();setStatus("view","Partie wird geladen …","");
-  ON.unsubG=NET.watch("games/"+id,d=>{if(ON.gid!==id)return;
+  ON.unsubG=gameSub(id);startGameSync();
+}
+function gameSub(id){
+  return NET.watch("games/"+id,(d,err,meta)=>{if(ON.gid!==id)return;
+    if(meta){const c=!meta.cache;if(c!==ON.conn){ON.conn=c;onlineStatus()}}
+    if(err){setStatus("bad","Keine Berechtigung","Diese Partie kannst du nicht öffnen.");return}
     if(!d){setStatus("bad","Partie nicht gefunden","Der Link ist ungültig oder die Partie wurde gelöscht.");return}
+    ON.lastSnap=Date.now();const k=gameKey(d);if(ON.g&&k===ON.gKey&&!meta.pend){onlineChrome();return}
     const me=ON.user.uid;
     if(d.status==="waiting"&&!d.invite&&(d.players||[]).length===1&&d.players[0]!==me&&!ON.joinTried){ON.joinTried=true;joinGame(id,d).then(ok=>{if(!ok)toast("Beitreten nicht möglich.")}).catch(e=>toast(netErr(e)))}
     applyGame(d);
-  });
+  },true);
 }
+/* Fingerabdruck einer Partie ohne die Anwesenheits-Felder: gleiche Daten ⇒ nichts neu zeichnen */
+function gameKey(d){return JSON.stringify([d.status,(d.moves||[]).length,(d.moves||[]).slice(-1)[0]||"",d.result||"",d.drawOffer||"",d.takeback||"",d.rematch||"",(d.chat||[]).length,d.updated||0,d.white||"",d.black||"",d.times||""])}
+/* Rückfall: In laufenden Partien wird regelmäßig direkt beim Server nachgefragt. Ist das Live-Abo hängen geblieben
+   (Standby, Funkloch), holt das die Partie sofort auf den richtigen Stand und abonniert neu. */
+function startGameSync(){stopGameSync();ON.syncIv=setInterval(()=>gamePoll(false),2500)}
+function stopGameSync(){clearInterval(ON.syncIv);ON.syncIv=null}
+async function gamePoll(force){
+  const id=ON.gid,g=ON.g;if(!id||mode!=="online"||!NET||!NET.getSrv||ON.polling)return;
+  if(!force){if(document.visibilityState!=="visible")return;if(g&&(g.status==="over"||g.status==="cancelled"||g.status==="declined"))return;
+    const corr=g&&g.tc&&g.tc.d;const myTurn=g&&g.status==="active"&&!ON.spect&&new Chess(g.fen||START_FEN).turn()===ON.color&&hist.length===(g.moves||[]).length;
+    const every=corr?60000:myTurn?12000:5000;if(Date.now()-(ON.polledAt||0)<every)return}
+  ON.polling=true;ON.polledAt=Date.now();
+  try{const d=await NET.getSrv("games/"+id);if(ON.gid!==id)return;ON.polling=false;netState(true);if(!ON.conn){ON.conn=true;onlineStatus()}
+    if(!d||!ON.g)return;const cur=ON.g;const nm=(d.moves||[]).length,cm=(cur.moves||[]).length;
+    const newer=nm>cm||(d.updated||0)>(cur.updated||0)||(d.status!==cur.status&&cur.status!=="over");
+    if(newer&&gameKey(d)!==gameKey(cur)){ON.resyncs=(ON.resyncs||0)+1;applyGame(d);if(ON.unsubG){ON.unsubG();ON.unsubG=gameSub(id)}}
+    presence(false);
+  }catch(e){if(ON.gid===id){netState(false);if(ON.conn){ON.conn=false;onlineStatus()}}}finally{ON.polling=false}
+}
+/* Anwesenheit: Mitspieler melden alle 20 s „bin da“ in der Partie (nur Zeitstempel, keine weiteren Daten) */
+function presence(away){
+  const g=ON.g;if(!g||ON.spect||!ON.user||!ON.gid||g.status!=="active"||mode!=="online")return;const me=ON.user.uid;const now=srvNow();
+  if(!away&&now-(ON.seenAt||0)<20000)return;ON.seenAt=away?0:now;
+  NET.set("games/"+ON.gid,{seen:{[me]:away?now-120000:now}},true).catch(()=>{});
+}
+function oppAway(g){if(!g||ON.spect||g.status!=="active")return false;const o=oppUid(g);const t=o&&g.seen&&g.seen[o];if(!t)return false;return srvNow()-t>45000}
 function applyGame(d,force){
-  const prevStatus=ON.g&&ON.g.status;ON.g=d;if(mode!=="online")return;
+  const prevStatus=ON.g&&ON.g.status;ON.g=d;ON.gKey=gameKey(d);if(mode!=="online")return;
   const col=myColorIn(d);const newCol=col||"w";if(newCol!==ON.color||!op||op.side!==newCol){ON.color=newCol;op.side=newCol;buildSquares()}
   ON.spect=!col;
   const ms=d.moves||[];const wasLive=live();
+  /* Eigener Zug ist schon auf dem Brett, aber noch nicht beim Server: nicht zurückspringen */
+  if(!force&&ON.busy&&ms.length===hist.length-1&&ms.every((m,i)=>m===hist[i])){renderChrome();onlineStatus();startOnTick();return}
   const same=!force&&ms.length>=hist.length&&hist.every((m,i)=>m===ms[i]);
   let last=null;
   if(same){for(let i=hist.length;i<ms.length;i++){try{last=commit(ms[i],"g")}catch(e){force=true;break}}}
   if(!same||force){resetBoard();mode="online";for(const m of ms){try{last=commit(m,"g")}catch(e){break}}view=hist.length;shown=new Chess(fens[view]);render();last=null}
   else if(last){if(wasLive){view=hist.length;shown=new Chess(fens[view]);render(ms.length-hist.length===0?{fwd:last}:null);if(last.color!==ON.color)playSound(last)}else render()}
+  if(d.status==="active"&&ms.length&&(!ON.recv||ON.recv.n!==ms.length)&&new Chess(d.fen||START_FEN).turn()===ON.color&&!ON.spect)ON.recv={n:ms.length,at:srvNow()};
   else render();
   if(d.status==="over"&&prevStatus&&prevStatus!=="over"){sfx(d.result&&d.result!=="-"&&d.result!=="1/2-1/2"&&(d.result==="1-0")===(ON.color==="w")?"done":"wrong")}
   if(d.status!=="active")ON.pre=null;
-  renderChrome();onlineStatus();startOnTick();renderQChat();runPremove();
+  renderChrome();onlineStatus();startOnTick();renderQChat();runPremove();turnTitle();presence(false);
 }
-function onCanMove(){const g=ON.g;return !!g&&g.status==="active"&&!ON.spect&&live()&&shown.turn()===ON.color&&!ON.busy}
+function onCanMove(){const g=ON.g;return !!g&&g.status==="active"&&!ON.spect&&live()&&shown.turn()===ON.color&&!ON.busy&&hist.length===(g.moves||[]).length}
+/* Wann begann mein Zug? Kam der gegnerische Zug verspätet an, zählt die Ankunft (höchstens 2 s Ausgleich) */
+function turnStart(g,c){const n=(g.moves||[]).length;let s=g.lastAt||srvNow();if(c===ON.color&&!ON.spect&&ON.recv&&ON.recv.n===n)s=Math.max(s,Math.min(ON.recv.at,s+2000));return s}
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rj)=>setTimeout(()=>{const e=new Error("timeout");e.code="timeout";rj(e)},ms))]);
 function gameEndOf(c){if(c.in_checkmate())return {result:winRes(otherCol(c.turn())),reason:"Schachmatt"};if(c.in_stalemate())return {result:"1/2-1/2",reason:"Patt"};if(c.insufficient_material())return {result:"1/2-1/2",reason:"zu wenig Material"};if(c.in_threefold_repetition())return {result:"1/2-1/2",reason:"Stellungswiederholung"};if(c.in_draw())return {result:"1/2-1/2",reason:"50-Züge-Regel"};return null}
 async function onlineMove(mv,animate){
   if(!onCanMove())return;
   const r=commit(mv,"g");view=hist.length;shown=new Chess(fens[view]);sel=null;render(animate?{fwd:r}:null);playSound(r);
-  ON.busy=true;onlineStatus();const now=Date.now(),myC=ON.color,n=hist.length-1;
-  let ok=false;
-  try{ok=await NET.tx("games/"+ON.gid,d=>{
+  ON.busy=true;onlineStatus();const now=srvNow(),myC=ON.color,n=hist.length-1,gid=ON.gid,start0=ON.g?turnStart(ON.g,myC):now;
+  let ok=false,failed=false;
+  try{ok=await withTimeout(NET.tx("games/"+gid,d=>{
     if(!d||d.status!=="active"||(d.moves||[]).length!==n)return null;
     const c=new Chess();for(const m of d.moves)c.move(m);if(c.turn()!==myC)return null;
     const m=c.move(r.san);if(!m)return null;
     if(d.tc&&d.tc.d&&d.moves.length>=2&&now-(d.lastAt||now)>d.tc.d*DAY_MS)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};
     const upd={moves:d.moves.concat(m.san),fen:c.fen(),lastAt:now,updated:now,drawOffer:null,takeback:null};
-    if(d.tc&&d.times&&d.moves.length>=2){const left=d.times[myC]-(now-d.lastAt);if(left<=0)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};upd.times={w:d.times.w,b:d.times.b};upd.times[myC]=left+d.tc.i*1000}
+    const st0=Math.max(d.lastAt||now,Math.min(start0,(d.lastAt||now)+2000));
+    if(d.tc&&d.times&&d.moves.length>=2){const left=d.times[myC]-(now-st0);if(left<=0)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};upd.times={w:d.times.w,b:d.times.b};upd.times[myC]=left+d.tc.i*1000}
+    if(d.tc&&!d.tc.d){const clk=(d.clk||[]).slice(0,d.moves.length);while(clk.length<d.moves.length)clk.push(null);clk.push(upd.times?Math.round(upd.times[myC]/100)*100:d.times?d.times[myC]:null);upd.clk=clk}
     const end=gameEndOf(c);if(end)Object.assign(upd,{status:"over",result:end.result,reason:end.reason});
-    return upd})}catch(e){toast(netErr(e))}
-  ON.busy=false;if(!ok&&ON.g)applyGame(ON.g,true);else onlineStatus();
+    return upd}),15000)}catch(e){failed=true;toast(e&&e.code==="timeout"?"Der Zug kam nicht beim Server an – die Partie wird neu geladen.":netErr(e))}
+  if(ON.gid!==gid){ON.busy=false;return}
+  ON.busy=false;
+  if(!ok){if(failed){try{const d=await NET.getSrv("games/"+gid);if(d&&ON.gid===gid){applyGame(d,true);return}}catch(e){ON.conn=false;netState(false)}}if(ON.g)applyGame(ON.g,true)}else{onlineStatus();/* Bestätigung vom Live-Abo bleibt aus? Dann selbst nachsehen */setTimeout(()=>{if(ON.gid===gid&&ON.g&&(ON.g.moves||[]).length<hist.length)gamePoll(true)},2500)}
 }
 /* Uhren */
-function clockLeft(g,c){if(!g.tc||!g.times||g.tc.d)return null;let t=g.times[c];const running=g.status==="active"&&(g.moves||[]).length>=2&&new Chess(g.fen||START_FEN).turn()===c;if(running)t-=Date.now()-(g.lastAt||Date.now());return t}
+function clockLeft(g,c){if(!g.tc||!g.times||g.tc.d)return null;let t=g.times[c];const running=g.status==="active"&&(g.moves||[]).length>=2&&new Chess(g.fen||START_FEN).turn()===c;if(running)t-=srvNow()-turnStart(g,c);return t}
 const fmtClock=ms=>{if(ms==null)return "";ms=Math.max(0,ms);const s=ms/1000;if(s<20)return (Math.floor(s*10)/10).toFixed(1);const m=Math.floor(s/60),ss=Math.floor(s%60);return m+":"+String(ss).padStart(2,"0")};
 function onlineClocks(){
   const g=ON.g;const yc=$("youClock"),oc=$("oppClock");if(!g){yc.textContent=oc.textContent="";return}
   const me=ON.color,op2=otherCol(me);const turn=new Chess(g.fen||START_FEN).turn();const act=g.status==="active";
   if(g.tc&&g.tc.d){const L=corrLeft(g);yc.textContent=act?(turn===me?(L==null?"Am Zug":fmtDays(L)):"Wartet"):g.status==="waiting"?"Wartet":"Ende";oc.textContent=act?(turn===op2?(L==null?"Am Zug":fmtDays(L)):"Wartet"):g.status==="waiting"?"–":"Ende";yc.classList.toggle("low",act&&turn===me&&L!=null&&L<6*3600000);oc.classList.remove("low")}
-  else if(g.tc){const a=clockLeft(g,me),b=clockLeft(g,op2);yc.textContent=fmtClock(a);oc.textContent=fmtClock(b);yc.classList.toggle("low",a<20000);oc.classList.toggle("low",b<20000)}
+  else if(g.tc){const a=clockLeft(g,me),b=clockLeft(g,op2);yc.textContent=fmtClock(a);oc.textContent=fmtClock(b);yc.classList.toggle("low",a<20000);oc.classList.toggle("low",b<20000);
+    if(act&&!ON.spect&&turn===me&&(g.moves||[]).length>=2&&S.set.lowTime!==false){const s=Math.ceil(a/1000);if(s<=10&&s>0&&s!==ON.lowS){ON.lowS=s;sfx("tick")}}}
   else{yc.textContent=act?(turn===me?"Am Zug":"Wartet"):g.status==="waiting"?"Wartet":"Ende";oc.textContent=act?(turn===op2?"Denkt …":"Wartet"):g.status==="waiting"?"–":"Ende"}
   yc.classList.toggle("on",act&&turn===me);oc.classList.toggle("on",act&&turn===op2);
 }
-function startOnTick(){stopOnTick();if(!ON.g||ON.g.status!=="active"||!ON.g.tc)return;ON.tick=setInterval(()=>{if(mode!=="online"||!ON.g){stopOnTick();return}onlineClocks();checkFlag()},200)}
+function startOnTick(){stopOnTick();if(!ON.g||ON.g.status!=="active")return;if(!ON.g.tc){ON.tick=setInterval(()=>{if(mode!=="online"||!ON.g){stopOnTick();return}onlineAwayUi()},5000);return}ON.tick=setInterval(()=>{if(mode!=="online"||!ON.g){stopOnTick();return}onlineClocks();checkFlag();if(++ON.tickN%25===0)onlineAwayUi()},200)}
+/* Wechselt der Gegner zwischen „verbunden“ und „weg“, Knöpfe und Hinweis anpassen */
+function onlineAwayUi(){const a=oppAway(ON.g);if(a!==ON.awayShown){ON.awayShown=a;onlineChrome();onlineStatus()}}
 function stopOnTick(){clearInterval(ON.tick);ON.tick=null}
 function checkFlag(){
   const g=ON.g;if(!g||g.status!=="active"||!g.tc||(g.moves||[]).length<2||ON.spect)return;
-  if(g.tc.d){const L=corrLeft(g);if(L==null||L>-2000||Date.now()-ON.claimT<10000)return;ON.claimT=Date.now();const now=Date.now();
+  if(g.tc.d){const L=corrLeft(g);if(L==null||L>-2000||srvNow()-ON.claimT<10000)return;ON.claimT=srvNow();const now=srvNow();
     NET.tx("games/"+ON.gid,d=>{if(!d||d.status!=="active"||!d.tc||!d.tc.d)return null;if(now-(d.lastAt||now)<=d.tc.d*DAY_MS)return null;const t=new Chess(d.fen).turn();return {status:"over",result:winRes(otherCol(t)),reason:"Zeit abgelaufen",updated:now}}).catch(()=>{});return}const turn=new Chess(g.fen).turn();const left=clockLeft(g,turn);
-  const grace=turn===ON.color?0:2000;if(left>-grace||Date.now()-ON.claimT<3000)return;ON.claimT=Date.now();const now=Date.now();
+  const grace=turn===ON.color?0:2000;if(left>-grace||srvNow()-ON.claimT<3000)return;ON.claimT=srvNow();const now=srvNow();
   NET.tx("games/"+ON.gid,d=>{if(!d||d.status!=="active"||!d.tc)return null;const t=new Chess(d.fen).turn();if(d.times[t]-(now-d.lastAt)>-grace)return null;return {status:"over",result:winRes(otherCol(t)),reason:"Zeit abgelaufen",updated:now}}).catch(()=>{});
 }
 /* Kopf, Spielerleisten, Knöpfe */
@@ -2682,7 +2764,7 @@ function onlineChrome(){
   $("phIcon").innerHTML=NI.online;
   const av=$("oppAv");av.className="avatar you2";av.innerHTML=ICON.face;
   const nm=c=>{if(!g)return "";const u=c==="w"?g.white:g.black;return u?(g.names&&g.names[u])||"Spieler":"wartet …"};
-  $("oppName").textContent=nm(oc);$("youName").textContent=ON.spect?nm(me):nm(me)+" (du)";$("oppTag").textContent=oc==="w"?"(Weiß)":"(Schwarz)";$("youTag").textContent=me==="w"?"(Weiß)":"(Schwarz)";
+  $("oppName").textContent=nm(oc)+(g&&!ON.spect&&g.status==="active"&&oppAway(g)?" · nicht verbunden":"");$("youName").textContent=ON.spect?nm(me):nm(me)+" (du)";$("oppTag").textContent=oc==="w"?"(Weiß)":"(Schwarz)";$("youTag").textContent=me==="w"?"(Weiß)":"(Schwarz)";
   const box=$("actsOn");box.hidden=false;let h="";const myU=ON.user&&ON.user.uid;
   if(!g){h=""}
   else if(ON.spect){h=`<button class="btn" data-on="leave">Zurück</button>`}
@@ -2690,6 +2772,7 @@ function onlineChrome(){
   else if(g.status==="active"){const n=(g.moves||[]).length;
     if(g.takeback&&g.takeback.by!==myU)h=`<button class="btn grn" data-on="tbyes">Zurücknahme annehmen</button><button class="btn" data-on="tbno">Ablehnen</button>`;
     else if(g.drawOffer&&g.drawOffer!==myU)h=`<button class="btn grn" data-on="drawyes">Remis annehmen</button><button class="btn" data-on="drawno">Ablehnen</button>`;
+    else if(canClaim(g))h=`<button class="btn grn" data-on="claim">Sieg beanspruchen</button><button class="btn" data-on="claimdraw">Remis</button><button class="btn red" data-on="resign">Aufgeben</button>`;
     else h=`${n<2?`<button class="btn" data-on="abort">Abbrechen</button>`:`<button class="btn" data-on="draw" ${g.drawOffer?"disabled":""}>${g.drawOffer?"Remis angeboten":"Remis"}</button>`}${n?`<button class="btn" data-on="tb" ${canAskTakeback(g)?"":"disabled"}>${g.takeback&&g.takeback.by===myU?"Angefragt":"Zurück"}</button>`:""}<button class="btn red" data-on="resign">Aufgeben</button>`}
   else{const rm=g.rematch;h=`<button class="btn grn" data-on="analyze">Partie analysieren</button><button class="btn ${rm&&rm.by!==myU?"grn":""}" data-on="rematch">${rm?(rm.by===myU?"Revanche angeboten":"Revanche annehmen"):"Revanche"}</button>`;if(g.result==="-")h=`<button class="btn" data-on="leave">Zur Übersicht</button><button class="btn" data-on="rematch">Neue Partie</button>`}
   box.innerHTML=h;box.className=(h.match(/<button/g)||[]).length===3?"acts":"acts two";
@@ -2697,10 +2780,18 @@ function onlineChrome(){
     if(a==="resign"){if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Wirklich aufgeben?";setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent="Aufgeben"}},3000);return}onResign()}
     else if(a==="abort")onAbort();else if(a==="draw")onOfferDraw();else if(a==="drawyes")onDrawAnswer(true);else if(a==="tb")onTakebackAsk();else if(a==="tbyes")onTakebackAnswer(true);else if(a==="tbno")onTakebackAnswer(false);else if(a==="drawno")onDrawAnswer(false);
     else if(a==="share")shareInvite(ON.gid);else if(a==="accept")joinGame(ON.gid).catch(e=>toast(netErr(e)));else if(a==="decline")onDecline();
-    else if(a==="analyze")analyzeOnline();else if(a==="rematch")onRematch();else if(a==="leave")leaveOnline()});
+    else if(a==="analyze")analyzeOnline();else if(a==="rematch")onRematch();else if(a==="leave")leaveOnline();else if(a==="claim")onClaim(false);else if(a==="claimdraw")onClaim(true)});
 }
+/* Gegner seit über einer Minute weg und am Zug: Sieg oder Remis beanspruchen (nicht im Fernschach) */
+function canClaim(g){if(!g||ON.spect||g.status!=="active"||(g.tc&&g.tc.d)||(g.moves||[]).length<2)return false;const o=oppUid(g);const t=o&&g.seen&&g.seen[o];if(!t||srvNow()-t<60000)return false;return new Chess(g.fen||START_FEN).turn()!==ON.color}
+function onClaim(draw){const me=ON.color,o=oppUid(ON.g);const now=srvNow();gameAct(d=>{if(!d||d.status!=="active"||!o)return null;const t=d.seen&&d.seen[o];if(!t||now-t<60000||new Chess(d.fen||START_FEN).turn()===me)return null;
+  return draw?{status:"over",result:"1/2-1/2",reason:"Gegner hat die Partie verlassen",updated:now,drawOffer:null}:{status:"over",result:winRes(me),reason:"Gegner hat die Partie verlassen",updated:now,drawOffer:null}})}
+/* Im Tab-Titel zeigen, wenn man am Zug ist – praktisch, wenn die Seite im Hintergrund liegt */
+const BASE_TITLE=document.title;
+function turnTitle(){const g=ON.g;let t=BASE_TITLE;if(mode==="online"&&g&&g.status==="active"&&!ON.spect&&new Chess(g.fen||START_FEN).turn()===ON.color)t="● Du bist am Zug – "+BASE_TITLE;else if(ON.badge)t="("+ON.badge+") "+BASE_TITLE;if(document.title!==t)document.title=t}
 function onlineStatus(){
   const g=ON.g;if(!g||mode!=="online")return;const me=ON.color,myU=ON.user&&ON.user.uid;const opn=oppName(g);
+  if(g.status!=="over"&&(!ON.conn||!navigator.onLine)){setStatus("bad","Verbindung unterbrochen","Die Partie verbindet sich automatisch neu. Züge gehen erst wieder, wenn die Verbindung steht.",true);return}
   if(!live()){setStatus("view",`Du siehst Zug ${Math.ceil(view/2)}`,"Blättere mit → zurück zur aktuellen Stellung.",true);return}
   if(g.status==="waiting"){if(g.invite===myU)setStatus("turn",`${g.names[g.creator]||"Jemand"} fordert dich heraus`,`Bedenkzeit ${tcTxt(g.tc)} · du spielst ${me==="w"?"Weiß":"Schwarz"}.`,true);else setStatus("view","Warte auf deinen Gegner",g.invite?`${opn} muss die Herausforderung noch annehmen.`:"Schick den Einladungslink an deinen Freund. Die Partie startet, sobald er beitritt.",true);return}
   if(g.status==="over"){const r=resTxt(g,ON.spect?null:me);setStatus(r==="Gewonnen"?"done":r==="Verloren"?"bad":"view",r==="Gewonnen"?"Du hast gewonnen!":r==="Verloren"?"Du hast verloren":r,`${g.reason||""}${g.result&&g.result!=="-"?" · "+g.result:""}. ${g.result!=="-"?"Mit »Partie analysieren« siehst du die Bewertung jedes Zugs.":""}`,true);return}
@@ -2708,13 +2799,16 @@ function onlineStatus(){
   const turn=new Chess(g.fen).turn();
   if(g.drawOffer&&g.drawOffer!==myU){setStatus("turn",`${opn} bietet Remis an`,"Nimm an oder spiel einfach weiter.",true);return}
   if(ON.busy){setStatus("view","Zug wird gesendet …","",true);return}
-  if(turn===me)setStatus("turn","Du bist am Zug",(g.moves||[]).length<2?"Die Uhr startet nach dem ersten Zug beider Seiten.":"",true);else setStatus("view",`${opn} denkt …`,g.drawOffer===myU?"Du hast Remis angeboten.":"",true);
+  if(turn===me)setStatus("turn","Du bist am Zug",(g.moves||[]).length<2?"Die Uhr startet nach dem ersten Zug beider Seiten.":"",true);
+  else if(canClaim(g))setStatus("view",`${opn} ist seit über einer Minute weg`,"Du kannst weiter warten oder den Sieg beanspruchen.",true);
+  else if(oppAway(g))setStatus("view",`${opn} ist gerade nicht verbunden`,"Vielleicht nur ein Funkloch – die Partie läuft weiter.",true);
+  else setStatus("view",`${opn} denkt …`,g.drawOffer===myU?"Du hast Remis angeboten.":"",true);
 }
 function analyzeOnline(){
   const g=ON.g;if(!g||!(g.moves||[]).length){toast("Es wurden noch keine Züge gespielt.");return}
   const me=ON.spect?"w":ON.color;const res=g.result==="1/2-1/2"||g.result==="-"?"draw":(g.result==="1-0")===(me==="w")?"win":"loss";
   const wn=g.names[g.white]||"Weiß",bn=g.names[g.black]||"Schwarz";
-  reviewGame({id:"on-"+ON.gid,color:me,res,result:g.result||"",term:g.reason||"",fam:famOfMoves(g.moves),moves:g.moves.slice(),tc:"",url:"",opp:me==="w"?bn:wn,oppR:null,myR:null,date:g.created||Date.now(),name:me==="w"?wn:bn,acc:null,white:wn,black:bn,foreign:ON.spect});
+  reviewGame({id:"on-"+ON.gid,color:me,res,result:g.result||"",term:g.reason||"",fam:famOfMoves(g.moves),moves:g.moves.slice(),tc:"",url:"",opp:me==="w"?bn:wn,oppR:null,myR:null,date:g.created||srvNow(),name:me==="w"?wn:bn,acc:null,white:wn,black:bn,foreign:ON.spect});
 }
 
 /* ---- Ansicht „Online“ ---- */
@@ -2805,7 +2899,7 @@ window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#play=([
 const ADMIN_UIDS=["iJ4m56bUDeW1mclGgpg6np59GVN2"];
 function isAdmin(){if(!ON.user)return false;if(ADMIN_UIDS.indexOf(ON.user.uid)>=0)return true;try{return !!window.__MOCKNET&&sessionStorage.getItem("mock-admin")==="1"}catch(e){return false}}
 const ADM={tab:"overview",users:null,games:null,names:null,priv:{},loading:false,err:"",q:"",sort:"new",gf:"all",sel:null,at:0};
-const relTime=t=>{if(!t)return "nie";const d=Date.now()-t;if(d<60000)return "gerade eben";if(d<3600000)return "vor "+Math.round(d/60000)+" Min.";if(d<86400000)return "vor "+Math.round(d/3600000)+" Std.";const n=Math.round(d/86400000);return n===1?"gestern":"vor "+n+" Tagen"};
+const relTime=t=>{if(!t)return "nie";const d=srvNow()-t;if(d<60000)return "gerade eben";if(d<3600000)return "vor "+Math.round(d/60000)+" Min.";if(d<86400000)return "vor "+Math.round(d/3600000)+" Std.";const n=Math.round(d/86400000);return n===1?"gestern":"vor "+n+" Tagen"};
 const fmtKB=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":n>=1024?Math.round(n/1024)+" KB":n+" B";
 function privSum(r){
   if(!r)return null;let d={};try{d=JSON.parse(r.data||"{}")}catch(e){}
@@ -2929,7 +3023,7 @@ function wireAdmin(box){
 /* ================= Bestenliste, Freunde, Live-Partien & Zuschauen ================= */
 const SOC={inc:[],out:[],subs:[],users:null,usersAt:0,lb:"elo",lbFriends:false,sel:null,live:[],liveSub:null,watchers:[],watchAt:0,viewers:0,vSub:null,vGid:null,watchingGid:null};
 const ONLINE_MS=5*60000;
-const isOnlineAt=t=>!!t&&Date.now()-t<ONLINE_MS;
+const isOnlineAt=t=>!!t&&srvNow()-t<ONLINE_MS;
 function socialStop(){SOC.subs.forEach(f=>{try{f()}catch(e){}});SOC.subs=[];SOC.inc=[];SOC.out=[];SOC.users=null;if(SOC.liveSub){SOC.liveSub();SOC.liveSub=null}if(SOC.vSub){SOC.vSub();SOC.vSub=null;SOC.vGid=null}}
 function socialStart(){
   socialStop();const me=ON.user&&ON.user.uid;if(!me||!NET)return;
@@ -3052,7 +3146,7 @@ function wireSocial(box){
 
 /* ---- Zuschauen: Anwesenheit melden und Zuschauer zählen; „online“-Status aktuell halten ---- */
 setInterval(()=>{try{
-  if(!ON.user||!NET)return;const me=ON.user.uid;const now=Date.now();
+  if(!ON.user||!NET)return;const me=ON.user.uid;const now=srvNow();
   if(document.visibilityState==="visible"&&ON.profile&&(!ON.profile.lastSeen||now-ON.profile.lastSeen>110000)){ON.profile.lastSeen=now;NET.set("users/"+me,{lastSeen:now},true).catch(()=>{})}
   const watching=mode==="online"&&ON.gid&&ON.spect&&ON.g&&ON.g.status==="active"&&document.visibilityState==="visible"?ON.gid:null;
   if(SOC.watchingGid&&SOC.watchingGid!==watching){NET.del("watch/"+SOC.watchingGid+"_"+me).catch(()=>{});SOC.watchingGid=null}
@@ -3226,7 +3320,7 @@ function renderLegal(){
   ${H("2. Das Wichtigste in Kürze")}<ul><li>${BRAND} lässt sich ohne Konto nutzen. Dann bleibt dein Fortschritt ausschließlich in deinem Browser.</li><li>Es gibt keine Werbung, kein Tracking, keine Analyse- oder Marketing-Cookies und keine Weitergabe zu Werbezwecken.</li><li>Ein Konto brauchst du nur für Online-Partien, Bestenliste, Freunde und die Synchronisierung zwischen Geräten.</li><li>Stockfish rechnet direkt auf deinem Gerät, deine Partien werden dafür nicht hochgeladen.</li></ul>
   ${H("3. Hosting")}<p>Die App wird über GitHub Pages bereitgestellt (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). Beim Aufruf verarbeitet GitHub technisch notwendige Daten wie deine IP-Adresse, Datum und Uhrzeit sowie die angeforderte Datei, um die Seite auszuliefern und vor Angriffen zu schützen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer sicheren Bereitstellung). GitHub ist unter dem EU-US Data Privacy Framework zertifiziert. Details: <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">Datenschutzerklärung von GitHub</a>.</p>
   ${H("4. Speicherung auf deinem Gerät")}<p>Fortschritt, Wiederholungsplan, Statistik, Einstellungen, eigene Varianten und zwischengespeicherte Analysen werden im lokalen Speicher deines Browsers (localStorage) abgelegt. Damit die App offline funktioniert, speichert ein Service Worker die Programmdateien. Diese Speicherung ist für die von dir gewünschten Funktionen unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG) und wird nicht an uns übertragen, solange du kein Konto nutzt. Du kannst alles jederzeit löschen: in den Einstellungen unter „Fortschritt zurücksetzen“ oder über die Website-Daten deines Browsers.</p>
-  ${H("5. Konto und Online-Funktionen")}<p>Für Konten nutzen wir Firebase Authentication und Cloud Firestore der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Gespeichert werden:</p><ul><li>E-Mail-Adresse und Passwort zur Anmeldung. Das Passwort wird von Firebase nur verschlüsselt (als Hash) gespeichert und ist für niemanden lesbar, auch nicht für uns.</li><li>dein Benutzername, Registrierungsdatum und der Zeitpunkt, wann du zuletzt online warst</li><li>deine Online-Partien (Züge, Ergebnis, Bedenkzeit), Wertung und Bilanz</li><li>Freundesliste und Freundschaftsanfragen, Zuschauer bei laufenden Partien</li><li>eine Kopie deines Trainingsfortschritts, damit er auf allen Geräten gleich ist</li></ul>
+  ${H("5. Konto und Online-Funktionen")}<p>Für Konten nutzen wir Firebase Authentication und Cloud Firestore der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Gespeichert werden:</p><ul><li>E-Mail-Adresse und Passwort zur Anmeldung. Das Passwort wird von Firebase nur verschlüsselt (als Hash) gespeichert und ist für niemanden lesbar, auch nicht für uns.</li><li>dein Benutzername, Registrierungsdatum und der Zeitpunkt, wann du zuletzt online warst</li><li>deine Online-Partien (Züge, Restzeiten, Ergebnis, Bedenkzeit und während einer laufenden Partie ein Zeitstempel, ob du verbunden bist), Wertung und Bilanz</li><li>Freundesliste und Freundschaftsanfragen, Zuschauer bei laufenden Partien</li><li>eine Kopie deines Trainingsfortschritts, damit er auf allen Geräten gleich ist</li></ul>
   <p>Firebase verarbeitet bei der Anmeldung technisch bedingt auch deine IP-Adresse, um Missbrauch zu verhindern. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung der von dir gewünschten Funktionen). Google kann Daten auch in den USA verarbeiten und ist unter dem EU-US Data Privacy Framework zertifiziert; zusätzlich gelten die EU-Standardvertragsklauseln. Mehr dazu: <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Datenschutz bei Firebase</a>.</p>
   <p><b>Sichtbar für andere Spieler</b> sind dein Benutzername, deine Online-Wertung und -Bilanz, deine laufenden und beendeten Partien sowie, ob du gerade online bist. Taktik-Wertung, gelernte Varianten und Serie kannst du unter Profil → Konto für die Bestenliste ausblenden. Deine E-Mail-Adresse sehen andere Spieler nie.</p>
   <p><b>Moderation:</b> Um Missbrauch zu verhindern, kann der Betreiber im Admin-Bereich Benutzernamen, E-Mail-Adressen, Partien und Statistiken einsehen, Konten sperren und unangemessene Namen ändern.</p>
@@ -3452,8 +3546,8 @@ async function renderPlayer(){
 const QUICK=["Viel Glück!","Viel Spaß!","Guter Zug!","Hoppla!","Danke für die Partie!","Gut gespielt!","Revanche?","Bin gleich zurück"];
 let qLast=0,qOpen=false;
 async function sendQuick(k){
-  if(!ON.gid||ON.spect||Date.now()-qLast<2500)return;qLast=Date.now();const me=ON.user.uid;
-  try{await NET.tx("games/"+ON.gid,d=>d?{chat:(d.chat||[]).concat({u:me,k,at:Date.now()}).slice(-20),updated:Date.now()}:null)}catch(e){toast(netErr(e))}
+  if(!ON.gid||ON.spect||srvNow()-qLast<2500)return;qLast=srvNow();const me=ON.user.uid;
+  try{await NET.tx("games/"+ON.gid,d=>d?{chat:(d.chat||[]).concat({u:me,k,at:srvNow()}).slice(-20),updated:srvNow()}:null)}catch(e){toast(netErr(e))}
 }
 function renderQChat(){
   const el=$("qChat");if(!el)return;const g=ON.g;
@@ -3467,8 +3561,8 @@ function renderQChat(){
 
 /* ---- Zug zurücknehmen (Gegner muss zustimmen) ---- */
 function canAskTakeback(g){if(!g||g.status!=="active"||ON.spect)return false;const n=(g.moves||[]).length;if(!n||g.takeback)return false;return (n%2===1?"w":"b")===ON.color}
-function onTakebackAsk(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.takeback&&(d.moves||[]).length?{takeback:{by:me,n:d.moves.length},updated:Date.now()}:null).then(ok=>{if(ok)toast("Zurücknahme angefragt")})}
-function onTakebackAnswer(acc){const me=ON.user.uid;const now=Date.now();
+function onTakebackAsk(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.takeback&&(d.moves||[]).length?{takeback:{by:me,n:d.moves.length},updated:srvNow()}:null).then(ok=>{if(ok)toast("Zurücknahme angefragt")})}
+function onTakebackAnswer(acc){const me=ON.user.uid;const now=srvNow();
   gameAct(d=>{if(!d||d.status!=="active"||!d.takeback||d.takeback.by===me)return null;if(!acc||(d.moves||[]).length!==d.takeback.n)return {takeback:null,updated:now};
     const mv=d.moves.slice(0,d.takeback.n-1);const c=new Chess();mv.forEach(m=>c.move(m));return {moves:mv,fen:c.fen(),takeback:null,drawOffer:null,lastAt:now,updated:now}})}
 
@@ -3481,21 +3575,21 @@ function runPremove(){const p=ON.pre;if(!p||!onCanMove())return;ON.pre=null;cons
 
 /* ---- Fernschach: Tage pro Zug ---- */
 const DAY_MS=86400000;
-function corrLeft(g){if(!g||!g.tc||!g.tc.d||g.status!=="active"||(g.moves||[]).length<2)return null;return (g.lastAt||Date.now())+g.tc.d*DAY_MS-Date.now()}
+function corrLeft(g){if(!g||!g.tc||!g.tc.d||g.status!=="active"||(g.moves||[]).length<2)return null;return (g.lastAt||srvNow())+g.tc.d*DAY_MS-srvNow()}
 const fmtDays=ms=>{if(ms==null)return "";ms=Math.max(0,ms);const h=Math.floor(ms/3600000);return h>=48?Math.floor(h/24)+" Tage":h>=1?h+" Std":Math.ceil(ms/60000)+" Min"};
 
 /* ---- Schnellsuche: gleich starke Gegner mit derselben Bedenkzeit ---- */
 const MM={on:false,t0:0,iv:null,unsub:null,tc:null,busy:false,beat:0};
 async function mmStart(){
   if(!ON.profile){toast("Lege zuerst deinen Benutzernamen fest.");return}if(ON.profile.banned){toast("Dein Konto ist gesperrt.");return}
-  if(MM.on)return;const me=ON.user.uid;MM.on=true;MM.t0=Date.now();MM.tc=ON.tc;MM.beat=0;
-  try{await NET.set("queue/"+me,{uid:me,name:myName(),elo:ON.profile.elo||1200,tc:MM.tc,at:Date.now(),gid:null})}catch(e){MM.on=false;toast(netErr(e));return}
+  if(MM.on)return;const me=ON.user.uid;MM.on=true;MM.t0=srvNow();MM.tc=ON.tc;MM.beat=0;
+  try{await NET.set("queue/"+me,{uid:me,name:myName(),elo:ON.profile.elo||1200,tc:MM.tc,at:srvNow(),gid:null})}catch(e){MM.on=false;toast(netErr(e));return}
   MM.unsub=NET.watch("queue/"+me,d=>{if(MM.on&&d&&d.gid)mmMatched(d.gid,true)});
   MM.iv=setInterval(mmTick,2500);mmTick();if(curView==="online")renderOnline();
 }
 function mmStop(keepDoc){if(MM.iv)clearInterval(MM.iv);MM.iv=null;if(MM.unsub){MM.unsub();MM.unsub=null}const was=MM.on;MM.on=false;if(was&&!keepDoc&&ON.user)NET.del("queue/"+ON.user.uid).catch(()=>{});if(curView==="online")renderOnline()}
 async function mmTick(){
-  if(!MM.on||MM.busy||!ON.user)return;const me=ON.user.uid,now=Date.now();MM.busy=true;
+  if(!MM.on||MM.busy||!ON.user)return;const me=ON.user.uid,now=srvNow();MM.busy=true;
   try{
     if(++MM.beat%4===0)await NET.set("queue/"+me,{at:now},true);
     if(curView==="online"){const t=$("mmTime");if(t)t.textContent=Math.floor((now-MM.t0)/1000)+" s"}
@@ -3507,7 +3601,7 @@ async function mmTick(){
       const id=await NET.add("games",d);
       const ok=await NET.tx("queue/"+x.uid,q=>q&&!q.gid&&q.tc===MM.tc?{gid:id,by:me}:null).catch(()=>false);
       if(ok){mmMatched(id,false);return}
-      NET.set("games/"+id,{status:"cancelled",updated:Date.now()},true).catch(()=>{});
+      NET.set("games/"+id,{status:"cancelled",updated:srvNow()},true).catch(()=>{});
     }
   }catch(e){}finally{MM.busy=false}
 }
@@ -4050,6 +4144,100 @@ function adminPgn(){
 gxRoll();applyFreeze();ensureQuests();
 setTimeout(()=>{gxSettle()},5000);
 
+/* ================= Taktik-Verlauf ================= */
+var tacTab="train";
+const THV={res:"all",th:"",n:30};
+/* Jede Aufgabe kompakt speichern: Stellung vor dem letzten Gegnerzug, dieser Zug und die Lösung – genug, um sie später nachzuspielen */
+function tlogAdd(p,ok,o){try{
+  const pre=p.pre||[];const c=new Chess(p.fen||undefined);for(let i=0;i<pre.length-1;i++){if(!c.move(pre[i]))return}
+  PZ.log.push({id:String(p.id||""),t:Date.now(),ok:ok?1:0,pr:p.rating||null,r:o.rated?PZ.r:null,d:o.rated?o.d:0,x:o.x||0,ms:p._t0?Math.min(3600000,Date.now()-p._t0):null,k:o.k||"",th:(p.themes||[]).slice(0,6),f:c.fen(),lm:pre.length?pre[pre.length-1]:null,sol:(p.sol||[]).slice(),g:p.game||"",h:usedHelp?1:0,side:p.side||""});
+  if(PZ.log.length>300)PZ.log.splice(0,PZ.log.length-300);
+}catch(e){}}
+function tlogPuzzle(e){return {id:e.id,fen:e.f,pre:e.lm?[e.lm]:[],sol:e.sol,rating:e.pr||1500,themes:e.th||[],game:e.g,side:e.side||(new Chess(e.f).turn()==="w"?"b":"w")}}
+const TKIND={rated:"Wertung",theme:"Pfad",opening:"Eröffnung",fails:"Fehler",sprint:"Rush",sprint5:"Rush",survival:"Rush",hist:"Verlauf"};
+const fmtDur=ms=>{if(ms==null)return "–";const s=Math.round(ms/1000);return s<60?s+" s":Math.floor(s/60)+":"+String(s%60).padStart(2,"0")+" min"};
+/* Mini-Brett: Schachbrett per CSS, nur die Figuren als Elemente */
+function thumbHtml(fen,lm,flip){
+  let c;try{c=new Chess(fen)}catch(e){return ""}let from=null,to=null;if(lm){const m=c.move(lm);if(m){from=m.from;to=m.to}}
+  const rows=c.fen().split(" ")[0].split("/");let h="";
+  rows.forEach((r,ri)=>{let fi=0;for(const ch of r){if(/\d/.test(ch)){fi+=+ch;continue}const col=ch===ch.toUpperCase()?"w":"b";const x=flip?7-fi:fi,y=flip?7-ri:ri;h+=`<span class="pp ${col}${ch.toLowerCase()}" style="left:${x*12.5}%;top:${y*12.5}%"></span>`;fi++}});
+  const hl=sq=>{if(!sq)return "";const fi=sq.charCodeAt(0)-97,ri=8-(+sq[1]);const x=flip?7-fi:fi,y=flip?7-ri:ri;return `<i style="left:${x*12.5}%;top:${y*12.5}%"></i>`};
+  return `<span class="thumb" aria-hidden="true">${hl(from)}${hl(to)}${h}</span>`;
+}
+function tacTabsHtml(){return `<div class="seg tac-tabs" role="tablist"><button data-tt="train" aria-pressed="${tacTab!=="hist"}">Training</button><button data-tt="hist" aria-pressed="${tacTab==="hist"}">Verlauf${PZ.log.length?` · ${PZ.log.length}`:""}</button></div>`}
+function wireTacTabs(v){v.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>showView(b.dataset.tt==="hist"?"tactics:hist":"tactics"))}
+function tlogRow(e,i){
+  const flip=(e.side||(new Chess(e.f).turn()==="w"?"b":"w"))==="b";
+  const ths=(e.th||[]).map(t=>TTH[t]&&TTH[t][0]).filter(Boolean).slice(0,2).join(" · ");
+  const dl=e.r!=null?`<b class="${e.d>0?"up":e.d<0?"down":""}">${e.d>0?"+":""}${e.d}</b><small>${e.r}</small>`:`<b class="mut">–</b><small>ohne Wertung</small>`;
+  return `<div class="thr${e.ok?" ok":" no"}"><button class="th-main" data-tre="${i}" aria-label="Aufgabe ${esc(String(e.pr||""))} nochmal spielen">${thumbHtml(e.f,e.lm,flip)}
+    <span class="th-t"><span class="th-res"><i class="th-ic">${e.ok?"✓":"✕"}</i><b>${e.ok?"Gelöst":"Nicht gelöst"}</b>${e.h?'<em>mit Hinweis</em>':""}</span><small>Aufgabe ${e.pr||"–"}${ths?" · "+esc(ths):""}</small><small>${new Date(e.t).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} · ${fmtDur(e.ms)}${e.k&&TKIND[e.k]?" · "+TKIND[e.k]:""}</small></span>
+    <span class="th-d">${dl}</span></button>
+    ${/^[A-Za-z0-9]{4,8}$/.test(e.id)?`<a class="th-li" href="https://lichess.org/training/${esc(e.id)}" target="_blank" rel="noopener" title="Auf Lichess ansehen" aria-label="Auf Lichess ansehen">↗</a>`:""}</div>`;
+}
+function dayLabel(t){const d=new Date(t);const k=d.toDateString();const n=new Date();if(k===n.toDateString())return "Heute";const y=new Date(n);y.setDate(n.getDate()-1);if(k===y.toDateString())return "Gestern";return d.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}
+function tlogChart(L){
+  const days=[];const now=new Date();for(let i=13;i>=0;i--){const d=new Date(now);d.setDate(now.getDate()-i);days.push({k:d.toDateString(),l:d.getDate()+".",ok:0,no:0})}
+  L.forEach(e=>{const x=days.find(d=>d.k===new Date(e.t).toDateString());if(x){if(e.ok)x.ok++;else x.no++}});
+  const mx=Math.max(4,...days.map(d=>d.ok+d.no));if(!days.some(d=>d.ok+d.no))return "";
+  return `<div class="card"><div class="sec-h" style="margin:0 0 8px"><h3>Letzte 14 Tage</h3><span class="lgd"><span><i class="sw" style="background:var(--green)"></i>gelöst</span><span><i class="sw" style="background:var(--red-soft)"></i>nicht gelöst</span></span></div>
+  <div class="tbars">${days.map(d=>`<div class="tb-c" title="${d.l} ${d.ok} gelöst, ${d.no} nicht gelöst"><div class="tb-s">${d.no?`<i class="no" style="height:${d.no/mx*100}%"></i>`:""}${d.ok?`<i class="ok" style="height:${d.ok/mx*100}%"></i>`:""}</div><small>${d.l}</small></div>`).join("")}</div></div>`;
+}
+function renderTacHist(){
+  const v=$("v-tactics");const all=PZ.log.slice().reverse();
+  if(!all.length){v.innerHTML=tacTabsHtml()+pageHead("Taktik-Verlauf","Jede Aufgabe mit Ergebnis, Zeit und Wertung.","bolt")+emptyState("bolt","Noch keine Aufgaben im Verlauf","Ab jetzt landet jede gelöste und jede verpatzte Aufgabe hier – zum Nachspielen und Lernen.",`<button class="btn grn" data-tac="rated">Erste Aufgabe lösen</button>`);wireTacTabs(v);v.querySelectorAll("[data-tac]").forEach(b=>b.onclick=()=>tacticSession(b.dataset.tac));return}
+  const thList=[...new Set(all.flatMap(e=>e.th||[]))].filter(t=>TTH[t]).sort((a,b)=>TTH[a][0].localeCompare(TTH[b][0],"de"));
+  if(THV.th&&thList.indexOf(THV.th)<0)THV.th="";
+  const L=all.filter(e=>(THV.res==="all"||(THV.res==="ok"?e.ok:!e.ok))&&(!THV.th||(e.th||[]).indexOf(THV.th)>=0));
+  const wk=all.filter(e=>Date.now()-e.t<7*DAY_MS);const okN=L.filter(e=>e.ok).length;const tms=L.filter(e=>e.ms!=null&&e.ok).map(e=>e.ms);
+  const rated=wk.filter(e=>e.r!=null);const dW=rated.reduce((a,e)=>a+(e.d||0),0);
+  const best=L.filter(e=>e.ok).sort((a,b)=>(b.pr||0)-(a.pr||0))[0];
+  let h=tacTabsHtml()+pageHead("Taktik-Verlauf",`Deine letzten ${all.length} Aufgaben – tippe eine an, um sie nochmal zu spielen.`,"bolt");
+  h+=`<div class="kpis">${[["7 Tage",wk.length,`${wk.filter(e=>e.ok).length} gelöst`],["Trefferquote",L.length?pct(okN/L.length):"–",`${okN} von ${L.length}`],["Ø Lösungszeit",tms.length?fmtDur(tms.reduce((a,b)=>a+b,0)/tms.length):"–","bei gelösten"],["Wertung 7 Tage",rated.length?(dW>0?"+":"")+dW:"–",best?`schwerste gelöst: ${best.pr}`:`aktuell ${PZ.r}`]].map(t=>`<div class="kpi"><small>${t[0]}</small><b>${esc(String(t[1]))}</b><span>${esc(t[2])}</span></div>`).join("")}</div>`;
+  h+=tlogChart(all);
+  h+=`<div class="th-f"><div class="seg">${[["all","Alle"],["ok","Gelöst"],["no","Nicht gelöst"]].map(r=>`<button data-thr="${r[0]}" aria-pressed="${THV.res===r[0]}">${r[1]}</button>`).join("")}</div>
+    ${thList.length?`<label class="th-sel"><span class="sr">Motiv</span><select id="thTh"><option value="">Alle Motive</option>${thList.map(t=>`<option value="${t}"${THV.th===t?" selected":""}>${esc(TTH[t][0])}</option>`).join("")}</select></label>`:""}
+    ${L.filter(e=>!e.ok).length?`<button class="btn" id="thRetry">${L.filter(e=>!e.ok).length>1?`${Math.min(20,L.filter(e=>!e.ok).length)} falsche nochmal`:"Falsche nochmal"}</button>`:""}</div>`;
+  if(!L.length)h+=emptyState("search","Nichts gefunden","Für diesen Filter gibt es keine Aufgaben.");
+  else{let last="";h+=`<div class="thl">`;L.slice(0,THV.n).forEach(e=>{const dl=dayLabel(e.t);if(dl!==last){last=dl;const dd=L.filter(x=>dayLabel(x.t)===dl);h+=`<div class="th-day"><b>${esc(dl)}</b><small>${dd.length} ${dd.length===1?"Aufgabe":"Aufgaben"} · ${dd.filter(x=>x.ok).length} gelöst</small></div>`}h+=tlogRow(e,all.indexOf(e))});h+=`</div>`;
+    if(L.length>THV.n)h+=`<button class="btn" id="thMore" style="align-self:center">Weitere ${Math.min(30,L.length-THV.n)} anzeigen</button>`}
+  h+=`<p class="hint">Gespeichert werden die letzten 300 Aufgaben. Nachgespielte Aufgaben ändern deine Wertung nicht.</p>`;
+  v.innerHTML=h;wireTacTabs(v);
+  v.querySelectorAll("[data-thr]").forEach(b=>b.onclick=()=>{THV.res=b.dataset.thr;THV.n=30;renderTacHist()});
+  const sel=$("thTh");if(sel)sel.onchange=()=>{THV.th=sel.value;THV.n=30;renderTacHist()};
+  const mo=$("thMore");if(mo)mo.onclick=()=>{THV.n+=30;renderTacHist()};
+  const rt=$("thRetry");if(rt)rt.onclick=()=>{const seen=new Set();const list=L.filter(e=>!e.ok&&!seen.has(e.id)&&seen.add(e.id)).slice(0,20).map(tlogPuzzle);tacticSession("hist",list)};
+  v.querySelectorAll("[data-tre]").forEach(b=>b.onclick=()=>{const e=all[+b.dataset.tre];if(e)tacticSession("hist",[tlogPuzzle(e)])});
+}
+/* Taktik-Seite: Umschalter oben und die letzten Aufgaben als Vorschau */
+const _renderTactics=renderTactics;
+renderTactics=function(){
+  if(tacTab==="hist"){renderTacHist();return}
+  _renderTactics();const v=$("v-tactics");v.insertAdjacentHTML("afterbegin",tacTabsHtml());wireTacTabs(v);
+  const rec=PZ.log.slice(-4).reverse();
+  if(rec.length){const all=PZ.log.slice().reverse();const card=`<div class="card th-rec"><div class="sec-h" style="margin:0 0 6px"><h3>Zuletzt</h3><button class="linkb" data-tt2="1">Ganzer Verlauf →</button></div><div class="thl">${rec.map(e=>tlogRow(e,all.indexOf(e))).join("")}</div></div>`;
+    const g=v.querySelector(".hubgrid");if(g)g.insertAdjacentHTML("afterend",card);
+    v.querySelectorAll("[data-tt2]").forEach(b=>b.onclick=()=>showView("tactics:hist"));
+    v.querySelectorAll(".th-rec [data-tre]").forEach(b=>b.onclick=()=>{const e=all[+b.dataset.tre];if(e)tacticSession("hist",[tlogPuzzle(e)])})}
+};
+HASHV["#taktik-verlauf"]="tactics:hist";
+
+/* ================= Neue Version: Hinweis statt veralteter App ================= */
+/* Bleibt die App tagelang offen (z. B. auf dem Handy), läuft sonst alter Code – und zwei Spieler hätten unterschiedliche Versionen. */
+(function(){
+  if(!("serviceWorker" in navigator)||location.protocol!=="https:")return;
+  let had=!!navigator.serviceWorker.controller,shown=false;
+  navigator.serviceWorker.getRegistration().then(reg=>{if(!reg)return;const up=()=>reg.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")up()});setInterval(up,30*60000)}).catch(()=>{});
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!had){had=true;return}if(!shown){shown=true;updBanner()}});
+})();
+function updBanner(){
+  const busyGame=()=>mode==="online"&&ON.g&&ON.g.status==="active"&&!ON.spect;
+  if(busyGame()){setTimeout(updBanner,15000);return}
+  if(document.getElementById("updBar"))return;const el=document.createElement("div");el.id="updBar";el.className="updbar";el.setAttribute("role","status");
+  el.innerHTML=`<span>Neue Version von ${BRAND} verfügbar</span><button class="btn grn" id="updGo">Neu laden</button><button class="btn" id="updNo" aria-label="Später" title="Später">✕</button>`;
+  document.body.appendChild(el);$("updGo").onclick=()=>{cloudPush(true).catch(()=>{}).then(()=>location.reload())};$("updNo").onclick=()=>el.remove();
+}
+
 /* ================= Start ================= */
 applySettings();
 st.badges=BADGES.filter(b=>{try{return b.ok()}catch(e){return false}}).map(b=>b.id);saveStats();
@@ -4071,5 +4259,5 @@ const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
 if(firstRun&&!location.hash)setTimeout(openLanding,300);else if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
 if(onlineReady())setTimeout(onlineBoot,600);
-window.__ET={tryMove:(a,b)=>tryMove(a,b,true),GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={updBanner,tryMove:(a,b)=>tryMove(a,b,true),CLK,hist:()=>hist.slice(),srvNow,PZ,GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();

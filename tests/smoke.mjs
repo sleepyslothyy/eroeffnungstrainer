@@ -4,7 +4,7 @@
 import { chromium } from "playwright";
 const BASE = process.env.BASE || "http://localhost:8765/";
 const W = ms => new Promise(r => setTimeout(r, ms));
-const VIEWS = ["home","learn","courses","openings","tactics","end","quiz","games","coords","guess","bots","tours","online:play","online:live","analyse","chess","profile:stats","league","profile:badges","profile:settings","profile:sync","online:account","legal"];
+const VIEWS = ["home","learn","courses","openings","tactics","tactics:hist","end","quiz","games","coords","guess","bots","tours","online:play","online:live","analyse","chess","profile:stats","league","profile:badges","profile:settings","profile:sync","online:account","legal"];
 let failed = false;
 const browser = await chromium.launch();
 for (const vp of [{ width: 390, height: 844, isMobile: true, hasTouch: true }, { width: 1280, height: 860 }]) {

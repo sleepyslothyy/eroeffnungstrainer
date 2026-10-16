@@ -21,6 +21,7 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
 - **Wochenbericht** jeden Montag auf der Startseite mit Vorschlag für die neue Woche
 - **Level und XP** für alles, was du trainierst und spielst; **Tagesaufgaben** (drei pro Tag, mit Bonus)
 - **Wochenliga** von Bronze bis Diamant mit Auf- und Abstieg (mit Konto gegen andere Spieler, ohne Konto nach Solo-Regel)
+- **Taktik-Verlauf** (Training → Taktik → Verlauf): die letzten 300 Aufgaben mit Mini-Brett, Ergebnis, Lösungszeit, Wertungsänderung und Motiven, Filter nach Ergebnis und Motiv, 14-Tage-Übersicht, jede Aufgabe nachspielbar, falsche gesammelt wiederholen, Link zu Lichess
 - **Abzeichen in Stufen** (Bronze, Silber, Gold) und **Serienschutz** für verpasste Tage
 - Eigene Partien als PGN, Admin-Sicherung aller Online-Daten als Datei
 
@@ -35,6 +36,8 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
 - Registrierung mit Benutzername, E-Mail und Passwort; Passwort vergessen; Konto löschen
 - Trainingsfortschritt wird im Konto gespeichert und auf allen Geräten synchronisiert
 - Bestenliste aller Spieler (Online-Wertung nach Elo, Siege, Partien, Taktik, Varianten, Serie), Freundschaftsanfragen mit Online-Status, Live-Liste aller laufenden Partien mit Zuschauen und Zuschauerzahl
+- Zuverlässige Synchronisierung: Partiezeiten laufen über die Serverzeit (falsch gehende Geräteuhren spielen keine Rolle), Live-Abos verbinden sich nach Funklöchern selbst neu, eine regelmäßige Server-Abfrage holt hängende Partien auf, Ausgleich von Netzverzögerung (bis 2 s), Hinweis bei unterbrochener Verbindung, Anzeige, ob der Gegner verbunden ist, und „Sieg beanspruchen“, wenn er die Partie verlassen hat
+- Hinweis auf eine neue App-Version, damit beide Spieler denselben Stand haben
 - Live-Partien gegen Freunde per Einladungslink oder direkter Herausforderung, Freundesliste, Bedenkzeiten mit Uhr, Remis, Aufgeben, Abbrechen, Revanche, Zuschauen und anschließende Partieanalyse
 
 ## Komfort
@@ -52,7 +55,7 @@ Die aktuellen Regeln stehen in `firestore.rules`. In der Firebase-Konsole unter 
 Datenschutzerklärung, Impressum und Lizenzen stehen in der App unter Profil → Rechtliches (auch per `#datenschutz` und `#impressum`). Die Angaben fürs Impressum stehen in `IMPRESSUM` am Anfang von Teil 12 in `app.js`.
 
 ## Technik
-Reines HTML/CSS/JavaScript ohne Build-Schritt. Bei jedem Push prüft GitHub Actions die App mit einem Rauchtest in Chromium (`tests/smoke.mjs`).
+Reines HTML/CSS/JavaScript ohne Build-Schritt. Bei jedem Push prüft GitHub Actions die App mit einem Rauchtest in Chromium (`tests/smoke.mjs`) und einem Online-Test mit zwei Spielern, Uhrversatz und Verbindungsabbruch (`tests/online.mjs`).
 - Schrift: [Inter](https://rsms.me/inter/) (SIL OFL 1.1), lokal unter `lib/fonts` – keine Anfragen an Google Fonts
 - [chess.js](https://github.com/jhlywa/chess.js) (BSD-2)
 - [Stockfish.js 17.1 lite](https://github.com/nmrugg/stockfish.js) (GPLv3, siehe `engine/COPYING.txt`)

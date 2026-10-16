@@ -20,3 +20,5 @@ jobs:
         run: python3 -m http.server 8765 >/dev/null 2>&1 &
       - name: Rauchtest
         run: sleep 1 && node tests/smoke.mjs
+      - name: Online-Test (zwei Spieler, Uhrversatz, Verbindungsabbruch)
+        run: node tests/online.mjs
