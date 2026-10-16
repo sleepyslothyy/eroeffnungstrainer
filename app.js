@@ -112,7 +112,7 @@ function buildAll(){
 }
 // alte Struktur (eine Gruppe pro Seite) bleibt kompatibel
 buildAll();
-const byId=id=>ALL.find(o=>o.id===id)||(id==="custom_w"||id==="custom_b"?ALL.find(o=>o.id.indexOf(id+"_")===0):null);
+const byId=id=>ALL.find(o=>o.id===id)||(id==="custom_w"||id==="custom_b"?ALL.find(o=>o.id.indexOf(id+"_")===0):null)||(typeof lexOp==="function"&&/^lxe?:/.test(String(id))?lexOp(id):null);
 const GROUPS=[["w","Mit Weiß"],["b","Mit Schwarz"],["x","Gambits & Fallen"],["c","Eigene Varianten"]];
 const trapKeys=()=>{const r=[];ALL.forEach(o=>o.lines.forEach((l,i)=>{if(l.trap)r.push(lk(o.id,i))}));return r};
 function consistentIn(o,h){const r=[];o.lines.forEach((l,i)=>{if(l.m.length<h.length)return;for(let k=0;k<h.length;k++)if(strip(l.m[k])!==strip(h[k]))return;r.push(i)});return r}
@@ -695,8 +695,10 @@ function renderExplain(){
     const txt=mode==="replay"?"Spiel die Partie mit → nach. Zu jedem Zug erscheint hier eine Erklärung.":mode==="edit"?"Spiel eine Zugfolge für beide Seiten ein.":mode==="puzzle"?"Finde den besten Zug.":(op.side==="w"?"Du spielst Weiß.":"Du spielst Schwarz.")+" Zu jedem Zug erscheint hier eine Erklärung.";
     html+=`<div class="excard"><div class="exh"><span>${startFen?"Ausgangsstellung":"Startstellung"}</span></div><p>${esc(txt)}</p></div>`;
   }
-  if(mode==="replay"&&game){
-    html+=engineLinesHtml();
+  if(mode==="replay"&&game&&game.free){
+    html=engineLinesHtml()+theoryHtml()+html;
+  }else if(mode==="replay"&&game){
+    html+=theoryHtml(true)+engineLinesHtml();
     if(R)html+=reviewSummaryHtml(R);
     if(game.d)html+=`<div class="excard"><div class="exh"><span>${esc(game.title)}</span></div><p>${esc(game.d)}</p>${game.url?`<p class="leads"><a href="${esc(game.url)}" target="_blank" rel="noopener">Partie auf ${game.url.indexOf("lichess")>=0?"Lichess":"Chess.com"} öffnen</a></p>`:""}</div>`;
   }
@@ -849,7 +851,7 @@ function render(anim,extra){
   let ideas="";const R=game&&game.review;
   if(R&&view>0&&inMainMove(view-1)&&R.best[view-1]&&["inacc","mist","blun","miss"].indexOf(R.cls[view-1])>=0){const b=R.best[view-1];ideas+=arrowPath(b.slice(0,2),b.slice(2,4),"rgba(129,182,76,.85)",.16)}
   else if(S.set.ideas&&view>0&&!extra.bad&&!(hm&&hintLvl===2)&&!blindOn){try{explain(fens[view-1],mvs[view-1]).arrows.forEach(([a,b])=>ideas+=arrowPath(a,b,"rgba(70,140,235,.62)",.13))}catch(e){}}
-  ideasEl.innerHTML=ideas;
+  lastIdeas=ideas;ideasEl.innerHTML=ideas+engArrow();
   renderMarks();
   badgesEl.innerHTML="";
   let bdg=badge&&(badge.ply===view||badge.ply===-1)?badge:null;
@@ -1086,6 +1088,7 @@ function showView(v){
   if(base==="online"&&sub)ON.tab=sub==="admin"&&!isAdmin()?"play":sub;
   if(base==="player"&&sub)playerUid=sub;
   if(base==="tactics")tacTab=sub==="hist"?"hist":"train";
+  if(base==="openings"&&sub)opTab=sub==="lex"?"lex":"mine";
   if(base==="profile"&&sub)profTab=["stats","badges","settings","sync"].indexOf(sub)>=0?sub:"stats";
   if(base!==curView)cancelAuto();
   const prev=curView;curView=base;
@@ -1554,6 +1557,9 @@ function famFromUrl(u){
 }
 const famFromName=n=>n?famLookup(n.split(":")[0]):"Unbekannte Eröffnung";
 function pgnHeader(pgn,key){const m=pgn.match(new RegExp('\\['+key+' "([^"]*)"\\]'));return m?m[1]:""}
+/* Restzeiten nach jedem Halbzug aus [%clk h:mm:ss] (Chess.com, Lichess) und Grund-/Zusatzzeit aus TimeControl */
+function pgnClk(pgn,n){const body=String(pgn||"").replace(/^\s*\[[^\]]*\]\s*$/gm," ");const a=[...body.matchAll(/\[%clk\s+(\d+):(\d+):(\d+(?:\.\d+)?)\]/g)].map(m=>+m[1]*3600+ +m[2]*60+ +m[3]);return n&&a.length===n?a:null}
+function tcbOf(tc){const m=String(tc||"").match(/^(\d+)(?:\+(\d+))?$/);return m?{base:+m[1],inc:+(m[2]||0)}:null}
 function pgnMoves(pgn,max){
   let s=pgn.replace(/^\s*\[[^\]]*\]\s*$/gm," ").replace(/\{[^}]*\}/g," ").replace(/;[^\n]*/g," ");
   let prev;do{prev=s;s=s.replace(/\([^()]*\)/g," ")}while(s!==prev);
@@ -1567,7 +1573,8 @@ function normApiGame(g,user){
   if(g.white&&g.white.username.toLowerCase()===u)color="w";else if(g.black&&g.black.username.toLowerCase()===u)color="b";
   if(!color||!g.pgn)return null;const me=color==="w"?g.white:g.black,them=color==="w"?g.black:g.white;
   const res=me.result==="win"?"win":DRAWS.indexOf(me.result)>=0?"draw":"loss";
-  return {id:g.uuid||g.url||String(g.end_time),color,res,term:TERM[res==="win"?them.result:me.result]||"",fam:famFromUrl(g.eco||pgnHeader(g.pgn,"ECOUrl")),moves:pgnMoves(g.pgn),tc:g.time_class||"",url:g.url||"",opp:them.username,oppR:them.rating,myR:me.rating,date:(g.end_time||0)*1000,name:me.username,acc:g.accuracies?g.accuracies[color==="w"?"white":"black"]:null,white:g.white.username,black:g.black.username};
+  const out={id:g.uuid||g.url||String(g.end_time),color,res,term:TERM[res==="win"?them.result:me.result]||"",fam:famFromUrl(g.eco||pgnHeader(g.pgn,"ECOUrl")),moves:pgnMoves(g.pgn),tc:g.time_class||"",url:g.url||"",opp:them.username,oppR:them.rating,myR:me.rating,date:(g.end_time||0)*1000,name:me.username,acc:g.accuracies?g.accuracies[color==="w"?"white":"black"]:null,white:g.white.username,black:g.black.username,clk:null,tcb:tcbOf(g.time_control)};
+  if(!/^\d+\//.test(g.time_control||""))out.clk=pgnClk(g.pgn,out.moves.length);return out;
 }
 function normLichess(g,user){
   if(g.variant&&g.variant!=="standard")return null;if(g.status==="aborted"||g.status==="noStart")return null;
@@ -1576,7 +1583,8 @@ function normLichess(g,user){
   const res=g.winner?((g.winner==="white")===(color==="w")?"win":"loss"):"draw";
   const sp={ultraBullet:"bullet",bullet:"bullet",blitz:"blitz",rapid:"rapid",classical:"rapid",correspondence:"daily"}[g.speed]||"";
   const me=color==="w"?W:B,them=color==="w"?B:W;
-  return {id:g.id,color,res,term:TERM[g.status]||"",fam:famFromName(g.opening&&g.opening.name),moves:(g.moves||"").split(" ").filter(Boolean),tc:sp,url:"https://lichess.org/"+g.id+(color==="b"?"/black":""),opp:color==="w"?bn:wn,oppR:them.rating,myR:me.rating,date:g.createdAt||0,name:color==="w"?wn:bn,acc:me.analysis?me.analysis.accuracy:null,white:wn,black:bn};
+  return {id:g.id,color,res,term:TERM[g.status]||"",fam:famFromName(g.opening&&g.opening.name),moves:(g.moves||"").split(" ").filter(Boolean),tc:sp,url:"https://lichess.org/"+g.id+(color==="b"?"/black":""),opp:color==="w"?bn:wn,oppR:them.rating,myR:me.rating,date:g.createdAt||0,name:color==="w"?wn:bn,acc:me.analysis?me.analysis.accuracy:null,white:wn,black:bn,
+    clk:Array.isArray(g.clocks)&&g.clocks.length===(g.moves||"").split(" ").filter(Boolean).length?g.clocks.map(c=>c/100):null,tcb:g.clock?{base:Math.round(g.clock.initial),inc:Math.round(g.clock.increment)}:null};
 }
 function normPgnGame(pgn,user){
   const u=user.toLowerCase();const W=pgnHeader(pgn,"White"),B=pgnHeader(pgn,"Black"),R=pgnHeader(pgn,"Result");
@@ -1652,7 +1660,7 @@ async function loadGames(status){
     status("Verbinde mit Lichess …","",.1);
     const since=Date.now()-months*30*DAY;const perf={bullet:"bullet,ultraBullet",blitz:"blitz",rapid:"rapid,classical",daily:"correspondence"}[type];
     const headers={Accept:"application/x-ndjson"};if(S.set.liToken)headers.Authorization="Bearer "+S.set.liToken;
-    const r=await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(u)}?since=${since}&max=400&moves=true&opening=true&accuracy=true${perf?"&perfType="+perf:""}`,{headers});
+    const r=await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(u)}?since=${since}&max=400&moves=true&opening=true&accuracy=true&clocks=true${perf?"&perfType="+perf:""}`,{headers});
     if(r.status===404)throw new Error("notfound");if(r.status===429)throw new Error("ratelimit");if(!r.ok)throw new Error("http "+r.status);
     const lines=(await r.text()).split("\n").filter(Boolean);
     lines.forEach(ln=>{try{const n=normLichess(JSON.parse(ln),u);if(n)games.push(n)}catch(_){}});
@@ -1796,25 +1804,26 @@ async function reviewGame(g){
   if(g&&g.moves&&g.moves.length)anaHistPush(g);
   const R={evals:[],cls:[],best:[],doneN:0,acc:null,engine:""};
   const cached=REV[g.id];if(cached&&cached.n===g.moves.length&&cached.v===REV_V){Object.assign(R,cached,{doneN:g.moves.length})}
-  const gm={fen:g.fen||null,id:"rv-"+g.id,title:`${g.white} – ${g.black}`,players:`${g.white}${g.color==="w"&&g.myR?" ("+g.myR+")":g.color==="b"&&g.oppR?" ("+g.oppR+")":""} – ${g.black}${g.color==="b"&&g.myR?" ("+g.myR+")":g.color==="w"&&g.oppR?" ("+g.oppR+")":""}`,year:g.date?fmtDate(g.date):"",moves:g.moves,url:g.url,orient:g.color,d:`${g.fam} · ${g.foreign?"Ergebnis "+(g.result||"–"):g.res==="win"?"gewonnen":g.res==="loss"?"verloren":"Remis"}${g.term?" ("+g.term+")":""}`,review:R};
+  const gm={fen:g.fen||null,id:"rv-"+g.id,title:`${g.white} – ${g.black}`,players:`${g.white}${g.color==="w"&&g.myR?" ("+g.myR+")":g.color==="b"&&g.oppR?" ("+g.oppR+")":""} – ${g.black}${g.color==="b"&&g.myR?" ("+g.myR+")":g.color==="w"&&g.oppR?" ("+g.oppR+")":""}`,year:g.date?fmtDate(g.date):"",moves:g.moves,url:g.url,orient:g.color,d:`${g.fam} · ${g.foreign?"Ergebnis "+(g.result||"–"):g.res==="win"?"gewonnen":g.res==="loss"?"verloren":"Remis"}${g.term?" ("+g.term+")":""}`,review:R,clk:Array.isArray(g.clk)&&g.clk.length===g.moves.length?g.clk:null,tcb:g.tcb||null};
   openGame(gm);
   if(R.doneN>=g.moves.length&&R.acc){setStatus("view","Game Review",`Genauigkeit: Weiß ${R.acc.w.toFixed(1)} · Schwarz ${R.acc.b.toFixed(1)}`,true);return}
   setStatus("view","Game Review läuft …","Stockfish bewertet jeden Zug. Du kannst schon blättern.",true);
   let res;try{res=await reviewCore(g,R,i=>{if(game===gm&&(i%3===0))render()},()=>game===gm)}catch(e){if(game===gm)setStatus("bad","Stockfish konnte nicht geladen werden","Ohne Engine ist kein Review möglich.");return}
   if(!res)return;
-  if(game===gm){render();if(view>0||gm.vari){replayStatus()}else{const N=playerNames();setStatus("view","Game Review fertig",g.foreign?`Genauigkeit: ${N.w} ${R.acc.w.toFixed(1)} · ${N.b} ${R.acc.b.toFixed(1)}. Mit → oder »Moment ▶« durch die Partie.`:`Deine Genauigkeit: ${R.acc[g.color].toFixed(1)} % (≈ ${estRating(R.acc[g.color])} Elo). ${res.added?res.added+(res.added===1?" Fehler wurde":" Fehler wurden")+" als Übung gespeichert (Training → Deine Fehler).":"Keine groben Fehler – stark!"}`,true)}}
+  if(game===gm){render();if(view>0||gm.vari){replayStatus()}else{const N=playerNames();setStatus("view","Game Review fertig",g.foreign?`Genauigkeit: ${N.w} ${R.acc.w.toFixed(1)} · ${N.b} ${R.acc.b.toFixed(1)}. Mit → oder »Moment ▶« durch die Partie.`:`Deine Genauigkeit: ${R.acc[g.color].toFixed(1)} % (geschätzte Spielstärke ≈ ${eloTxt(R,g.color)}). ${res.added?res.added+(res.added===1?" Fehler wurde":" Fehler wurden")+" als Übung gespeichert (Training → Deine Fehler).":"Keine groben Fehler – stark!"}`,true)}}
   renderTabbar();
 }
 /* Bewertet eine Partie mit Stockfish (ohne Brett), klassifiziert jeden Zug wie ein Game Review
    (Brillant, Großartig, Bester Zug, Exzellent, Gut, Buch, Ungenau, Fehler, Verpasst, Patzer, Erzwungen),
    speichert das Review und eigene Fehler als Übungen */
-const REV_V=2;
+const REV_V=3;
 async function reviewCore(g,R,onStep,alive){
   R=R||{};Object.assign(R,{evals:[],cls:[],best:[],pv:[],alt:[],drops:[],doneN:0,acc:null,engine:"",v:REV_V});
   const c0=new Chess(g.fen||undefined);const F=[c0.fen()],M=[];R.fen=g.fen||null;
   for(const m of g.moves){const mv=findMove(c0,m);if(!mv)break;M.push(c0.move(mv.san));F.push(c0.fen())}
   const n=M.length,sans=M.map(m=>m.san);R.n=n;
-  await loadSF();R.engine=sfName;const ms=S.set.revMs||300;
+  await Promise.all([loadSF(),ecoLoad().catch(()=>null)]);R.engine=sfName;const ms=S.set.revMs||300;
+  if(!R.fen){const op0=ecoPath(F,40);R.open=op0?{eco:op0.e.eco,en:op0.e.en,ply:op0.ply}:null}
   for(let i=0;i<=n;i++){
     if(alive&&!alive())return null;
     const c=new Chess(F[i]);
@@ -1824,9 +1833,12 @@ async function reviewCore(g,R,onStep,alive){
     if(i>0)R.cls[i-1]=classifyMove(R,F,M,sans,i-1);
     R.doneN=i;if(onStep)onStep(i,n);
   }
-  const accOf=s=>{const a=[];R.drops.forEach((d,i)=>{if((i%2===0?"w":"b")===s&&R.cls[i]!=="book"&&R.cls[i]!=="forced")a.push(moveAcc(d))});return a.length?a.reduce((x,y)=>x+y,0)/a.length:100};
-  R.acc={w:accOf("w"),b:accOf("b")};R.phase=phaseAcc(R,F);R.doneN=n;
-  REV[g.id]={n,v:REV_V,fen:R.fen,evals:R.evals,cls:R.cls,best:R.best,pv:R.pv,alt:R.alt,drops:R.drops,acc:R.acc,phase:R.phase,engine:R.engine};
+  /* Startet die Partie mit Schwarz am Zug (eigene Stellung), Seiten tauschen */
+  const blackFirst=new Chess(F[0]).turn()==="b";const evW=blackFirst?[0].concat(R.evals):R.evals;const bk=(blackFirst?[false]:[]).concat(R.cls.map(c=>c==="book")),fc=(blackFirst?[false]:[]).concat(R.cls.map(c=>c==="forced"));
+  R.feat=reviewFeatures(evW,bk,fc);
+  R.acc={w:R.feat.w?R.feat.w.acc:100,b:R.feat.b?R.feat.b.acc:100};R.phase=phaseAcc(R,F);R.doneN=n;
+  R.elo={w:estElo(R,"w"),b:estElo(R,"b")};R.book=R.cls.reduce((a,c,i)=>c==="book"&&i===a?i+1:a,0);
+  REV[g.id]={n,v:REV_V,fen:R.fen,evals:R.evals,cls:R.cls,best:R.best,pv:R.pv,alt:R.alt,drops:R.drops,acc:R.acc,phase:R.phase,engine:R.engine,feat:R.feat,elo:R.elo,open:R.open,book:R.book};
   const ks=Object.keys(REV);if(ks.length>30)delete REV[ks[0]];store.set("et-reviews",REV);
   let added=0;if(!g.foreign)R.cls.forEach((k,i)=>{if((k==="mist"||k==="blun"||k==="miss")&&(i%2===0?"w":"b")===g.color&&R.best[i]){const key="rv:"+g.id+":"+i;if(S.puz.some(p=>p.key===key))return;
     const bm=new Chess(F[i]).moves({verbose:true}).find(m=>m.from+m.to+(m.promotion||"")===R.best[i]);if(!bm)return;
@@ -1880,6 +1892,106 @@ async function renderChPuzzle(el){
   catch(e){const box=$("pzDaily");if(box)box.innerHTML='<p class="sub">Chess.com ist gerade nicht erreichbar.</p>'}
 }
 
+/* ================= Theoriebuch: alle benannten Eröffnungen (Lichess chess-openings, CC0) ================= */
+/* Deutsche Eröffnungsnamen aus den englischen Lichess-Namen.
+   Familien über ein Wörterbuch, Varianten über Regeln: „Najdorf Variation“ → „Najdorf-Variante“,
+   „Classical Variation“ → „Klassische Variante“, „English Attack“ → „Englischer Angriff“. Unbekanntes bleibt englisch. */
+(function(root){
+const FAM={"Alekhine Defense":"Aljechin-Verteidigung","Amar Opening":"Amar-Eröffnung","Amazon Attack":"Amazonen-Angriff","Amsterdam Attack":"Amsterdamer Angriff","Anderssen's Opening":"Anderssen-Eröffnung","Australian Defense":"Australische Verteidigung","Barnes Defense":"Barnes-Verteidigung","Barnes Opening":"Barnes-Eröffnung","Basque Opening":"Baskische Eröffnung","Benko Gambit":"Benko-Gambit","Benko Gambit Accepted":"Benko-Gambit, angenommen","Benko Gambit Declined":"Benko-Gambit, abgelehnt","Benoni Defense":"Benoni-Verteidigung","Bird Opening":"Bird-Eröffnung","Bishop's Opening":"Läuferspiel","Blackmar-Diemer Gambit":"Blackmar-Diemer-Gambit","Blackmar-Diemer Gambit Accepted":"Blackmar-Diemer-Gambit, angenommen","Blackmar-Diemer Gambit Declined":"Blackmar-Diemer-Gambit, abgelehnt","Blumenfeld Countergambit":"Blumenfeld-Gambit","Blumenfeld Countergambit Accepted":"Blumenfeld-Gambit, angenommen","Bogo-Indian Defense":"Bogoljubow-Indisch","Bongcloud Attack":"Bongcloud-Angriff","Borg Defense":"Borg-Verteidigung","Canard Opening":"Canard-Eröffnung","Caro-Kann Defense":"Caro-Kann","Carr Defense":"Carr-Verteidigung","Catalan Opening":"Katalanisch","Center Game":"Mittelgambit","Center Game Accepted":"Mittelgambit, angenommen","Clemenz Opening":"Clemenz-Eröffnung","Colle System":"Colle-System","Creepy Crawly Formation":"Creepy-Crawly-Aufbau","Czech Defense":"Tschechische Verteidigung","Danish Gambit":"Nordisches Gambit","Danish Gambit Accepted":"Nordisches Gambit, angenommen","Danish Gambit Declined":"Nordisches Gambit, abgelehnt","Dresden Opening":"Dresdner Eröffnung","Duras Gambit":"Duras-Gambit","Dutch Defense":"Holländisch","Döry Defense":"Döry-Verteidigung","East Indian Defense":"Ostindische Verteidigung","Elephant Gambit":"Elefantengambit","English Defense":"Englische Verteidigung","English Opening":"Englisch","English Orangutan":"Orang-Utan (Englisch)","Englund Gambit":"Englund-Gambit","Englund Gambit Declined":"Englund-Gambit, abgelehnt","Formation":"Aufbau","Four Knights Game":"Vierspringerspiel","French Defense":"Französisch","Fried Fox Defense":"Fried-Fox-Verteidigung","Global Opening":"Global-Eröffnung","Goldsmith Defense":"Goldsmith-Verteidigung","Grob Opening":"Grob-Angriff","Grünfeld Defense":"Grünfeld-Indisch","Gunderam Defense":"Gunderam-Verteidigung","Hippopotamus Defense":"Nilpferd-Verteidigung","Horwitz Defense":"Horwitz-Verteidigung","Hungarian Opening":"Ungarische Eröffnung","Indian Defense":"Indische Verteidigung","Irish Gambit":"Irisches Gambit","Italian Game":"Italienisch","Kangaroo Defense":"Känguru-Verteidigung","King's Gambit":"Königsgambit","King's Gambit Accepted":"Königsgambit, angenommen","King's Gambit Declined":"Königsgambit, abgelehnt","King's Indian Attack":"Königsindischer Angriff","King's Indian Defense":"Königsindisch","King's Knight Opening":"Königsspringerspiel","King's Pawn Game":"Königsbauernspiel","King's Pawn Opening":"Königsbauerneröffnung","Kádas Opening":"Kádas-Eröffnung","Lasker Simul Special":"Lasker-Simultan-Spezial","Latvian Gambit":"Lettisches Gambit","Latvian Gambit Accepted":"Lettisches Gambit, angenommen","Lemming Defense":"Lemming-Verteidigung","Lion Defense":"Löwen-Verteidigung","London System":"Londoner System","Marienbad System":"Marienbader System","Mexican Defense":"Mexikanische Verteidigung","Mieses Opening":"Mieses-Eröffnung","Mikenas Defense":"Mikenas-Verteidigung","Modern Defense":"Moderne Verteidigung","Montevideo Defense":"Montevideo-Verteidigung","Neo-Grünfeld Defense":"Neo-Grünfeld-Indisch","Nimzo-Indian Defense":"Nimzowitsch-Indisch","Nimzo-Larsen Attack":"Nimzowitsch-Larsen-Angriff","Nimzowitsch Defense":"Nimzowitsch-Verteidigung","Old Indian Defense":"Altindisch","Owen Defense":"Owen-Verteidigung","Paleface Attack":"Bleichgesicht-Angriff","Petrov's Defense":"Russisch (Petrow)","Philidor Defense":"Philidor-Verteidigung","Pirc Defense":"Pirc-Ufimzew","Polish Defense":"Polnische Verteidigung","Polish Opening":"Polnische Eröffnung","Ponziani Opening":"Ponziani-Eröffnung","Portuguese Opening":"Portugiesische Eröffnung","Pseudo Queen's Indian Defense":"Pseudo-Damenindisch","Pterodactyl Defense":"Pterodaktylus-Verteidigung","Queen's Gambit":"Damengambit","Queen's Gambit Accepted":"Angenommenes Damengambit","Queen's Gambit Declined":"Abgelehntes Damengambit","Queen's Indian Accelerated":"Beschleunigtes Damenindisch","Queen's Indian Defense":"Damenindisch","Queen's Pawn Game":"Damenbauernspiel","Queen's Pawn":"Damenbauernspiel","Rapport-Jobava System":"Rapport-Jobava-System","Rat Defense":"Ratten-Verteidigung","Richter-Veresov Attack":"Richter-Weressow-Angriff","Robatsch Defense":"Robatsch-Verteidigung","Rubinstein Opening":"Rubinstein-Eröffnung","Ruy Lopez":"Spanisch","Réti Opening":"Réti-Eröffnung","Saragossa Opening":"Saragossa-Eröffnung","Scandinavian Defense":"Skandinavisch","Scotch Game":"Schottisch","Semi-Slav Defense":"Halbslawisch","Semi-Slav Defense Accepted":"Halbslawisch, angenommen","Sicilian Defense":"Sizilianisch","Slav Defense":"Slawisch","Slav Indian":"Slawisch-Indisch","Sodium Attack":"Natrium-Angriff","St. George Defense":"St.-Georgs-Verteidigung","Tarrasch Defense":"Tarrasch-Verteidigung","Three Knights Opening":"Dreispringerspiel","Torre Attack":"Torre-Angriff","Trompowsky Attack":"Trompowsky-Angriff","Valencia Opening":"Valencia-Eröffnung","Van Geet Opening":"Van-Geet-Eröffnung","Van't Kruijs Opening":"Van't-Kruijs-Eröffnung","Vienna Gambit":"Wiener Gambit","Vienna Game":"Wiener Partie","Vulture Defense":"Geier-Verteidigung","Wade Defense":"Wade-Verteidigung","Ware Defense":"Ware-Verteidigung","Ware Opening":"Ware-Eröffnung","Yusupov-Rubinstein System":"Jussupow-Rubinstein-System","Zaire Defense":"Zaire-Verteidigung","Zukertort Defense":"Zukertort-Verteidigung","Zukertort Opening":"Zukertort-Eröffnung","Giuoco Piano":"Giuoco Piano","Two Knights Defense":"Zweispringerspiel im Nachzug"};
+/* Kopfwörter mit Genus: f/m/n */
+const HEAD={Variations:["Varianten","p"],Lines:["Linien","p"],Attacks:["Angriffe","p"],Variation:["Variante","f"],Attack:["Angriff","m"],Gambit:["Gambit","n"],Defense:["Verteidigung","f"],System:["System","n"],Line:["Linie","f"],Countergambit:["Gegengambit","n"],Counterattack:["Gegenangriff","m"],Formation:["Aufbau","m"],Trap:["Falle","f"],Opening:["Eröffnung","f"],Game:["Partie","f"],Setup:["Aufbau","m"],Structure:["Struktur","f"],Complex:["Komplex","m"],Bind:["Klammer","f"],Retreat:["Rückzug","m"],Sacrifice:["Opfer","n"],Approach:["Ansatz","m"],Plan:["Plan","m"],Continuation:["Fortsetzung","f"],Expansion:["Ausdehnung","f"],Center:["Zentrum","n"],Wall:["Mauer","f"],Fianchetto:["Fianchetto","n"]};
+/* Adjektive (Stamm) – werden nach Genus gebeugt; Städte enden auf -er und bleiben ungebeugt */
+const ADJ={Classical:"klassisch",Modern:"modern",Closed:"geschlossen",Open:"offen",Normal:"normal",Orthodox:"orthodox",Symmetrical:"symmetrisch",Accelerated:"beschleunigt",Reversed:"umgekehrt",Quiet:"ruhig",Traditional:"traditionell",Positional:"positionell",Delayed:"verzögert",Central:"zentral",Old:"alt",English:"englisch",Spanish:"spanisch",Russian:"russisch",Austrian:"österreichisch",Czech:"tschechisch",Yugoslav:"jugoslawisch",Scotch:"schottisch",Sicilian:"sizilianisch",Dutch:"holländisch",Indian:"indisch",Scandinavian:"skandinavisch",French:"französisch",Italian:"italienisch",Polish:"polnisch",Hungarian:"ungarisch",Danish:"nordisch",Swedish:"schwedisch",Norwegian:"norwegisch",Swiss:"schweizerisch",Hanham:"Hanham",Main:"Haupt",Double:"doppelt",Exchange:"Abtausch",Advance:"Vorstoß",Short:"kurz",Long:"lang",Little:"klein",Great:"groß",Big:"groß",Small:"klein",Wild:"wild",Mad:"verrückt",Hyper:"hyper",Pseudo:"pseudo",Semi:"halb",Neo:"neo",New:"neu",Rare:"selten",Early:"früh",Wing:"Flügel",Kingside:"Königsflügel",Queenside:"Damenflügel",Poisoned:"vergiftet",Fake:"falsch",Lesser:"klein",Romantic:"romantisch",Aggressive:"aggressiv",Solid:"solide",Sharp:"scharf",Hybrid:"hybrid",Universal:"universell",Improved:"verbessert",Refined:"verfeinert",Anti:"Anti",Inverted:"umgekehrt",Extended:"erweitert",Deferred:"verzögert",Black:"schwarz",White:"weiß",Royal:"königlich",African:"afrikanisch",American:"amerikanisch",Argentine:"argentinisch",Brazilian:"brasilianisch",Canadian:"kanadisch",Chinese:"chinesisch",Mexican:"mexikanisch",Portuguese:"portugiesisch",Greek:"griechisch",Icelandic:"isländisch",Irish:"irisch",Scottish:"schottisch",Welsh:"walisisch",Siberian:"sibirisch",Ukrainian:"ukrainisch",Rousseau:"Rousseau",Latvian:"lettisch",Lithuanian:"litauisch",Estonian:"estnisch",Finnish:"finnisch",German:"deutsch",Belgian:"belgisch",Japanese:"japanisch",Korean:"koreanisch",Australian:"australisch",Venezuelan:"venezolanisch",Peruvian:"peruanisch",Uruguayan:"uruguayisch",Colombian:"kolumbianisch",Cuban:"kubanisch",Bulgarian:"bulgarisch",Romanian:"rumänisch",Serbian:"serbisch",Croatian:"kroatisch",Slovak:"slowakisch",Slav:"slawisch",Catalan:"katalanisch",Basque:"baskisch",Venetian:"venezianisch",Arabian:"arabisch",Persian:"persisch",Egyptian:"ägyptisch",Hippopotamus:"Nilpferd"};
+const CITY={Berlin:"Berliner",Vienna:"Wiener",London:"Londoner",Leningrad:"Leningrader",Moscow:"Moskauer",Paris:"Pariser",Prague:"Prager",Budapest:"Budapester",Hamburg:"Hamburger",Dresden:"Dresdner",Riga:"Rigaer",Warsaw:"Warschauer",Amsterdam:"Amsterdamer",Marienbad:"Marienbader",Karlsbad:"Karlsbader",Rotterdam:"Rotterdamer",Copenhagen:"Kopenhagener",Stockholm:"Stockholmer",Zurich:"Züricher",Nuremberg:"Nürnberger",Breslau:"Breslauer",Hastings:"Hastings",Cambridge:"Cambridge",Chicago:"Chicago",Kiev:"Kiewer",Odessa:"Odessaer",Baku:"Bakuer",Cologne:"Kölner",Munich:"Münchner",Frankfurt:"Frankfurter",Leipzig:"Leipziger",Petersburg:"Petersburger",Belgrade:"Belgrader",Zagreb:"Zagreber",Bucharest:"Bukarester",Rome:"Römer",Venice:"Venezianer",Milan:"Mailänder",Madrid:"Madrider",Lisbon:"Lissabonner",Oslo:"Osloer",Helsinki:"Helsinkier",Tallinn:"Tallinner",Vilnius:"Vilniuser",Minsk:"Minsker",Lvov:"Lemberger",Lviv:"Lemberger",Krakow:"Krakauer",Graz:"Grazer",Linz:"Linzer",Basel:"Basler",Bern:"Berner",Geneva:"Genfer",Brussels:"Brüsseler",Antwerp:"Antwerpener",Utrecht:"Utrechter",Leiden:"Leidener"};
+/* Hauptwort-Stämme für Komposita: „Exchange Variation“ → „Abtauschvariante“ */
+const STEM={Exchange:"Abtausch",Advance:"Vorstoß",Main:"Haupt",Knight:"Springer",Knights:"Springer",Bishop:"Läufer",Bishops:"Läufer",Queen:"Damen",King:"Königs",Rook:"Turm",Pawn:"Bauern",Pawns:"Bauern",Wing:"Flügel",Center:"Zentrums",Centre:"Zentrums",Fianchetto:"Fianchetto",Counter:"Gegen",Kingside:"Königsflügel",Queenside:"Damenflügel",Stonewall:"Stonewall",Hedgehog:"Igel",Dragon:"Drachen",Hippopotamus:"Nilpferd",Hippo:"Nilpferd",Tiger:"Tiger",Rat:"Ratten",Mouse:"Maus",Bear:"Bären",Lion:"Löwen",Hedge:"Hecken",Cow:"Kuh",Monkey:"Affen",Elephant:"Elefanten",Snake:"Schlangen",Spider:"Spinnen",Frog:"Frosch",Ice:"Eis",Fire:"Feuer",Pin:"Fessel",Wall:"Mauer",Castle:"Rochade",Castling:"Rochade",Retreat:"Rückzug",Development:"Entwicklungs",Panther:"Panther",Shark:"Hai",Swan:"Schwan",Fork:"Gabel",Battery:"Batterie"};
+const NUM={Two:"Zwei",Three:"Drei",Four:"Vier",Five:"Fünf"};
+const WORD={Sideline:"Nebenvariante",Accepted:"angenommen",Declined:"abgelehnt",Refused:"abgelehnt",Deferred:"verzögert",Delayed:"verzögert",Reversed:"mit vertauschten Farben",with:"mit",without:"ohne",and:"und",or:"oder",the:"",The:"",of:"",Main:"Haupt",Line:"Linie"};
+const PIECE={N:"S",B:"L",R:"T",Q:"D",K:"K"};
+const san=w=>/^(\d+\.+)?[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](=[NBRQ])?[+#]?$|^O-O(-O)?[+#]?$|^\d\.$/.test(w)?w.replace(/[NBRQK](?=[a-hx1-8])/g,c=>PIECE[c]).replace(/=([NBRQ])/,(m,c)=>"="+PIECE[c]):null;
+function decl(stem,g){if(/(er|Haupt|Abtausch|Vorstoß|Flügel|Anti|Königsflügel|Damenflügel|Nilpferd|Rousseau|Hanham)$/.test(stem)&&!/^(ander|sauber)$/.test(stem))return null;return stem+(g==="f"||g==="p"?"e":g==="m"?"er":"es")}
+/* einen Kommateil übersetzen */
+const PHRASE=[["King's English","Königsenglisch"],["New York","New-York"],["Defensive System","Verteidigungssystem"],["Hedgehog System","Igelsystem"],["Main Line","Hauptvariante"],["Mainline","Hauptvariante"],["Pawn Storm","Bauernsturm"],["Poisoned Pawn","Vergifteter Bauer"],["Big Clamp","Große Klammer"],["Rossolimo","Rossolimo"]];
+function part(p){
+  p=p.trim();if(!p)return p;PHRASE.forEach(([a,b])=>{if(p.indexOf(a)>=0&&a!==b&&!(a==="Main Line"&&p==="Main Line"))p=p.split(a).join(b)});
+  if(p==="Hauptvariante")return p;
+  if(p==="Main Line")return "Hauptvariante";if(p==="Main Line Accepted")return "Hauptvariante, angenommen";
+  const w=p.split(/\s+/);
+  // „with …“, „without …“ und reine Zugangaben
+  if(w[0]==="with"||w[0]==="without")return (w[0]==="with"?"mit ":"ohne ")+part(w.slice(1).join(" "));
+  if(w.every(x=>san(x)))return w.map(san).join(" ");
+  // Kopfwort suchen (letztes Wort, das ein HEAD ist)
+  let hi=-1;for(let i=w.length-1;i>=0;i--){if(HEAD[w[i]]){hi=i;break}if(!/^(Accepted|Declined|Refused|Deferred|Reversed)$/.test(w[i]))break}
+  const tail=w.slice(hi+1).map(x=>WORD[x]||x).filter(Boolean);
+  if(w.length===1&&ADJ[w[0]]&&/^[a-zäöü]/.test(ADJ[w[0]])){const a=decl(ADJ[w[0]],"f")||ADJ[w[0]];return a[0].toUpperCase()+a.slice(1)+" Variante"}
+  if(w.length===1&&CITY[w[0]])return CITY[w[0]]+" Variante";
+  if(hi<0)return w.map(x=>san(x)||WORD[x]||(ADJ[x]&&/^[a-zäöü]/.test(ADJ[x])?ADJ[x]:x)).join(" ");
+  const [hd,g]=HEAD[w[hi]];const pre=w.slice(0,hi);
+  // Zahlwort + Springer/Läufer: „Two Knights“ → „Zweispringer“
+  const adjs=[],stems=[],names=[];
+  for(let i=0;i<pre.length;i++){const x=pre[i].replace(/'s$/,"");
+    if(NUM[x]&&STEM[(pre[i+1]||"").replace(/'s$/,"")]){stems.push(NUM[x]+STEM[pre[i+1].replace(/'s$/,"")].toLowerCase());i++;continue}
+    if(CITY[x]){adjs.push(CITY[x]);continue}
+    if(STEM[x]&&!names.length&&(i===pre.length-1||STEM[(pre[i+1]||"").replace(/'s$/,"")]||NUM[pre[i+1]])){stems.push(STEM[x]);continue}
+    if(ADJ[x]&&/^[a-zäöü]/.test(ADJ[x])&&!names.length&&!stems.length){adjs.push(decl(ADJ[x],g)||ADJ[x]);continue}
+    if(STEM[x]){stems.push(STEM[x]);continue}
+    names.push(san(x)||x)}
+  let noun;
+  if(names.length)noun=names.concat(stems).join("-")+"-"+hd;
+  else if(stems.length){const s=stems.join("");noun=s+(/[a-zäöüß]$/.test(s)?hd.toLowerCase():"-"+hd);noun=noun[0].toUpperCase()+noun.slice(1)}
+  else noun=hd;
+  const out=(adjs.length?adjs.map(a=>a[0].toUpperCase()+a.slice(1)).join(" ")+" ":"")+noun;
+  return out+(tail.length?", "+tail.join(" "):"");
+}
+function deName(en){
+  if(!en)return en;const i=en.indexOf(":");let fam=i<0?en:en.slice(0,i),rest=i<0?"":en.slice(i+1);
+  // „French Defense, Classical, 4. Bg5“: Familie bis zum ersten Komma, falls nur der Teil bekannt ist
+  if(!FAM[fam]&&fam.indexOf(",")>0&&FAM[fam.split(",")[0]]){rest=fam.slice(fam.indexOf(",")+1)+(rest?","+rest:"");fam=fam.split(",")[0]}
+  const f=FAM[fam]||part(fam);
+  if(!rest.trim())return f;
+  // Zugangaben wie „4. Bg5“ zusammenhalten
+  const parts=rest.split(",").map(s=>s.trim()).filter(Boolean);const tr=[];
+  for(let k=0;k<parts.length;k++){let p=parts[k];tr.push(part(p))}
+  return f+": "+tr.join(", ");
+}
+root.deName=deName;
+if(typeof module!=="undefined")module.exports={deName};
+})(typeof window!=="undefined"?window:globalThis);
+
+const ECO={ready:false,loading:null,list:[],byHash:new Map(),pos:null,fams:null};
+const h32=s=>{let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)}return h>>>0};
+const posH=fen=>h32(fen.split(" ").slice(0,4).join(" "));
+/* eco.js wird erst geladen, wenn es gebraucht wird (Analyse, Review, Lexikon) */
+function ecoLoad(){
+  if(ECO.ready)return Promise.resolve(ECO);
+  if(!ECO.loading)ECO.loading=new Promise((res,rej)=>{
+    if(window.ECO_DB){try{ecoParse();res(ECO)}catch(e){rej(e)}return}
+    const sc=document.createElement("script");sc.src="eco.js";sc.async=true;
+    sc.onload=()=>{try{ecoParse();res(ECO)}catch(e){ECO.loading=null;rej(e)}};sc.onerror=()=>{ECO.loading=null;sc.remove();rej(new Error("eco"))};document.head.appendChild(sc)});
+  return ECO.loading;
+}
+function ecoParse(){
+  const D=window.ECO_DB;
+  ECO.list=D.e.split("\n").map((l,i)=>{const t=l.split("\t");return {i,eco:t[0],en:t[1],de:deName(t[1]),m:t[2]?t[2].split(" "):[],h:parseInt(t[3],36)}});
+  ECO.list.forEach(e=>{const x=ECO.byHash.get(e.h);if(!x||e.m.length<x.m.length)ECO.byHash.set(e.h,e)});
+  const b=atob(D.p);const u=new Uint32Array(b.length>>2);for(let i=0;i<u.length;i++)u[i]=(b.charCodeAt(i*4)|(b.charCodeAt(i*4+1)<<8)|(b.charCodeAt(i*4+2)<<16)|(b.charCodeAt(i*4+3)<<24))>>>0;
+  ECO.pos=new Set(u);ECO.ready=true;
+}
+const ecoAt=fen=>ECO.ready?ECO.byHash.get(posH(fen))||null:null;
+const ecoIn=fen=>ECO.ready&&ECO.pos.has(posH(fen));
+/* tiefste benannte Stellung entlang einer Zugfolge (Zugumstellungen werden erkannt) */
+function ecoPath(fl,upto){let best=null,ply=0;if(!ECO.ready)return null;const n=Math.min(fl.length-1,upto==null?60:upto);for(let i=1;i<=n;i++){const e=ecoAt(fl[i]);if(e){best=e;ply=i}}return best?{e:best,ply}:null}
+/* Theoriezüge in einer Stellung: alle Züge, die zu einer Stellung aus dem Buch führen */
+function ecoMoves(fen,path){
+  if(!ECO.ready)return [];const g=new Chess(fen);const out=[];
+  /* Gewicht: wie viele benannte Varianten hinter dem Zug liegen (bei bekannter Zugfolge) */
+  const sub=san=>{if(!path)return 0;const pre=path.concat(san);let n=0;ECO.list.forEach(e=>{if(e.m.length<pre.length)return;for(let i=0;i<pre.length;i++)if(e.m[i]!==pre[i])return;n++});return n};
+  g.moves({verbose:true}).forEach(m=>{g.move(m);const f=g.fen();if(ecoIn(f))out.push({san:m.san,uci:m.from+m.to+(m.promotion||""),e:ecoAt(f),n:sub(m.san)});g.undo()});
+  return out.sort((a,b)=>b.n-a.n||(b.e?1:0)-(a.e?1:0));
+}
+const ecoFam=e=>e?deName(e.en.split(":")[0].split(",")[0]):"";
+const ecoShort=e=>{if(!e)return "";const d=e.de;return d.length>70?d.slice(0,68)+"…":d};
+
 /* ================= Partieanalyse (Game Review wie auf Chess.com) ================= */
 Object.assign(CLS,{brill:["Brillant","c-brill","!!"],great:["Großartig","c-great","!"],miss:["Verpasst","c-miss","✗"],forced:["Erzwungen","c-forced","→"]});
 CLS.exc[2]="+";
@@ -1903,7 +2015,7 @@ function classifyMove(R,F,M,sans,k){
   const before=sw(R.evals[k]),after=sw(R.evals[k+1]);const drop=Math.max(0,before-after);R.drops[k]=drop;
   const uci=mv.from+mv.to+(mv.promotion||"");
   if(new Chess(F[k]).moves().length===1)return "forced";
-  if(!R.fen&&k<30&&anyBook(sans.slice(0,k+1)))return "book";
+  if(!R.fen&&k<40&&(ECO.ready?ecoIn(F[k+1])&&(k===0||R.cls[k-1]==="book"):anyBook(sans.slice(0,k+1))))return "book";
   const isBest=uci===R.best[k];
   // Brillant: bester (oder gleichwertiger) Zug, der echt Material opfert – und die Stellung bleibt gut
   const mates=(side==="w"?R.evals[k+1]:-R.evals[k+1])>=9000;
@@ -1927,6 +2039,48 @@ function phaseAcc(R,F){
   R.cls.forEach((c,k)=>{if(!c||c==="forced")return;const g=new Chess(F[k]);let np=0;g.board().forEach(r=>r.forEach(p=>{if(p&&p.type!=="p"&&p.type!=="k")np+=PVAL[p.type]}));
     const ph=np<=26?"e":(k<=Math.max(lastBook,15)&&k<30)?"o":"m";if(c==="book")return;acc[k%2===0?"w":"b"][ph].push(moveAcc(R.drops[k]||0))});
   ["w","b"].forEach(s=>["o","m","e"].forEach(p=>{const a=acc[s][p];out[s][p]=a.length?a.reduce((x,y)=>x+y,0)/a.length:null}));return out;
+}
+/*FEAT-START*/
+/* Kennzahlen je Seite aus den Bewertungen (aus Sicht von Weiß, ein Wert pro Stellung):
+   Genauigkeit wie bei Lichess (Mittel aus volatilitätsgewichtetem und harmonischem Mittel),
+   Ø Centipawn-Verlust und Fehlerquoten ohne Buch- und erzwungene Züge */
+function reviewFeatures(ev,book,forced){
+  const wp=ev.map(v=>winPct(v==null?0:v));const n=ev.length-1;const out={w:{n:0,loss:0,blun:0,mist:0,inacc:0,acc:[],wts:[]},b:{n:0,loss:0,blun:0,mist:0,inacc:0,acc:[],wts:[]}};
+  if(n<1)return {w:null,b:null};
+  const ws=Math.max(2,Math.min(8,Math.floor(n/10)));const wins=[];const first=wp.slice(0,ws);for(let i=0;i<Math.min(ws,wp.length)-2;i++)wins.push(first);for(let i=0;i+ws<=wp.length;i++)wins.push(wp.slice(i,i+ws));
+  const sd=a=>{const m=a.reduce((x,y)=>x+y,0)/a.length;return Math.sqrt(a.reduce((x,y)=>x+(y-m)*(y-m),0)/a.length)};
+  const W=wins.map(a=>Math.max(.5,Math.min(12,sd(a))));const cl=v=>Math.max(-1000,Math.min(1000,v==null?0:v));
+  for(let k=0;k<n;k++){const s=k%2===0?"w":"b";const o=out[s];
+    const before=s==="w"?wp[k]:100-wp[k],after=s==="w"?wp[k+1]:100-wp[k+1];
+    const a=after>=before?100:Math.max(0,Math.min(100,103.1668*Math.exp(-0.04354*(before-after))-3.1669+1));
+    o.acc.push(a);o.wts.push(W[Math.min(k,W.length-1)]);
+    if((book&&book[k])||(forced&&forced[k]))continue;
+    const cb=s==="w"?cl(ev[k]):-cl(ev[k]),ca=s==="w"?cl(ev[k+1]):-cl(ev[k+1]);
+    o.n++;o.loss+=Math.max(0,cb-ca);const d=before-after;if(d>=20)o.blun++;else if(d>=10)o.mist++;else if(d>=5)o.inacc++;
+  }
+  const fin=o=>{const A=o.acc;if(!A.length)return null;const sw=o.wts.reduce((x,y)=>x+y,0);const wm=A.reduce((x,a,i)=>x+a*o.wts[i],0)/sw;const hm=A.length/A.reduce((x,a)=>x+1/Math.max(1,a),0);
+    return {acc:(wm+hm)/2,acpl:o.n?o.loss/o.n:0,n:o.n,blun:o.blun,mist:o.mist,inacc:o.inacc,moves:A.length}};
+  return {w:fin(out.w),b:fin(out.b)};
+}
+/*FEAT-END*/
+/* Geschätzte Spielstärke in einer Partie (Lichess-Skala). Angepasst an 640 gewertete Lichess-Partien (1.280 Spieler,
+   Wertung 780–2590), jede Stellung mit Stockfish 17.1 bewertet wie im Game Review, geprüft mit 5-facher Kreuzvalidierung:
+   mittlerer Fehler 280 Punkte (bisherige Formel 553, „immer Durchschnitt“ 372). Eingänge: eigener und gegnerischer
+   Ø Centipawn-Verlust (ohne Buch- und erzwungene Züge) und die Partielänge. Mehr Kennzahlen brachten keinen Gewinn. */
+const ELO_W=[3668.447,-331.93,-199.401,35.834];const ELO_MAE=280;
+function featOf(R){if(R.feat)return R.feat;if(!R.evals||!R.cls||R.fen)return null;try{R.feat=reviewFeatures(R.evals,R.cls.map(c=>c==="book"),R.cls.map(c=>c==="forced"))}catch(e){return null}return R.feat}
+function estElo(R,s){const F=featOf(R);const f=F&&F[s],o=F&&F[s==="w"?"b":"w"];if(!f||!o||f.n<5)return null;const L=x=>Math.log(x+10);
+  const x=[1,L(f.acpl),L(o.acpl),Math.log(Math.max(10,(R.evals||[]).length-1))];
+  const v=ELO_W.reduce((a,w,i)=>a+w*x[i],0);return Math.round(Math.max(400,Math.min(2900,v))/25)*25}
+function eloTxt(R,s){const e=estElo(R,s);return e?e+" Elo":"–"}
+/* Spielstärke über mehrere Partien: Mittel der Einzelschätzungen (der Fehler schrumpft mit der Zahl der Partien) */
+function strengthHtml(){
+  const rv=myReviews().map(x=>estElo(x.R,x.c)).filter(Boolean).slice(0,20);if(rv.length<2)return "";
+  const n=rv.length,avg=rv.reduce((a,b)=>a+b,0)/n,err=Math.round(ELO_MAE/Math.sqrt(n)/25)*25;const r5=rv.slice(0,Math.min(5,n)),o5=rv.slice(Math.min(5,n));
+  const tr=o5.length>=3?Math.round((r5.reduce((a,b)=>a+b,0)/r5.length-o5.reduce((a,b)=>a+b,0)/o5.length)/25)*25:null;
+  return `<div class="card strength"><div class="sec-h" style="margin:0 0 8px"><h3>Geschätzte Spielstärke</h3><small>aus ${n} analysierten Partien</small></div>
+    <div class="str-row"><b>≈ ${Math.round(avg/25)*25}</b><span>Spanne etwa ${Math.round((avg-err)/25)*25}–${Math.round((avg+err)/25)*25}${tr!=null?` · Trend der letzten 5 Partien: <em class="${tr>=0?"up":"down"}">${tr>=0?"+":""}${tr}</em>`:""}</span></div>
+    <p class="hint" style="margin:6px 0 0">Berechnet aus deinem Ø Centipawn-Verlust (und dem deiner Gegner) in den Game Reviews, abgeglichen mit 640 echten Lichess-Partien bekannter Wertung (Lichess-Skala). Eine einzelne Partie schwankt stark – je mehr Partien, desto genauer.</p></div>`;
 }
 function estRating(acc){const P=[[0,100],[40,300],[50,500],[60,800],[70,1150],[75,1400],[80,1650],[85,1950],[90,2300],[95,2700],[100,3000]];
   for(let i=1;i<P.length;i++)if(acc<=P[i][0]){const [a0,r0]=P[i-1],[a1,r1]=P[i];return Math.round((r0+(acc-a0)/(a1-a0)*(r1-r0))/50)*50}return 3000}
@@ -1971,6 +2125,15 @@ function reviewMoveInfo(k){
   }[c];
   return {c,title:T[0],text:T[1],bestSan,bestLine,replyLine,ev:R.evals[k+1],side,san,num:Math.floor(k/2)+1+(k%2?"...":".")};
 }
+/* Bedenkzeit des Halbzugs k (Sekunden) aus den Restzeiten */
+function spentAt(G,k){const c=G&&G.clk;if(!c||c[k]==null)return null;const inc=(G.tcb&&G.tcb.inc)||0;const prev=k>=2?c[k-2]:G.tcb?G.tcb.base:null;if(prev==null)return null;return Math.max(0,prev-c[k]+inc)}
+const fmtSec=t=>{if(t==null)return "–";if(t<10)return t.toFixed(1).replace(".",",")+" s";if(t<60)return Math.round(t)+" s";const m=Math.floor(t/60),ss=Math.round(t%60);return m>=60?Math.floor(m/60)+":"+String(m%60).padStart(2,"0")+" h":m+":"+String(ss).padStart(2,"0")+" min"};
+function timeStats(G,R){
+  const c=G&&G.clk;if(!c)return null;const out={w:{sum:0,n:0,max:0,maxK:-1,tn:0,tnErr:0},b:{sum:0,n:0,max:0,maxK:-1,tn:0,tnErr:0}};const base=G.tcb?G.tcb.base:Math.max(c[0]||0,c[1]||0);
+  for(let k=0;k<c.length;k++){const s=k%2===0?"w":"b";const t=spentAt(G,k);if(t==null)continue;const o=out[s];o.sum+=t;o.n++;if(t>o.max){o.max=t;o.maxK=k}
+    const low=c[k-2]!=null?c[k-2]:base;const crit=Math.max(20,base*.1);if(low<crit){o.tn++;if(R&&["mist","blun","miss"].indexOf(R.cls[k])>=0)o.tnErr++}}
+  return out;
+}
 /* Coach-Blase im Review */
 function paintCoach(c){const co=$("coach");co.style.setProperty("--k",REV_COL[c]);const f=$("face");f.innerHTML=`<b style="font-size:${CLS[c][2].length>1?13:16}px;color:#fff">${CLS[c][2]}</b>`;f.style.background=REV_COL[c]}
 function replayStatus(){
@@ -1988,21 +2151,47 @@ function reviewMoveHtml(k){
   const showBest=["inacc","mist","blun","miss","good","exc"].indexOf(I.c)>=0&&I.bestSan;
   return `<div class="excard rvcard" style="--k:${REV_COL[I.c]}"><div class="rvh"><span class="cls big ${CLS[I.c][1]}">${CLS[I.c][2]}</span><div><b>${esc(I.num+" "+I.san)} · ${CLS[I.c][0]}</b><small>Bewertung danach: ${fmtEv(I.ev)}</small></div></div>
     <p>${esc(I.text)}</p>${showBest?`<p class="rvbest"><span class="cls c-best">★</span>Bester Zug: <b>${esc(I.bestSan)}</b>${I.bestLine?` <span class="ln">${esc(I.bestLine)}</span>`:""}</p>`:""}
-    ${["inacc","mist","blun","miss"].indexOf(I.c)>=0&&I.replyLine?`<p class="leads">Erwartete Fortsetzung nach ${esc(I.san)}: ${esc(I.replyLine)}</p>`:""}</div>`;
+    ${["inacc","mist","blun","miss"].indexOf(I.c)>=0&&I.replyLine?`<p class="leads">Erwartete Fortsetzung nach ${esc(I.san)}: ${esc(I.replyLine)}</p>`:""}
+    ${spentAt(game,k)!=null?`<p class="rvtime">⏱ ${fmtSec(spentAt(game,k))} Bedenkzeit · noch ${fmtSec(game.clk[k])} auf der Uhr</p>`:""}</div>`;
 }
 const engCache=new Map(),evCache=new Map(),engPend=new Set();
+/* Theorie zur aktuellen Stellung: Name der Eröffnung und Buchzüge */
+const THEO={all:false};
+function theoryHtml(compact){
+  if(!ECO.ready){ecoLoad().then(()=>{if(mode==="replay"&&tab==="ex")renderExplain()}).catch(()=>{});return ""}
+  if(game&&game.fen&&!game.free)return "";
+  const fl=fens.slice(0,view+1);const p=ecoPath(fl);const here=ecoAt(fens[view]);const inBook=view===0||ecoIn(fens[view]);
+  const mv=inBook?ecoMoves(fens[view],game&&game.fen?null:hist.slice(0,view)):[];
+  const cur=p?p.e.de:"";const rest=x=>{if(!x.e)return "Theorie";const d=x.e.de;if(cur&&d.indexOf(cur+", ")===0)return d.slice(cur.length+2);if(cur&&d===cur)return "Hauptlinie";return d.replace(/^[^:]*: /,"")||d};
+  const more=mv.length>5&&!THEO.all;
+  if(compact&&!p)return "";
+  if(compact)return `<div class="excard theo"><div class="exh"><span>Eröffnung</span><span>${esc(p.e.eco)}</span></div><p class="theo-n"><b>${esc(p.e.de)}</b>${here?"":` <small>(bis Zug ${Math.ceil(p.ply/2)})</small>`}</p>${inBook&&mv.length?`<div class="theo-mv">${mv.slice(0,8).map(x=>`<button class="chip" data-tu="${x.uci}" title="${esc(x.e?x.e.de:"Theorie")}">${esc(fmtMoves([x.san],view))}</button>`).join("")}</div>`:""}</div>`;
+  return `<div class="excard theo"><div class="exh"><span>Theorie</span><span>${p?esc(p.e.eco):""}</span></div>
+    ${p?`<p class="theo-n"><b>${esc(p.e.de)}</b>${p.e.de!==p.e.en?`<small>${esc(p.e.en)}</small>`:""}</p>`:`<p class="sub">Grundstellung</p>`}
+    ${inBook?(mv.length?`<div class="theo-l">${mv.slice(0,more?5:40).map(x=>`<button class="theo-r" data-tu="${x.uci}"><b>${esc(fmtMoves([x.san],view))}</b><span>${esc(rest(x))}</span>${x.n>1?`<small>${x.n}</small>`:""}</button>`).join("")}${more?`<button class="linkb" data-theoall="1">Alle ${mv.length} Theoriezüge</button>`:""}</div>`:`<p class="sub">Ende der bekannten Theorie.</p>`):`<p class="sub">Diese Stellung steht nicht mehr im Theoriebuch${p?` – zuletzt bekannt nach Zug ${Math.ceil(p.ply/2)}`:""}.</p>`}</div>`;
+}
+let lastIdeas="";
+function engArrow(){if(mode!=="replay"||S.set.engArrow===false||blindOn)return "";const r=engCache.get(shown.fen());const u=r&&r.lines&&r.lines[0]&&r.lines[0].pv[0];if(!u)return "";
+  const R=game&&game.review;if(R&&view>0&&inMainMove(view-1)&&R.best[view-1]&&["inacc","mist","blun","miss"].indexOf(R.cls[view-1])>=0)return "";
+  return arrowPath(u.slice(0,2),u.slice(2,4),"rgba(64,128,226,.78)",.15)}
 function engineLinesHtml(){return `<div class="excard"><div class="exh"><span>Stockfish · beste Züge</span><span id="engInfo"></span></div><div id="engLines">${SKEL}</div></div>`}
+const DEEP={fen:"",on:false};
 function fillEngineLines(){
   const el=$("engLines");if(!el)return;const fen=shown.fen();const g=new Chess(fen);
+  if(DEEP.on&&DEEP.fen!==fen){try{sfW.postMessage("stop")}catch(e){}}
   if(g.game_over()){el.innerHTML=`<p class="sub">${g.in_checkmate()?"Schachmatt.":"Remis."}</p>`;return}
   const draw=r=>{if(!$("engLines")||shown.fen()!==fen)return;const turn=g.turn();
     $("engLines").innerHTML=(r.lines||[]).map(l=>{const cp=cpOf(l.score,turn);const sans=pvSan(fen,l.pv,8);if(!sans.length)return "";return `<button class="eline" data-u="${esc(l.pv[0])}"><b class="ev ${cp>=0?"w":"b"}">${fmtEv(cp)}</b><span>${esc(fmtMoves(sans,plyOf(fen)))}</span></button>`}).join("")||'<p class="sub">Keine Linien.</p>';
     const d=r.lines&&r.lines[0]?r.lines[0].depth:0;if($("engInfo"))$("engInfo").textContent=d&&d<100?"Tiefe "+d:"";
+    if(shown.fen()===fen)ideasEl.innerHTML=lastIdeas+engArrow();
     $("engLines").querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{const m=uciMove(new Chess(shown.fen()),b.dataset.u);if(m)tryMove(m.from,m.to,true,m.promotion)})};
   if(engCache.has(fen)){draw(engCache.get(fen));return}
   if(engPend.has(fen))return;
   const myView=view;setTimeout(()=>{if(view!==myView||shown.fen()!==fen||engPend.has(fen))return;engPend.add(fen);
-    sfRun(fen,{ms:700,multi:3}).finally(()=>engPend.delete(fen)).then(r=>{engCache.set(fen,r);if(engCache.size>300)engCache.delete(engCache.keys().next().value);if(r.score)evCache.set(fen,cpOf(r.score,g.turn()));draw(r)}).catch(()=>{if($("engLines"))$("engLines").innerHTML='<p class="sub">Stockfish konnte nicht geladen werden.</p>'})},200);
+    sfRun(fen,{ms:700,multi:3}).finally(()=>engPend.delete(fen)).then(r=>{engCache.set(fen,r);if(engCache.size>300)engCache.delete(engCache.keys().next().value);if(r.score)evCache.set(fen,cpOf(r.score,g.turn()));draw(r);deepen()}).catch(()=>{if($("engLines"))$("engLines").innerHTML='<p class="sub">Stockfish konnte nicht geladen werden.</p>'})},200);
+  /* bleibt die Stellung stehen, rechnet Stockfish noch zwei Durchgänge tiefer (nicht während das Review läuft) */
+  function deepen(){const R=game&&game.review;if(R&&R.doneN<(game.n||hist.length))return;let step=0;const go=()=>{if(step>=2||shown.fen()!==fen||mode!=="replay")return;const ms=step===0?2200:5000;step++;
+    setTimeout(()=>{if(shown.fen()!==fen||mode!=="replay")return;engPend.add(fen);DEEP.fen=fen;DEEP.on=true;sfRun(fen,{ms,multi:3}).finally(()=>{engPend.delete(fen);DEEP.on=false}).then(r=>{const old=engCache.get(fen);if(old&&old.lines&&old.lines[0]&&r.lines&&r.lines[0]&&r.lines[0].depth<old.lines[0].depth)return;engCache.set(fen,r);if(r.score)evCache.set(fen,cpOf(r.score,g.turn()));draw(r);go()}).catch(()=>{})},400)};go()}
 }
 function reviewSummaryHtml(R){
   const n=game.n||R.n||hist.length,N=playerNames();
@@ -2012,21 +2201,27 @@ function reviewSummaryHtml(R){
   const dots=R.cls.map((c,k)=>KEY_CLS.indexOf(c)>=0&&R.evals[k+1]!=null?`<i class="gdot" style="left:${X(k+1)}%;top:${(100-winPct(R.evals[k+1])).toFixed(2)}%;background:${REV_COL[c]}"></i>`:"").join("");
   const vline=Math.min(view,game.vari?game.vari.base:view);
   const done=R.doneN>=n&&R.acc;
-  const accBox=s=>`<div class="rvacc ${s}"><small>${esc(N[s])}</small><b>${done?R.acc[s].toFixed(1):"…"}</b>${done?`<span>≈ ${estRating(R.acc[s])} Elo</span>`:""}</div>`;
+  const F2=R.feat||{};
+  const accBox=s=>`<div class="rvacc ${s}"><small>${esc(N[s])}</small><b>${done?R.acc[s].toFixed(1):"…"}</b>${done?`<span title="${estElo(R,s)?`Geschätzte Spielstärke in dieser Partie (Lichess-Skala), Spanne etwa ${Math.max(400,estElo(R,s)-ELO_MAE)}–${estElo(R,s)+ELO_MAE}`:"Zu wenige eigene Züge für eine Schätzung"}">≈ ${eloTxt(R,s)}</span>${F2[s]?`<span class="rvx">Ø ${Math.round(F2[s].acpl)} cp Verlust</span>`:""}`:""}</div>`;
+  const opn=R.open?`<div class="rvopen"><span class="eco">${esc(R.open.eco)}</span><span><b>${esc(deName(R.open.en))}</b><small>${R.book?`Theorie bis Zug ${Math.ceil(R.book/2)}`:"Früh aus der Theorie"}</small></span></div>`:"";
   const rows=REV_ORDER.map(k=>`<b>${C.w[k]||0}</b><span class="c"><span class="cls ${CLS[k][1]}">${CLS[k][2]}</span>${CLS[k][0]}</span><b>${C.b[k]||0}</b>`).join("");
   const ph=R.phase,phc=v=>v==null?'<span class="phz none">–</span>':`<span class="phz" style="background:${v>=85?REV_COL.best:v>=70?REV_COL.good:v>=55?REV_COL.inacc:REV_COL.blun}">${v.toFixed(0)}</span>`;
   const phases=ph?`<div class="rvph"><span></span><small>${esc(N.w)}</small><small>${esc(N.b)}</small>${[["o","Eröffnung"],["m","Mittelspiel"],["e","Endspiel"]].map(p=>`<span>${p[1]}</span>${phc(ph.w[p[0]])}${phc(ph.b[p[0]])}`).join("")}</div>`:"";
   const keys=R.cls.map((c,k)=>KEY_CLS.indexOf(c)>=0?`<button class="keym" data-kv="${k+1}"><span class="cls ${CLS[c][1]}">${CLS[c][2]}</span>${Math.floor(k/2)+1}${k%2?"...":"."} ${esc(de(mainMvs()[k]?mainMvs()[k].san:""))}</button>`:"").join("");
   return `<div class="excard"><div class="exh"><span>Game Review${R.doneN<n?` · analysiere ${R.doneN}/${n}`:""}</span><span>${esc(R.engine||"")}</span></div>
   ${R.doneN<n?`<div class="prog" style="margin:4px 0 10px"><i style="width:${R.doneN/n*100}%"></i></div>`:""}
-  <div class="rvaccs">${accBox("w")}${accBox("b")}</div>
+  ${opn}<div class="rvaccs">${accBox("w")}${accBox("b")}</div>
   <div class="graphw"><svg class="graph" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Bewertungsverlauf – antippen springt zum Zug"><path d="${area}" fill="#F2F1EC"/><line x1="0" y1="50" x2="100" y2="50" stroke="#888" stroke-width=".4"/><line x1="${X(vline)}" y1="0" x2="${X(vline)}" y2="100" stroke="#81B64C" stroke-width=".8"/></svg>${dots}</div>
   <div class="revsum" style="margin-top:10px"><span class="sub" style="text-align:center">${esc(N.w)}</span><span></span><span class="sub" style="text-align:center">${esc(N.b)}</span>${rows}</div>
   ${done&&phases?`<div class="exh" style="margin-top:12px"><span>Genauigkeit nach Phase</span></div>${phases}`:""}
+  ${(()=>{const T=timeStats(game,R);if(!T||!T.w.n||!T.b.n)return "";const row=(l,f)=>`<span>${l}</span><b>${f("w")}</b><b>${f("b")}</b>`;
+    return `<div class="exh" style="margin-top:12px"><span>Zeit</span></div><div class="rvtm"><span></span><small>${esc(N.w)}</small><small>${esc(N.b)}</small>${row("Ø pro Zug",s=>fmtSec(T[s].sum/T[s].n))}${row("Längste Überlegung",s=>T[s].maxK>=0?`<button class="linkb" data-kv="${T[s].maxK+1}">${fmtSec(T[s].max)}</button>`:"–")}${row("Züge in Zeitnot",s=>T[s].tn+(T[s].tnErr?` <em>(${T[s].tnErr} Fehler)</em>`:""))}</div>`})()}
   ${keys?`<div class="exh" style="margin-top:12px"><span>Wichtige Momente</span></div><div class="keyms">${keys}</div>`:""}</div>`;
 }
 function wireReviewPanel(el){
   el.querySelectorAll("[data-kv]").forEach(b=>b.onclick=()=>{if(game&&game.vari)exitVari();setView(+b.dataset.kv)});
+  el.querySelectorAll("[data-theoall]").forEach(b=>b.onclick=()=>{THEO.all=true;renderExplain()});
+  el.querySelectorAll("[data-tu]").forEach(b=>b.onclick=()=>{THEO.all=false;const m=uciMove(new Chess(shown.fen()),b.dataset.tu);if(m)tryMove(m.from,m.to,true,m.promotion)});
   const gr=el.querySelector(".graph");if(gr)gr.onclick=e=>{const r=gr.getBoundingClientRect();const n=game.n||hist.length;if(game&&game.vari)exitVari();setView(Math.round((e.clientX-r.left)/r.width*n))};
   if(mode==="replay")fillEngineLines();
 }
@@ -2079,7 +2274,8 @@ $("rvBest").onclick=()=>{const R=game&&game.review;if(!R||game.vari)return;const
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&game&&game.vari&&mode==="replay"&&!$("v-train").hidden)exitVari()});
 
 /* ---- Partie per Link oder PGN analysieren ---- */
-function famOfMoves(moves){let bestN=3,fam="Unbekannte Eröffnung";ALL.forEach(o=>{if(o.g==="c"||!o.lines)return;o.lines.forEach(l=>{let i=0;while(i<l.m.length&&i<moves.length&&strip(l.m[i])===strip(moves[i]))i++;if(i>bestN){bestN=i;fam=o.name}})});return fam}
+function famOfMoves(moves){let bestN=3,fam="Unbekannte Eröffnung";
+  if(ECO.ready){try{const g=new Chess();const fl=[g.fen()];for(const m of moves.slice(0,30)){if(!g.move(m))break;fl.push(g.fen())}const p=ecoPath(fl,30);if(p)fam=ecoFam(p.e)}catch(e){}}ALL.forEach(o=>{if(o.g==="c"||!o.lines)return;o.lines.forEach(l=>{let i=0;while(i<l.m.length&&i<moves.length&&strip(l.m[i])===strip(moves[i]))i++;if(i>bestN){bestN=i;fam=o.name}})});return fam}
 function anaFromPgn(pgn){
   const H=k=>pgnHeader(pgn,k);const moves=pgnMoves(pgn);if(!moves.length)return null;if(H("FEN")&&H("SetUp")!=="0")return null;
   const W=H("White")||"Weiß",B=H("Black")||"Schwarz",res=H("Result");const u=(CH.user||"").toLowerCase();
@@ -2087,7 +2283,7 @@ function anaFromPgn(pgn){
   const url=H("Link")||(/^https?:/.test(H("Site"))?H("Site"):"");
   let h=0;const key=W+B+H("Date")+moves.join("");for(let i=0;i<key.length;i++)h=(h*31+key.charCodeAt(i))|0;
   let fam=famFromName(H("Opening"));if(/Unbekannt/.test(fam))fam=famOfMoves(moves);
-  return {id:url||("pgn"+h),result:res||"",foreign:!u||(W.toLowerCase()!==u&&B.toLowerCase()!==u),color,res:r,term:"",fam,moves,tc:"",url,opp:color==="w"?B:W,oppR:+H(color==="w"?"BlackElo":"WhiteElo")||null,myR:+H(color==="w"?"WhiteElo":"BlackElo")||null,date:Date.parse((H("UTCDate")||H("Date")).replace(/\./g,"-"))||0,name:color==="w"?W:B,acc:null,white:W,black:B};
+  return {clk:pgnClk(pgn,moves.length),tcb:tcbOf(H("TimeControl")),id:url||("pgn"+h),result:res||"",foreign:!u||(W.toLowerCase()!==u&&B.toLowerCase()!==u),color,res:r,term:"",fam,moves,tc:"",url,opp:color==="w"?B:W,oppR:+H(color==="w"?"BlackElo":"WhiteElo")||null,myR:+H(color==="w"?"WhiteElo":"BlackElo")||null,date:Date.parse((H("UTCDate")||H("Date")).replace(/\./g,"-"))||0,name:color==="w"?W:B,acc:null,white:W,black:B};
 }
 async function analyzeInput(txt,msg){
   txt=(txt||"").trim();if(!txt){msg("Füge einen Link oder eine PGN ein.");return}
@@ -2101,7 +2297,7 @@ async function analyzeInput(txt,msg){
       if(!g){msg("Diese Partie ist nicht in deinem Archiv der letzten 12 Monate. Kopiere auf Chess.com die PGN (Teilen → PGN) und füge sie hier ein.");return}}
     msg("");reviewGame(g);return}
   if(li&&txt.indexOf("[")<0){msg("Lade die Partie von Lichess …");
-    try{const r=await fetch(`https://lichess.org/game/export/${li[1]}?clocks=false&evals=false`,{headers:{Accept:"application/x-chess-pgn"}});if(!r.ok)throw 0;const g=anaFromPgn(await r.text());if(!g)throw 0;msg("");reviewGame(g)}catch(e){msg("Die Lichess-Partie konnte nicht geladen werden.")}return}
+    try{const r=await fetch(`https://lichess.org/game/export/${li[1]}?clocks=true&evals=false`,{headers:{Accept:"application/x-chess-pgn"}});if(!r.ok)throw 0;const g=anaFromPgn(await r.text());if(!g)throw 0;msg("");reviewGame(g)}catch(e){msg("Die Lichess-Partie konnte nicht geladen werden.")}return}
   const parts=txt.replace(/\r/g,"").split(/\n\s*\n(?=\[Event )/);const g=anaFromPgn(parts[0].indexOf("[")<0&&!/\d\./.test(parts[0])?"":parts[0]);
   if(!g){msg("Das sieht nicht nach einer gültigen PGN oder einem Partie-Link aus.");return}
   msg("");reviewGame(g);
@@ -3274,7 +3470,7 @@ function freeStatus(){
 /* ---- Brett-Menü »⋯« ---- */
 {
   const bm=$("bMenu"),mb=$("moreBtn");
-  const sync=()=>{$("sndBtn").setAttribute("aria-pressed",String(!!S.set.sound));$("coordBtn").setAttribute("aria-pressed",String(!!S.set.coords));$("ideaBtn").setAttribute("aria-pressed",String(!!S.set.ideas));$("evalBtn").setAttribute("aria-pressed",String(!!S.set.evalbar))};
+  const sync=()=>{$("sndBtn").setAttribute("aria-pressed",String(!!S.set.sound));$("coordBtn").setAttribute("aria-pressed",String(!!S.set.coords));$("ideaBtn").setAttribute("aria-pressed",String(!!S.set.ideas));$("evalBtn").setAttribute("aria-pressed",String(!!S.set.evalbar));$("engArBtn").setAttribute("aria-pressed",String(S.set.engArrow!==false))};
   const close=()=>{bm.hidden=true;mb.setAttribute("aria-expanded","false")};
   mb.onclick=e=>{e.stopPropagation();if(!bm.hidden){close();return}sync();bm.hidden=false;mb.setAttribute("aria-expanded","true");
     const r=mb.getBoundingClientRect();const up=r.top>innerHeight-r.bottom;bm.style.right=Math.max(8,innerWidth-r.right)+"px";
@@ -3285,6 +3481,7 @@ function freeStatus(){
   $("sndBtn").onclick=()=>{S.set.sound=!S.set.sound;save("set")};
   $("coordBtn").onclick=()=>{S.set.coords=!S.set.coords;save("set");applySettings()};
   $("ideaBtn").onclick=()=>{S.set.ideas=!S.set.ideas;save("set");render()};
+  $("engArBtn").onclick=()=>{S.set.engArrow=S.set.engArrow===false;save("set");render()};
   $("fenBtn").onclick=()=>{const f=shown.fen();if(navigator.clipboard)navigator.clipboard.writeText(f).then(()=>toast("FEN kopiert")).catch(()=>linkBox(f));else linkBox(f)};
   $("anaBtn").onclick=()=>{if(mode==="online"&&ON.g&&ON.g.status!=="over"&&!ON.spect){toast("Während einer laufenden Partie geht das nicht – fair bleiben!");return}const moves=hist.slice();const at=view;openAnaBoard(startFen,moves,at)};
   $("setBtn").onclick=()=>showView("profile:settings");
@@ -3342,7 +3539,8 @@ function renderLegal(){
   <li><b>Firebase JS SDK</b> von Google – Apache License 2.0</li>
   <li><b>Inter</b> von Rasmus Andersson – SIL Open Font License 1.1</li>
   <li>Figuren „Klassisch“ von Colin M. L. Burnett – GPLv2+; „Staunty“ aus Lichess – CC BY-NC-SA 4.0</li>
-  <li>Taktik-Rätsel und Eröffnungsstatistik: Lichess-Datenbank – CC0</li></ul></article>`;
+  <li>Taktik-Rätsel und Eröffnungsstatistik: Lichess-Datenbank – CC0</li>
+  <li>Eröffnungsnamen und Theoriebuch: <b>lichess-org/chess-openings</b> – CC0</li></ul></article>`;
   v.innerHTML=pageHead("Rechtliches","Datenschutz, Impressum und Lizenzen.","legal")+
   `<div class="seg" style="align-self:flex-start">${[["priv","Datenschutz"],["imp","Impressum"],["lic","Lizenzen"]].map(t=>`<button data-lt="${t[0]}" aria-pressed="${legalTab===t[0]}">${t[1]}</button>`).join("")}</div>
   <div class="card">${legalTab==="imp"?imp:legalTab==="lic"?lic:priv}</div>`;
@@ -4087,6 +4285,7 @@ renderStats=function(v){
   ${ratingChartHtml()}
   ${heatHtml()}
   ${radarHtml()}
+  ${strengthHtml()}
   ${winHtml()}
   ${patternsHtml()}
   ${curveHtml()}
@@ -4221,6 +4420,97 @@ renderTactics=function(){
     v.querySelectorAll(".th-rec [data-tre]").forEach(b=>b.onclick=()=>{const e=all[+b.dataset.tre];if(e)tacticSession("hist",[tlogPuzzle(e)])})}
 };
 HASHV["#taktik-verlauf"]="tactics:hist";
+
+/* ================= Eröffnungslexikon: alle benannten Eröffnungen zum Ansehen und Trainieren ================= */
+var opTab="mine";
+const LEX={q:"",cat:"all",fam:null,n:80,ops:new Map()};
+const LEX_CAT=[["all","Alle"],["A","A · Flanken"],["B","B · Halboffen"],["C","C · Offen"],["D","D · Geschlossen"],["E","E · Indisch"]];
+function lexFamilies(){
+  if(ECO.fams)return ECO.fams;const m=new Map();
+  ECO.list.forEach(e=>{const k=e.en.split(":")[0].split(",")[0];let f=m.get(k);if(!f){f={k,id:slug(k),en:k,de:deName(k),items:[]};m.set(k,f)}f.items.push(e);e.f=f});
+  m.forEach(f=>{f.items.sort((a,b)=>{const n=Math.min(a.m.length,b.m.length);for(let i=0;i<n;i++)if(a.m[i]!==b.m[i])return a.m[i]<b.m[i]?-1:1;return a.m.length-b.m.length});
+    const exact=f.items.filter(e=>e.en===f.k);const root=(exact.length?exact:f.items).reduce((x,y)=>y.m.length<x.m.length?y:x);f.root=root;f.side=root.m.length%2===1?"w":"b";
+    const ecos=f.items.map(e=>e.eco).sort();f.eco=ecos[0]===ecos[ecos.length-1]?ecos[0]:ecos[0]+"–"+ecos[ecos.length-1];f.cat=root.eco[0];
+    /* Einrückung: wie viele Vorfahren (Präfixe) eine Variante in der Familie hat */
+    const st=[];f.items.forEach(e=>{while(st.length&&!(e.m.length>st[st.length-1].m.length&&st[st.length-1].m.every((x,i)=>e.m[i]===x)))st.pop();e.dep=st.length;e.par=st.length?st[st.length-1]:null;e.kids=[];st.push(e)});
+    /* Reihenfolge wie ein Baum: wichtige Äste (viele Untervarianten) zuerst */
+    f.items.forEach(e=>{if(e.par)e.par.kids.push(e)});const cnt=e=>e.nd!=null?e.nd:(e.nd=e.kids.reduce((a,k)=>a+1+cnt(k),0));f.items.forEach(cnt);
+    const out=[];const walk=e=>{out.push(e);e.kids.sort((a,b)=>b.nd-a.nd||a.m.length-b.m.length).forEach(walk)};f.items.filter(e=>!e.par).sort((a,b)=>b.nd-a.nd||a.m.length-b.m.length).forEach(walk);f.items=out});
+  ECO.fams=[...m.values()].sort((a,b)=>b.items.length-a.items.length);return ECO.fams;
+}
+const lexFamOf=e=>{lexFamilies();return e.f};
+function lexRest(e,f){const d=e.de,fd=f?f.de:"";let r=fd&&d.indexOf(fd+": ")===0?d.slice(fd.length+2):d===fd?"":d;
+  /* gleicher Name wie der übergeordnete Eintrag: letzten Zug dazuschreiben */
+  const lm=e.m.length?fmtMoves([e.m[e.m.length-1]],e.m.length-1):"";
+  if(!r)return f&&e===f.root?"Grundstellung":"Hauptlinie mit "+lm;
+  if(e.par&&e.par.de===e.de)return r+" mit "+lm;return r}
+/* Trainings-Objekte im Format der Eröffnungen: ganze Familie (lx:…) oder einzelne Variante (lxe:…) */
+function lexOp(id){
+  if(!ECO.ready||!id)return null;if(LEX.ops.has(id))return LEX.ops.get(id);let o=null;
+  let m=id.match(/^lx:([^:]+):([wb])$/);
+  if(m){const f=lexFamilies().find(x=>x.id===m[1]);if(!f)return null;const seen=new Set(),L=[];
+    f.items.forEach(e=>{const key=e.m.join(" ");if(seen.has(key))return;if(f.items.some(x=>x.m.length>e.m.length&&x.m.slice(0,e.m.length).join(" ")===key))return;seen.add(key);L.push({n:lexRest(e,f),m:e.m.slice(),p:"",notes:{},trap:false})});
+    o={id,g:"lx",side:m[2],name:f.de,eco:f.eco,d:`${L.length} Varianten aus dem Eröffnungslexikon (Lichess-Datenbank). Gespielt wird bis zur benannten Stellung.`,plan:[],lines:L}}
+  m=id.match(/^lxe:(\d+):([wb])$/);
+  if(m){const e=ECO.list[+m[1]];if(!e)return null;const f=lexFamOf(e);
+    o={id,g:"lx",side:m[2],name:e.de,eco:e.eco,d:`Aus dem Eröffnungslexikon: ${e.en}.`,plan:[],lines:[{n:e.de,m:e.m.slice(),p:"",notes:{},trap:false}]}}
+  if(o)LEX.ops.set(id,o);return o;
+}
+function lexTrain(id,line){ecoLoad().then(()=>{const o=lexOp(id);if(o)selectOpening(o,line==null?null:line)}).catch(()=>toast("Das Lexikon konnte nicht geladen werden."))}
+function opTabsHtml(){return `<div class="seg op-tabs" role="tablist"><button data-ot2="mine" aria-pressed="${opTab!=="lex"}">Kurse · ${ALL.length}</button><button data-ot2="lex" aria-pressed="${opTab==="lex"}">Lexikon · ${ECO.ready?ECO.list.length.toLocaleString("de-DE"):"3.865"}</button></div>`}
+function wireOpTabs(v){v.querySelectorAll("[data-ot2]").forEach(b=>b.onclick=()=>showView(b.dataset.ot2==="lex"?"openings:lex":"openings:mine"))}
+const lexNorm=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[’']/g,"");
+function lexRow(e,f,showFam){
+  const side=f?f.side:(e.m.length%2===1?"w":"b");const done=P("lxe:"+e.i+":"+side,0)===2||P("lxe:"+e.i+":"+(side==="w"?"b":"w"),0)===2;
+  const name=showFam?e.de:lexRest(e,f);
+  return `<div class="lxr" style="--d:${showFam?0:Math.min(6,e.dep||0)}"><button class="lx-t" data-lxv="${e.i}" title="Im Analysebrett ansehen"><b>${esc(name)}${done?' <span class="lx-ok" title="schon fehlerfrei trainiert">✓</span>':""}${!showFam&&e.nd?` <span class="lx-n">${e.nd}</span>`:""}</b><small><span class="eco">${esc(e.eco)}</span> ${esc(fmtMoves(e.m))}</small></button>
+    <span class="lx-b"><button class="btn lx-view" data-lxv="${e.i}" tabindex="-1" aria-hidden="true">Ansehen</button><button class="btn grn" data-lxt="${e.i}" data-side="${side}">Üben</button></span></div>`;
+}
+function renderLex(){
+  const v=$("v-openings");
+  if(!ECO.ready){v.innerHTML=opTabsHtml()+pageHead("Eröffnungslexikon","Alle benannten Eröffnungen und Varianten.","book")+`<div class="card">${SKEL}</div>`;wireOpTabs(v);
+    ecoLoad().then(()=>{if(curView==="openings"&&opTab==="lex")renderLex()}).catch(()=>{if(curView==="openings")v.querySelector(".card").innerHTML='<p class="err">Das Lexikon konnte nicht geladen werden. Prüfe die Internetverbindung.</p>'});return}
+  const fams=lexFamilies();let h=opTabsHtml();
+  if(LEX.fam){const f=fams.find(x=>x.id===LEX.fam);if(f){renderLexFam(v,f);return}LEX.fam=null}
+  h+=pageHead("Eröffnungslexikon",`${ECO.list.length.toLocaleString("de-DE")} benannte Eröffnungen und Varianten in ${fams.length} Familien – ansehen, im Analysebrett untersuchen oder direkt trainieren.`,"book");
+  h+=`<input class="txt" id="lxSearch" type="search" placeholder="Name, ECO-Code oder Züge, z. B. Najdorf, B90 oder 1.e4 c5" value="${esc(LEX.q)}" aria-label="Lexikon durchsuchen" autocomplete="off">`;
+  const q=LEX.q.trim();
+  if(q){const mq=parseMoveQuery(q);let res;
+    if(/^[A-Ea-e]\d{2}$/.test(q))res=ECO.list.filter(e=>e.eco===q.toUpperCase());
+    else if(mq&&mq.moves.length&&!mq.bad)res=ECO.list.filter(e=>e.m.length>=mq.moves.length&&mq.moves.every((x,i)=>e.m[i]===x));
+    else{const t=lexNorm(q).split(/\s+/).filter(Boolean);res=ECO.list.filter(e=>{const hay=lexNorm(e.de+" "+e.en+" "+e.eco);return t.every(w=>hay.indexOf(w)>=0)})}
+    res=res.slice().sort((a,b)=>a.m.length-b.m.length);
+    h+=`<p class="hint">${res.length?`${res.length} ${res.length===1?"Treffer":"Treffer"}`:"Nichts gefunden."}</p><div class="lxl">${res.slice(0,LEX.n).map(e=>lexRow(e,lexFamOf(e),true)).join("")}</div>${res.length>LEX.n?`<button class="btn" id="lxMore" style="align-self:center">Weitere anzeigen</button>`:""}`;
+  }else{
+    h+=`<div class="filters">${LEX_CAT.map(c=>`<button class="chip${LEX.cat===c[0]?" on":""}" data-lxc="${c[0]}">${c[1]}</button>`).join("")}</div>`;
+    const list=fams.filter(f=>LEX.cat==="all"||f.cat===LEX.cat);
+    h+=`<div class="lxg">${list.map(f=>{const side=f.side;const lo=lexOp("lx:"+f.id+":"+side);const cl=lo?lo.lines.filter((l,i)=>P(lo.id,i)===2).length:0;
+      return `<button class="lxc" data-lxf="${f.id}"><span class="kchip ${side}"></span><span class="lxc-t"><b>${esc(f.de)}</b><small>${esc(f.eco)} · ${f.items.length} ${f.items.length===1?"Variante":"Varianten"}${cl?` · ${cl} gelernt`:""}</small><small class="mv">${esc(fmtMoves(f.root.m))}</small></span></button>`}).join("")}</div>`;
+  }
+  h+=`<p class="hint">Quelle: Lichess-Eröffnungsdatenbank (CC0). Die deutschen Namen sind übersetzt, die englischen Originalnamen stehen in der Variantenansicht.</p>`;
+  v.innerHTML=h;wireOpTabs(v);wireLex(v);
+  const si=$("lxSearch");si.oninput=()=>{LEX.q=si.value;LEX.n=80;clearTimeout(LEX.t);LEX.t=setTimeout(()=>{renderLex();const x=$("lxSearch");if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},250)};
+  v.querySelectorAll("[data-lxc]").forEach(b=>b.onclick=()=>{LEX.cat=b.dataset.lxc;renderLex()});
+  v.querySelectorAll("[data-lxf]").forEach(b=>b.onclick=()=>{LEX.fam=b.dataset.lxf;LEX.n=80;renderLex();window.scrollTo(0,0)});
+  const mo=$("lxMore");if(mo)mo.onclick=()=>{LEX.n+=80;renderLex()};
+}
+function renderLexFam(v,f){
+  const other=f.side==="w"?"b":"w";const lo=lexOp("lx:"+f.id+":"+f.side);const cl=lo.lines.filter((l,i)=>P(lo.id,i)===2).length;
+  let h=opTabsHtml()+`<button class="back" data-lxback>← Alle Familien</button>`+pageHead(esc(f.de),`${esc(f.eco)} · ${f.items.length} benannte Varianten · ${lo.lines.length} Endstellungen zum Trainieren${f.de!==f.en?` · englisch: ${esc(f.en)}`:""}`,"book");
+  h+=`<div class="card lx-act"><div><b>Alle Varianten üben</b><small>Der Trainer wählt Varianten nach deiner Lernkurve aus. ${cl?`${cl} von ${lo.lines.length} schon fehlerfrei.`:""}</small></div><div class="btnrow"><button class="btn grn" data-lxall="${f.side}">Als ${f.side==="w"?"Weiß":"Schwarz"} üben</button><button class="btn" data-lxall="${other}">Als ${other==="w"?"Weiß":"Schwarz"}</button><button class="btn" data-lxv="${f.root.i}">Ansehen</button></div></div>`;
+  h+=`<div class="lxl">${f.items.slice(0,LEX.n).map(e=>lexRow(e,f,false)).join("")}</div>${f.items.length>LEX.n?`<button class="btn" id="lxMore" style="align-self:center">Weitere ${Math.min(80,f.items.length-LEX.n)} anzeigen</button>`:""}`;
+  v.innerHTML=h;wireOpTabs(v);wireLex(v);
+  v.querySelector("[data-lxback]").onclick=()=>{LEX.fam=null;renderLex()};
+  v.querySelectorAll("[data-lxall]").forEach(b=>b.onclick=()=>lexTrain("lx:"+f.id+":"+b.dataset.lxall));
+  const mo=$("lxMore");if(mo)mo.onclick=()=>{LEX.n+=80;renderLex()};
+}
+function wireLex(v){
+  v.querySelectorAll("[data-lxv]").forEach(b=>b.onclick=()=>{const e=ECO.list[+b.dataset.lxv];if(e)openAnaBoard(null,e.m.slice(),e.m.length)});
+  v.querySelectorAll("[data-lxt]").forEach(b=>b.onclick=()=>lexTrain("lxe:"+b.dataset.lxt+":"+b.dataset.side,0));
+}
+const _renderOpenings=renderOpenings;
+renderOpenings=function(){if(opTab==="lex"){renderLex();return}_renderOpenings();const v=$("v-openings");v.insertAdjacentHTML("afterbegin",opTabsHtml());wireOpTabs(v)};
+HASHV["#lexikon"]="openings:lex";
 
 /* ================= Neue Version: Hinweis statt veralteter App ================= */
 /* Bleibt die App tagelang offen (z. B. auf dem Handy), läuft sonst alter Code – und zwei Spieler hätten unterschiedliche Versionen. */
