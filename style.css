@@ -772,7 +772,6 @@ button,.tb,.chip,.btn,.nb,.mv,.hc,.gi,.onopen,.auhead{-webkit-user-select:none;u
 .onn b small{color:var(--muted);font-weight:600;font-size:11.5px}
 
 /* =================== Version 9: Design-System, Marke, neue Navigation =================== */
-@font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url(lib/fonts/inter-latin-wght.woff2) format("woff2-variations"),url(lib/fonts/inter-latin-wght.woff2) format("woff2")}
 :root{
   /* Akzent (Standard: Lila) */
   --acc:#8B6CF6;--acc-hi:#9D82F8;--acc-sh:#5B45B0;--acc-soft:rgba(139,108,246,.16);--acc-txt:#B8A5FF;
@@ -1400,3 +1399,133 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .str-row b{font-size:30px;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .str-row span{color:var(--text-2);font-size:13.5px}
 .str-row em{font-style:normal;font-weight:700}.str-row em.up{color:var(--green)}.str-row em.down{color:var(--red-soft)}
+
+/* =================== Version 15: wohnlicher – Walnuss, Rubik, greifbare Knöpfe =================== */
+@font-face{font-family:"Rubik";font-style:normal;font-weight:300 900;font-display:swap;src:url(lib/fonts/rubik-latin-wght.woff2) format("woff2-variations"),url(lib/fonts/rubik-latin-wght.woff2) format("woff2")}
+:root{
+  --acc:#8F71D9;--acc-hi:#A088E1;--acc-sh:#5F469C;--acc-soft:rgba(143,113,217,.18);--acc-txt:#C4B3F1;
+  --bg:#2B2621;--panel:#221E1A;--panel-2:#1C1915;--row:#2F2A25;--hover:#3A342D;--sel:#4A4239;--line:#3C352E;--line-soft:rgba(255,236,210,.06);
+  --text:#F4EEE6;--text-2:#D0C6B8;--muted:#9C9182;
+  --green:#7FB04B;--green-hi:#93C25E;--green-sh:#4F7A2B;--red-soft:#D9574F;--gold:#E2B04A;
+  --r-sm:9px;--r:12px;--r-lg:16px;
+  --font:"Rubik",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Rubik",system-ui,sans-serif;
+}
+.acc-red{--acc:#D9534F;--acc-hi:#E36A66;--acc-sh:#962F2C;--acc-soft:rgba(217,83,79,.18);--acc-txt:#F2A19D}
+.acc-green{--acc:#7FB04B;--acc-hi:#93C25E;--acc-sh:#4F7A2B;--acc-soft:rgba(127,176,75,.18);--acc-txt:#ADD47F}
+.theme-light{--bg:#ECE9E4;--panel:#FFFFFF;--panel-2:#F5F3EF;--row:#F7F5F2;--hover:#ECE8E2;--sel:#E0DAD1;--line:#E1DCD4;--line-soft:rgba(60,40,20,.07);--text:#2A2622;--text-2:#4E4740;--muted:#857B70}
+.theme-light.acc-violet,.theme-light:not(.acc-red):not(.acc-green){--acc-txt:#6A4FC0}
+body{font-family:var(--font);letter-spacing:0;font-feature-settings:normal;background:var(--bg)}
+h1,h2,h3,h4{letter-spacing:-.005em}
+
+/* Keine Großbuchstaben-Etiketten: normale Schreibweise, ruhiger */
+body *{text-transform:none!important}
+.grp,.exh,.tile small,.wkc .pct small,th,.gcard .done-tag,.flame small,.tag2,.rate small,.tac-r small,.cont-t small,.abadge,.side-h,.kpi small,.crc-tag,.co-stat small,.lg-hero small,.rbox small,.weak{letter-spacing:0!important}
+.exh{font-size:13px;color:var(--text-2);font-weight:600}
+.kpi small,.tile small,.rate small,.rbox small,.co-stat small,.lg-hero small{font-size:12.5px;font-weight:500;color:var(--muted)}
+.side-h,.grp{font-size:12.5px;font-weight:600;color:var(--muted)}
+.cont-t small{font-size:12.5px;font-weight:600}
+.tac-r small{font-size:13px;font-weight:600}
+th{font-size:12.5px;font-weight:600}
+.tag2,.abadge,.crc-tag{font-size:11.5px;font-weight:600}
+
+/* Knöpfe zum Anfassen: dicker Schatten unten, beim Drücken sinken sie ein */
+.btn{border-radius:10px;font-weight:600;box-shadow:0 3px 0 rgba(0,0,0,.35);transition:background .12s,transform .06s,box-shadow .06s}
+.btn:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
+.btn.grn{box-shadow:0 4px 0 var(--acc-sh);font-weight:650}
+.btn.grn:active:not(:disabled){box-shadow:0 2px 0 var(--acc-sh)}
+.btn.red{background:#A8382F;box-shadow:0 3px 0 #66221D}
+.big{border-radius:12px;font-size:18px;font-weight:700;box-shadow:0 5px 0 var(--acc-sh);letter-spacing:.005em}
+.big:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 var(--acc-sh)}
+.theme-light .btn{box-shadow:0 3px 0 #CFC7BB}.theme-light .btn.grn{box-shadow:0 4px 0 var(--acc-sh)}
+.chip{font-weight:550;background:var(--row)}
+.chip.on,.chip.on:hover{background:var(--sel);color:var(--text);box-shadow:inset 0 0 0 2px var(--acc)}
+.theme-light .chip{background:var(--panel)}
+
+/* Flächen: flach, ohne Haarlinien; keine Karten in Karten */
+.card,.hc,.kpi,.qa,.coll,.lxc,.thr,.lxr,.opc,.botc,.gi{box-shadow:none!important}
+.card{background:var(--panel);border-radius:14px}
+.coll{border-radius:14px}
+.kpi{background:var(--panel);border-radius:12px}
+.quests{gap:0!important}
+.quest{background:transparent!important;border-radius:0;border-top:1px solid var(--line);padding:12px 4px}
+.quest:first-child{border-top:0}
+.quest:hover{background:transparent!important}.quest:hover b{color:var(--acc-txt)}
+.excard:not(.rvcard){background:transparent;border-radius:0;padding:12px 2px;border-top:1px solid var(--line)}
+.excard:not(.rvcard):first-child{border-top:0;padding-top:4px}
+.rvcard{background:var(--row)}
+
+/* Farbige Symbole wie auf einem Vereinsbrett: jede Sache hat ihre Farbe */
+:is(.ci-ic,.coll-ic,.qa-ic,.hc .ic,.hero .ic,.al-ic,.es-ic,.feed-ic):has(svg){background:var(--ic,var(--acc))!important;color:#fff!important}
+:is(.ci-ic,.coll-ic,.qa-ic,.hc .ic,.hero .ic,.al-ic,.es-ic,.feed-ic) svg{fill:#fff}
+:has(>svg[data-i="bolt"]){--ic:#E08A2E}
+:has(>svg[data-i="swords"]),:has(>svg[data-i="chess"]){--ic:#6FA23F}
+:has(>svg[data-i="book"]),:has(>svg[data-i="list"]),:has(>svg[data-i="import"]){--ic:#4F86C6}
+:has(>svg[data-i="learn"]){--ic:#3F9C8F}
+:has(>svg[data-i="search"]),:has(>svg[data-i="review"]),:has(>svg[data-i="eye"]){--ic:#3E9DB5}
+:has(>svg[data-i="bot"]){--ic:#7B8794}
+:has(>svg[data-i="target"]),:has(>svg[data-i="mistake"]),:has(>svg[data-i="traps"]){--ic:#C8473D}
+:has(>svg[data-i="quiz"]){--ic:#A86FCF}
+:has(>svg[data-i="games"]),:has(>svg[data-i="king"]),:has(>svg[data-i="board"]){--ic:#A87A4F}
+:has(>svg[data-i="daily"]){--ic:#D4A33A}
+:has(>svg[data-i="online"]),:has(>svg[data-i="profile"]){--ic:#8F71D9}
+:has(>svg[data-i="home"]){--ic:#D9774A}
+:has(>svg[data-i="legal"]),:has(>svg[data-i="settings"]),:has(>svg[data-i="palette"]),:has(>svg[data-i="edit"]),:has(>svg[data-i="copy"]),:has(>svg[data-i="share"]),:has(>svg[data-i="more"]),:has(>svg[data-i="sound"]),:has(>svg[data-i="flip"]){--ic:#8A7F72}
+.ci-ic{width:34px;height:34px;border-radius:9px}.ci-ic svg{width:19px;height:19px}
+.hero .ic{width:42px;height:42px;border-radius:11px}
+.hero{gap:12px}
+.hero h2{font-size:24px;font-weight:700}
+.hero p{font-size:14px;color:var(--muted)}
+/* Seitenleiste und Navigation: farbige Bereichssymbole, ruhige Auswahl */
+.sidenav .ni .ic{color:var(--ic,var(--text-2))}
+.sidenav .ni .ic svg{fill:currentColor}
+.sidenav .ni[aria-current="true"]{background:var(--hover);box-shadow:inset 3px 0 0 var(--ic,var(--acc))}
+.sidenav .ni[aria-current="true"] .ic{color:var(--ic,var(--acc))}
+.ni{font-weight:550}
+.side{background:#221E1A}
+.theme-light .side{background:#F7F5F1}
+.tb[aria-current="true"]::before{background:var(--hover)}
+.tb[aria-current="true"]{color:var(--text)}
+.tb .dotn{background:var(--red-soft)}
+/* Unterbereiche als Reiter mit Unterstrich statt Pillen */
+.subnav-in{gap:2px}
+.pill{background:none;box-shadow:none;border-radius:0;padding:10px 12px 9px;color:var(--muted);font-weight:600;border-bottom:3px solid transparent}
+.pill:hover{background:none;color:var(--text)}
+.pill[aria-current="true"]{background:none;color:var(--text);border-bottom-color:var(--acc)}
+.pill[aria-current="true"] .dotn2{background:var(--acc);color:#fff}
+.subnav{padding-top:4px;padding-bottom:0;border-bottom:1px solid var(--line)}
+/* Zahlen und Notation in der Hausschrift */
+.theo-r b,.lx-t small,.lxc-t small.mv,.moves1,.mvlist,.mvl,.th-t small,.code{font-family:var(--font);font-variant-numeric:tabular-nums}
+.kpi b{font-weight:700;font-size:24px}
+.ci-t b{font-weight:600}
+.ci-m.hot{background:var(--red-soft)}
+/* Startseite: Weitermachen in Holz statt Farbverlauf */
+.cont{background:var(--panel)!important;box-shadow:none!important}
+.tac-hero{background:var(--panel)!important;box-shadow:none!important}
+.daily-hero,.theme-light .daily-hero,.theme-light .tac-hero,.theme-light .cont{background:var(--panel)!important;box-shadow:none!important}
+.xpbar i{background:var(--acc)}
+.landing{background:var(--bg)}
+.bot-av{background:#E9E1D3;padding:5px}
+.bot-av .pp{width:100%;height:100%}
+.botc[aria-pressed="true"] .bot-av{background:#E9E1D3;box-shadow:0 0 0 3px var(--acc)}
+.botc[aria-pressed="true"]{background:var(--hover);box-shadow:inset 0 0 0 2px var(--acc)!important}
+@media (min-width:761px){.quests .quest{border-top:0;padding:8px 4px}}
+.dqi{background:transparent;border-radius:0;border-top:1px solid var(--line);padding:11px 4px}
+.dqi:first-of-type{border-top:0}
+.dqi:hover{background:transparent}.dqi:hover b{color:var(--acc-txt)}
+/* Startseite für Besucher: ein Brett statt Logo-Bühne */
+.land-brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;justify-content:center}
+.land-board{display:flex;justify-content:center;margin:18px 0 6px}
+.land-board .thumb{width:min(300px,72vw);height:min(300px,72vw);border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.4),0 0 0 6px #4A3A2C}
+.land-top h1{font-size:clamp(26px,7vw,34px);font-weight:700;line-height:1.15;letter-spacing:-.01em;margin-top:14px;text-wrap:balance}
+.land-top p{color:var(--text-2)}
+.lf{background:transparent;box-shadow:none;padding:6px 2px;flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:10px}
+.lf-ic{margin-bottom:0;flex:none}
+.lf b{flex:1}
+.lf small{flex-basis:100%;padding-left:44px;margin-top:-2px}
+:is(.lf-ic):has(svg){background:var(--ic,var(--acc))!important;color:#fff!important}
+.lf-ic svg{fill:#fff}
+.land-brand .lg{box-shadow:none;margin:0;border-radius:9px}
+.land-board .thumb{width:min(280px,64vw);height:min(280px,64vw)}
+@media (max-width:560px){.land-board{margin:10px 0 0}.land-in{gap:18px}}
+.lfs{align-items:start}

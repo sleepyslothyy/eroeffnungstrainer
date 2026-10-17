@@ -61,7 +61,7 @@ Datenschutzerklärung, Impressum und Lizenzen stehen in der App unter Profil →
 
 ## Technik
 Reines HTML/CSS/JavaScript ohne Build-Schritt. Bei jedem Push prüft GitHub Actions die App mit einem Rauchtest in Chromium (`tests/smoke.mjs`) und einem Online-Test mit zwei Spielern, Uhrversatz und Verbindungsabbruch (`tests/online.mjs`).
-- Schrift: [Inter](https://rsms.me/inter/) (SIL OFL 1.1), lokal unter `lib/fonts` – keine Anfragen an Google Fonts
+- Schrift: [Rubik](https://github.com/googlefonts/rubik) (SIL OFL 1.1), lokal unter `lib/fonts` – keine Anfragen an Google Fonts
 - [chess.js](https://github.com/jhlywa/chess.js) (BSD-2)
 - [Stockfish.js 17.1 lite](https://github.com/nmrugg/stockfish.js) (GPLv3, siehe `engine/COPYING.txt`)
 - Figuren: „Klassisch“ von Colin M.L. Burnett (GPLv2+), „Staunty“ aus lichess (CC BY-NC-SA 4.0)

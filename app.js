@@ -65,6 +65,8 @@ const NI={
   palette:SV('<path d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 9.8C22 5.5 17.5 2 12 2zM6.5 13a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>'),
   settings:SV('<path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/>')
 };
+/* Jedes Symbol kennt seinen Namen – so bekommt es im Stylesheet seine eigene Farbe */
+for(const k in NI)NI[k]=NI[k].replace("<svg",`<svg data-i="${k}"`);
 
 /* ---------------- Speicher ---------------- */
 const SKEL='<div class="skel"></div><div class="skel w80"></div><div class="skel w60"></div>';
@@ -1179,7 +1181,7 @@ let opFilter="all",opQuery="";
 function renderOpenings(){
   const v=$("v-openings");
   const F=[["all","Alle"],["rep","Repertoire"],["w","Weiß"],["b","Schwarz"],["x","Gambits & Fallen"],["c","Eigene"],["due","Fällig"],["weak","Schwach"]];
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.list}</span><div><h2>Eröffnungen</h2><p>${ALL.length} Eröffnungen mit ${totalLines()} Varianten. Mit dem Stern nimmst du eine Eröffnung in dein Repertoire auf. Die Suche versteht auch Züge wie „1.d4 Sf6 2.c4“.</p></div></div>
+  v.innerHTML=`<div class="hero"><span class="ic">${NI.list}</span><div><h2>Eröffnungen</h2><p>${ALL.length} Eröffnungen, ${totalLines()} Varianten. Mit dem Stern kommt eine Eröffnung in dein Repertoire.</p></div></div>
   <input class="txt" id="opSearch" type="search" placeholder="Name, ECO oder Züge" value="${esc(opQuery)}" aria-label="Eröffnung suchen">
   <div class="filters">${F.map(f=>`<button class="chip${opFilter===f[0]?" on":""}" data-f="${f[0]}">${f[1]}</button>`).join("")}</div>
   <div id="opInfo" class="hint"></div><div class="opgrid" id="opGrid"></div>`;
@@ -1210,7 +1212,7 @@ function renderLearn(){
   const tot=totalLines(),cl=cleanCount();const tz=pzToday();const ends=Object.keys(st.ends).length;
   const item=(act,ic,t,d,meta,hot)=>`<button class="ci" data-act="${act}"><span class="ci-ic">${NI[ic]}</span><span class="ci-t"><b>${t}</b><small>${d}</small></span>${meta!=null&&meta!==""?`<span class="ci-m${hot?" hot":""}">${meta}</span>`:""}<span class="ci-go" aria-hidden="true">›</span></button>`;
   const coll=(id,ic,t,sub,frac,items)=>`<section class="coll" data-coll="${id}"><div class="coll-h"><span class="coll-ic">${NI[ic]}</span><div><h3>${t}</h3><small>${sub}</small></div>${frac!=null?`<span class="coll-p"><span class="prog"><i style="width:${Math.round(frac*100)}%"></i></span><small>${Math.round(frac*100)} %</small></span>`:""}</div><div class="coll-items">${items}</div></section>`;
-  v.innerHTML=pageHead("Training","Alles zum Üben, nach Themen geordnet. Das Tagestraining findest du auf der Startseite.","learn")+
+  v.innerHTML=pageHead("Training","Such dir aus, was du heute üben willst.","learn")+
   `<div class="colls">`+
   coll("op","book","Eröffnungen",`${cl} von ${tot} Varianten fehlerfrei · ${S.rep.length} im Repertoire`,tot?cl/tot:0,
     item("courses","learn","Kurse",`${COURSES.length} Kurse: Schritt für Schritt vom Einsteiger bis stark`,`${COURSES.filter(c=>{const p=courseProg(c);return p.n&&p.cl===p.n}).length}/${COURSES.length}`)+
@@ -1312,7 +1314,7 @@ function nextQuestion(){
 /* ---------------- Musterpartien & Meisterpartien ---------------- */
 function renderGames(){
   const v=$("v-games");const opts=ALL.filter(o=>o.g!=="c").map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("");
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.games}</span><div><h2>Musterpartien</h2><p>Berühmte Partien zeigen, wie die Pläne aus der Eröffnung in der Praxis aussehen. Jeder Zug wird beim Nachspielen erklärt.</p></div></div>
+  v.innerHTML=`<div class="hero"><span class="ic">${NI.games}</span><div><h2>Musterpartien</h2><p>Berühmte Partien, Zug für Zug erklärt.</p></div></div>
   <div class="grid3">${GAMES.map(g=>`<div class="gcard">${st.games[g.id]?'<span class="done-tag">Nachgespielt</span>':""}<h4>${esc(g.title)}</h4><div class="sub">${esc(g.players)} · ${esc(g.year)} · ${g.moves.split(" ").length} Halbzüge</div><p>${esc(g.d)}</p><div class="chips">${g.ops.map(id=>byId(id)).filter(Boolean).map(o=>`<button class="chip" data-op="${o.id}">${esc(o.name)}</button>`).join("")}</div><button class="btn grn" data-game="${g.id}">Nachspielen</button></div>`).join("")}</div>
   <div class="card"><h3>Echte Meisterpartien zu einer Eröffnung</h3><p class="hint" style="margin:0 0 10px">Aus der Lichess-Meisterdatenbank (über 2 Millionen Partien von Spielern ab 2200). Gesucht wird nach der Stellung am Ende einer Variante.</p>
   <div class="btnrow"><select class="txt" id="mOp" style="max-width:320px">${opts}</select><select class="txt" id="mLine" style="max-width:320px"></select><button class="btn grn" id="mGo">Suchen</button></div><div id="mRes" style="margin-top:10px"></div></div>`;
@@ -1332,7 +1334,7 @@ function renderGames(){
 /* ---------------- Endspiele ---------------- */
 function renderEndPage(){
   const v=$("v-end");const done=Object.keys(st.ends).length;
-  v.innerHTML=pageHead("Endspiele",`${done} von ${ENDGAMES.length} gespielt. Du spielst gegen Stockfish – die Stärke stellst du unter Profil → Einstellungen ein.`,"king")+
+  v.innerHTML=pageHead("Endspiele",`${done} von ${ENDGAMES.length} gespielt. Du spielst gegen Stockfish.`,"king")+
   END_CH.map(([c,t,d])=>{const es=ENDGAMES.filter(e=>(e.c||"open")===c);if(!es.length)return "";const n=es.filter(e=>st.ends[e.id]).length;
     return `<div class="sec-h"><h3>${t}</h3><small>${n}/${es.length} · ${d}</small></div><div class="grid3">${es.map(e=>`<div class="gcard">${st.ends[e.id]?'<span class="done-tag">Gespielt</span>':""}<h4>${esc(e.t)}</h4><div id="eb-${e.id}"></div><p>${esc(e.goal)}</p><button class="btn grn" data-end="${e.id}">Gegen Stockfish spielen (${e.side==="w"?"Weiß":"Schwarz"})</button></div>`).join("")}</div>`}).join("");
   ENDGAMES.forEach(e=>{const box=$("eb-"+e.id);if(!box)return;const fen=e.fen||(()=>{const g=new Chess();e.moves.split(" ").forEach(m=>g.move(m));return g.fen()})();box.appendChild(staticBoard(fen,e.side))});
@@ -3072,7 +3074,7 @@ function renderOnline(){
 }
 function renderAuth(v){
   const reg=ON.authMode==="reg";
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.online}</span><div><h2>${ON.tab==="play"||ON.tab==="live"?"Online spielen":"Anmelden"}</h2><p>Mit einem kostenlosen Konto spielst du live gegen deine Freunde, und dein Trainingsfortschritt wird auf allen Geräten synchronisiert.</p></div></div>
+  v.innerHTML=`<div class="hero"><span class="ic">${NI.online}</span><div><h2>${ON.tab==="play"||ON.tab==="live"?"Online spielen":"Anmelden"}</h2><p>Spiel live gegen deine Freunde. Mit Konto ist dein Fortschritt auf allen Geräten gleich.</p></div></div>
   <div class="card"><div class="seg" style="margin-bottom:14px"><button data-am="login" aria-pressed="${!reg}">Anmelden</button><button data-am="reg" aria-pressed="${reg}">Registrieren</button></div>
   <form id="authForm" class="authf">${reg?`<label class="fld">Benutzername<input id="auName" maxlength="20" autocomplete="username" autocapitalize="off" placeholder="So sehen dich andere" required></label>`:""}
   <label class="fld">E-Mail<input id="auMail" type="email" autocomplete="email" autocapitalize="off" required></label>
@@ -3406,8 +3408,8 @@ const BOTCFG=Object.assign({lvl:4,col:"r",start:"std",oid:"",style:"bal"},store.
 function renderBots(){
   const v=$("v-bots");if(!v)return;const rep=S.rep.map(byId).filter(o=>o&&o.lines&&o.lines.length);const pool=rep.length?rep:ALL.filter(o=>o.g!=="c"&&o.lines.length);
   if(!pool.some(o=>o.id===BOTCFG.oid))BOTCFG.oid=pool[0]?pool[0].id:"";
-  v.innerHTML=pageHead("Gegen den Computer","Wähle einen Gegner. Danach kannst du die Partie im Game Review analysieren.","bot")+
-  `<div class="bots">${BOTS.map(b=>`<button class="botc" data-lvl="${b.lvl}" aria-pressed="${BOTCFG.lvl===b.lvl}"><span class="bot-av">${b.name[0]}</span><span><b>${b.name}</b><small>Stufe ${b.lvl} · ${b.elo}</small><em>${b.d}</em></span></button>`).join("")}</div>
+  v.innerHTML=pageHead("Gegen den Computer","Such dir einen Gegner aus.","bot")+
+  `<div class="bots">${BOTS.map(b=>`<button class="botc" data-lvl="${b.lvl}" aria-pressed="${BOTCFG.lvl===b.lvl}"><span class="bot-av"><span class="pp ${b.lvl>=15?"b":"w"}${{Bauer:"p",Springer:"n",Läufer:"b",Turm:"r",Dame:"q",König:"k"}[b.name]||"p"}"></span></span><span><b>${b.name}</b><small>Stufe ${b.lvl} · ${b.elo}</small><em>${b.d}</em></span></button>`).join("")}</div>
   <div class="card"><div class="setrow"><span><b>Deine Farbe</b></span><span class="seg">${[["w","Weiß"],["r","Zufall"],["b","Schwarz"]].map(c=>`<button data-bcol="${c[0]}" aria-pressed="${BOTCFG.col===c[0]}">${c[1]}</button>`).join("")}</span></div>
   <div class="setrow"><span><b>Spielstil</b><small>${esc((BOTSTYLES.find(x=>x[0]===BOTCFG.style)||BOTSTYLES[0])[2])}</small></span><span class="seg">${BOTSTYLES.map(c=>`<button data-bsty="${c[0]}" aria-pressed="${BOTCFG.style===c[0]}">${c[1]}</button>`).join("")}</span></div>
   <div class="setrow"><span><b>Start</b><small>${BOTCFG.start==="op"?"Die Hauptvariante wird zuerst gespielt, du hast die Farbe der Eröffnung.":"Normale Grundstellung."}</small></span><span class="seg">${[["std","Grundstellung"],["op","Eröffnung"]].map(c=>`<button data-bst="${c[0]}" aria-pressed="${BOTCFG.start===c[0]}">${c[1]}</button>`).join("")}</span></div>
@@ -3440,7 +3442,7 @@ function renderAnalyse(){
   const list=ANAH.slice(0,12);
   const row=g=>{const rv=REV[g.id];const acc=rv&&rv.acc?(g.foreign?`${rv.acc.w.toFixed(0)} | ${rv.acc.b.toFixed(0)}`:rv.acc[g.color].toFixed(1)+" %"):"";
     return `<button class="gi" data-ah="${esc(g.id)}"><span class="res ${g.foreign?"draw":g.res}">${g.foreign?"·":g.res==="win"?"S":g.res==="loss"?"N":"½"}</span><span style="min-width:0"><b>${esc(g.white||"Weiß")} – ${esc(g.black||"Schwarz")}</b><small>${esc(g.fam||"")}${g.result?" · "+esc(g.result):""}${g.date?" · "+fmtDate(g.date):""}</small></span><span class="acc">${acc}</span><span class="mini">${rv?"Öffnen":"Review"}</span></button>`};
-  v.innerHTML=pageHead("Partie analysieren","Game Review mit Stockfish 17: Zugbewertungen, Genauigkeit, bessere Züge.","search")+anaInputHtml()+
+  v.innerHTML=pageHead("Partie analysieren","Füg eine Partie ein, Stockfish bewertet jeden Zug.","search")+anaInputHtml()+
   `<div class="card"><h3>Analysebrett</h3><p class="hint" style="margin:0 0 8px">Untersuche eine beliebige Stellung: Ziehe für beide Seiten, Stockfish zeigt die drei besten Fortsetzungen.</p>
     <input class="txt" id="abFen" placeholder="FEN einfügen (leer = Grundstellung)" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="btnrow" style="margin-top:8px"><button class="btn grn" id="abGo">Analysebrett öffnen</button><span class="hint" id="abMsg"></span></div></div>
   <div class="sec-h"><h3>Zuletzt analysiert</h3>${list.length?`<small>${list.length} Partien</small>`:""}</div>
@@ -3494,9 +3496,9 @@ function openLanding(){
   const el=document.createElement("div");el.className="landing";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-labelledby","lnH");
   const f=(ic,t,d)=>`<div class="lf"><span class="lf-ic">${NI[ic]}</span><b>${t}</b><small>${d}</small></div>`;
   el.innerHTML=`<div class="land-in">
-    <div class="land-top">${LOGO(64)}<h1 id="lnH">${BRAND}</h1><p>Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analysieren.</p><small>Kostenlos · ohne Werbung · funktioniert auch offline</small></div>
-    <div class="lfs">${f("book","Eröffnungen",`${ALL.filter(o=>o.g!=="c").length} Eröffnungen mit Wiederholung nach Lernkurve`)}${f("bolt","Taktik","Echte Lichess-Rätsel mit Wertung und Levels")}${f("swords","Online","Gegen Freunde spielen, Bestenliste, Zuschauen")}${f("search","Analyse","Game Review mit Stockfish 17")}</div>
+    <div class="land-top"><div class="land-brand">${LOGO(34)}<span>${BRAND}</span></div><div class="land-board">${thumbHtml("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3","Bc4",false)}</div><h1 id="lnH">Lerne die Eröffnungen, die du wirklich spielst.</h1><p>Dazu Taktik, Partien gegen Freunde und Analyse mit Stockfish. Kostenlos, ohne Werbung, auch offline.</p></div>
     <div class="land-act"><button class="big" id="lnGo">Loslegen</button><button class="btn" id="lnLogin">Ich habe schon ein Konto</button></div>
+    <div class="lfs">${f("book","Eröffnungen",`${ALL.filter(o=>o.g!=="c").length} Eröffnungen mit Wiederholung nach Lernkurve`)}${f("bolt","Taktik","Echte Lichess-Rätsel mit Wertung und Levels")}${f("swords","Online","Gegen Freunde spielen, Bestenliste, Zuschauen")}${f("search","Analyse","Game Review mit Stockfish 17")}</div>
     <p class="land-legal"><button class="linkb" data-lg="priv">Datenschutz</button> · <button class="linkb" data-lg="imp">Impressum</button></p></div>`;
   document.body.appendChild(el);document.body.classList.add("noscroll");
   const close=()=>{el.classList.add("out");document.body.classList.remove("noscroll");setTimeout(()=>el.remove(),calmNow()?0:260)};
@@ -3537,7 +3539,7 @@ function renderLegal(){
   <li><b>chess.js</b> von Jeff Hlywa – BSD-2-Clause</li>
   <li><b>Stockfish 17.1</b> (stockfish.js von Nathan Rugg) – GNU GPL v3, Quelltext und Lizenz unter <code>engine/</code></li>
   <li><b>Firebase JS SDK</b> von Google – Apache License 2.0</li>
-  <li><b>Inter</b> von Rasmus Andersson – SIL Open Font License 1.1</li>
+  <li>Schrift <b>Rubik</b> von Hubert und Fischer (The Rubik Project Authors) – SIL Open Font License 1.1, liegt unter <code>lib/fonts/</code></li>
   <li>Figuren „Klassisch“ von Colin M. L. Burnett – GPLv2+; „Staunty“ aus Lichess – CC BY-NC-SA 4.0</li>
   <li>Taktik-Rätsel und Eröffnungsstatistik: Lichess-Datenbank – CC0</li>
   <li>Eröffnungsnamen und Theoriebuch: <b>lichess-org/chess-openings</b> – CC0</li></ul></article>`;
@@ -3569,7 +3571,7 @@ let courseOpen=null;
 function renderCourses(){
   const v=$("v-courses");if(!v)return;
   if(courseOpen){const c=COURSES.find(x=>x.id===courseOpen);if(c){renderCourse(v,c);return}courseOpen=null}
-  v.innerHTML=pageHead("Kurse","Schritt für Schritt: Jede Variante wird erst vorgezeigt, dann prüfst du dich ohne Hilfe.","learn")+
+  v.innerHTML=pageHead("Kurse","Erst zeigt dir der Kurs die Züge, dann spielst du sie selbst.","learn")+
   `<div class="crs">${COURSES.map(c=>{const p=courseProg(c);const f=p.n?p.cl/p.n:0;return `<button class="crc" data-crs="${c.id}"><span class="crc-top"><span class="crc-tag">${esc(c.lvl)}</span><span class="crc-side">${c.side==="w"?"Weiß":c.side==="b"?"Schwarz":"Weiß & Schwarz"}</span></span><b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-p"><span class="prog"><i style="width:${f*100}%"></i></span><small>${p.cl}/${p.n} Varianten · ${c.ch.length} Kapitel</small></span></button>`}).join("")}</div>`;
   v.querySelectorAll("[data-crs]").forEach(b=>b.onclick=()=>{courseOpen=b.dataset.crs;renderCourses();window.scrollTo(0,0)});
 }
