@@ -1529,3 +1529,56 @@ th{font-size:12.5px;font-weight:600}
 .land-board .thumb{width:min(280px,64vw);height:min(280px,64vw)}
 @media (max-width:560px){.land-board{margin:10px 0 0}.land-in{gap:18px}}
 .lfs{align-items:start}
+
+/* =================== Version 16: Startseite, Feinschliff =================== */
+.home-h{align-items:flex-start}
+.home-h h2{font-size:26px;font-weight:700}
+.home-h small{text-transform:none}
+.home-chips{display:flex;gap:8px;flex:none}
+.hchip{display:flex;align-items:center;gap:6px;border:0;background:var(--panel);color:var(--text);border-radius:999px;padding:6px 12px 6px 9px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3)}
+.hchip:hover{background:var(--hover)}
+.hchip svg{width:20px;height:20px}
+.hchip.fire svg{fill:#F08A2C}.hchip.fire.off svg{fill:var(--muted)}.hchip.fire.off b{color:var(--muted)}
+.hchip .shield,.hchip svg.sh{width:20px;height:20px}
+.home-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.home-main,.home-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.home-side .sec-h{margin:0}
+@media (min-width:1100px){
+  .home-grid{grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);align-items:start}
+  .home-side .qas{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-side .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-side{position:sticky;top:16px}
+}
+/* Weitermachen: das Brett ist der Blickfang */
+.cont{padding:14px;gap:16px;border-radius:16px}
+.cont-b{width:124px;border-radius:8px;box-shadow:0 0 0 4px #4A3A2C}
+@media (min-width:761px){.cont-b{width:168px}}
+.cont-t b{font-size:22px;font-weight:700;line-height:1.15}
+.cont-t small{color:var(--acc-txt)}
+.cont-go{width:54px;height:54px;box-shadow:0 4px 0 var(--acc-sh)}
+.cont-go svg{width:24px;height:24px;fill:#fff;margin-left:3px}
+.cont:hover .cont-go{background:var(--acc-hi)}
+/* Schnellstart als große Kacheln */
+.qas{gap:10px}
+.qa{padding:14px;border-radius:14px;gap:2px;background:var(--panel)}
+.qa:hover{background:var(--hover)}
+.qa-ic{width:42px;height:42px;border-radius:12px;margin-bottom:8px}
+.qa-ic svg{width:23px;height:23px}
+.qa b{font-size:15px}
+@media (max-width:760px){.qas{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Unterreiter: weich ausblenden statt hart abschneiden */
+.subnav-in{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);padding:0 14px}
+/* Endspiele auf dem Handy: kleines Brett neben dem Text */
+@media (max-width:640px){
+  #v-end .grid3{grid-template-columns:minmax(0,1fr);gap:10px}
+  #v-end .gcard{display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-areas:"b h" "b p" "x x";column-gap:12px;row-gap:4px;align-items:start}
+  #v-end .gcard h4{grid-area:h;margin:0}
+  #v-end .gcard>div[id^="eb-"]{grid-area:b}
+  #v-end .gcard p{grid-area:p;margin:0;font-size:13px}
+  #v-end .gcard .btn{grid-area:x;margin-top:8px}
+  #v-end .gcard .done-tag{position:absolute;top:10px;right:12px}
+  #v-end .gcard{position:relative}
+}
+#board{box-shadow:0 10px 26px rgba(0,0,0,.32)}
+.theme-light #board{box-shadow:0 8px 20px rgba(60,40,20,.18)}
+.card:has(#authForm){max-width:480px;width:100%}

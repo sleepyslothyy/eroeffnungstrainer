@@ -1203,7 +1203,7 @@ function renderOpenings(){
 }
 
 /* ---------------- Lernen ---------------- */
-function ringSvg(frac){const r=36,c=2*Math.PI*r;return `<svg class="ring" viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="8"/><circle cx="42" cy="42" r="${r}" fill="none" style="stroke:var(--acc)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-frac)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" font-size="16" font-weight="800" fill="currentColor">${Math.round(frac*100)}%</text></svg>`}
+function ringSvg(frac){const r=36,c=2*Math.PI*r;return `<svg class="ring" viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" style="stroke:var(--line)" stroke-width="8"/><circle cx="42" cy="42" r="${r}" fill="none" style="stroke:var(--acc)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-frac)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" font-size="16" font-weight="800" fill="currentColor">${Math.round(frac*100)}%</text></svg>`}
 function pageHead(title,sub,ic){return `<header class="hero">${ic?`<span class="ic">${NI[ic]}</span>`:""}<div><h2>${title}</h2>${sub?`<p>${sub}</p>`:""}</div></header>`}
 function emptyState(ic,title,text,act){return `<div class="empty-st"><span class="es-ic">${NI[ic]||""}</span><b>${title}</b>${text?`<p>${text}</p>`:""}${act||""}</div>`}
 /* Training: Sammlungen statt einer langen Kachelwand */
@@ -4513,6 +4513,27 @@ function wireLex(v){
 const _renderOpenings=renderOpenings;
 renderOpenings=function(){if(opTab==="lex"){renderLex();return}_renderOpenings();const v=$("v-openings");v.insertAdjacentHTML("afterbegin",opTabsHtml());wireOpTabs(v)};
 HASHV["#lexikon"]="openings:lex";
+
+/* ================= Startseite: zwei Spalten am Computer, Kopf mit Serie und Level ================= */
+const _renderHome2=renderHome;
+renderHome=function(){
+  _renderHome2();const v=$("v-home");if(!v)return;
+  /* Kopf: statt Logo kleine Plaketten für Serie und Liga */
+  const lv=gxLevel(GX.xp),L=LEAGUES[GX.lg],sn=streakNow();
+  const logo=v.querySelector(".home-logo");
+  if(logo)logo.outerHTML=`<span class="home-chips"><button class="hchip fire${sn?"":" off"}" data-hc="profile:stats" title="Tage in Folge trainiert"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.2-.6 5-2 6.6C8.6 10.2 7 12 7 14.6A5 5 0 0 0 12 20a5 5 0 0 0 5-5.2c0-2.3-1.3-3.6-2.3-4.7.1 1.4-.4 2.6-1.4 3.1.3-3.4-.8-7.3-1.3-11.2z"/></svg><b>${sn}</b></button><button class="hchip" data-hc="league" title="${L[0]}-Liga, Level ${lv}">${SHIELD(L[1],20)}<b>${lv}</b></button></span>`;
+  const sm=v.querySelector(".home-h small");if(sm)sm.textContent=new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"});
+  const lb=v.querySelector(".lvbar");if(lb)lb.remove();
+  /* Weitermachen: größeres Brett, klarer Knopf */
+  const go=v.querySelector(".cont-go");if(go)go.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
+  /* Spalten */
+  const main=document.createElement("div");main.className="home-main";const side=document.createElement("aside");side.className="home-side";
+  const grid=document.createElement("div");grid.className="home-grid";grid.appendChild(main);grid.appendChild(side);
+  const kids=[...v.children].filter(x=>!x.classList.contains("home-h")&&!x.classList.contains("foot-links"));
+  let toSide=false;kids.forEach(x=>{if(x.classList.contains("sec-h")&&/Schnellstart/.test(x.textContent))toSide=true;(toSide?side:main).appendChild(x)});
+  const head=v.querySelector(".home-h");if(head)head.after(grid);else v.prepend(grid);
+  v.querySelectorAll("[data-hc]").forEach(b=>b.onclick=()=>showView(b.dataset.hc));
+};
 
 /* ================= Neue Version: Hinweis statt veralteter App ================= */
 /* Bleibt die App tagelang offen (z. B. auf dem Handy), läuft sonst alter Code – und zwei Spieler hätten unterschiedliche Versionen. */
