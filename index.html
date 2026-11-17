@@ -80,6 +80,11 @@
           <button class="btn" id="backBtn" title="Deinen letzten Zug zurücknehmen">Zurück</button>
           <button class="btn" id="restartBtn">Neu starten</button>
         </div>
+        <div class="acts" id="actsXpl" hidden>
+          <button class="btn" id="xBack">Zurück</button>
+          <button class="btn grn" id="xTrain">Diese Variante trainieren</button>
+          <button class="btn" id="xEnd">Beenden</button>
+        </div>
         <div class="acts two" id="actsDone" hidden>
           <button class="btn blue" id="sfBtn">Gegen Stockfish weiterspielen</button>
           <button class="btn" id="againBtn">Nochmal</button>
@@ -124,6 +129,7 @@
             <button role="menuitemcheckbox" id="engArBtn" aria-pressed="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 19 17.6 6.4V12h2V3h-9v2h5.6L3.6 17.6z"/></svg><span>Bester Zug als Pfeil</span><i class="tg"></i></button>
             <button role="menuitemcheckbox" id="coordBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h2v16h16v2H3zm5 4h2v2H8zm0 4h2v2H8zm4-4h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/></svg><span>Koordinaten</span><i class="tg"></i></button>
             <button role="menuitemcheckbox" id="sndBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9h4l5-4v14l-5-4H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg><span>Ton</span><i class="tg"></i></button>
+            <button role="menuitem" id="xplMi"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm0-14a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4zm0-6a2 2 0 1 0 2 2 2 2 0 0 0-2-2z"/></svg><span>Am Brett erkunden</span></button>
             <button role="menuitem" id="blindMi"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 5.3 3.3 4 20 20.7 18.7 22l-3.1-3.1A11 11 0 0 1 12 19.5C6.5 19.5 2.7 15 1.5 12a12 12 0 0 1 4-5zM12 4.5c5.5 0 9.3 4.5 10.5 7.5a12.3 12.3 0 0 1-3.3 4.5l-3-3A4.5 4.5 0 0 0 10.5 7.8L8.4 5.6A10.7 10.7 0 0 1 12 4.5z"/></svg><span>Blind-Modus</span></button>
             <button role="menuitem" id="anaBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.1 5.1-1.4 1.4-5.1-5.1A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span>Im Analysebrett öffnen</span></button>
             <button role="menuitem" id="fenBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z"/></svg><span>Stellung kopieren (FEN)</span></button>
@@ -139,7 +145,8 @@
         <div class="tabarea">
           <div id="tabEx" role="tabpanel" class="ex"></div>
           <div id="tabVar" role="tabpanel" hidden>
-            <div class="vseg"><span class="seg"><button id="vList" aria-pressed="true">Liste</button><button id="vTree" aria-pressed="false">Baum</button></span></div>
+            <div class="vseg"><span class="seg"><button id="vList" aria-pressed="true">Liste</button><button id="vTree" aria-pressed="false">Baum</button></span><button class="btn xplb" id="xplBtn" title="Alle Buchzüge als Schatten auf dem Brett ansehen">Am Brett erkunden</button></div>
+            <div class="vseg po"><small>Gegnerzug</small><span class="seg"><button id="poAuto" aria-pressed="true" title="Das Buch wählt nach Häufigkeit">Zufällig</button><button id="poPick" aria-pressed="false" title="Du tippst den Gegnerzug auf dem Brett an">Ich wähle</button></span></div>
             <div class="varhead">Antippen übt eine bestimmte Variante. Grün: fehlerfrei, orange: mit Fehlern, „fällig“: zur Wiederholung dran.</div>
             <div id="vars"></div><div id="tree" class="tree" hidden></div>
           </div>
@@ -175,6 +182,7 @@
 <nav class="tabbar" id="tabbar" aria-label="Bereiche"></nav>
 <script src="lib/chess.js"></script>
 <script src="data.js"></script>
+<script src="trees.js"></script>
 <script src="app.js"></script>
 <script>if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js").catch(function(){})}</script>
 </body>
