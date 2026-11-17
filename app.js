@@ -98,11 +98,54 @@ const pk=k=>{const j=k.lastIndexOf("#");return [k.slice(0,j),+k.slice(j+1)]};
 const Pk=k=>{const [id,i]=pk(k);return P(id,i)};
 
 /* ---------------- Daten ---------------- */
-const BASE=OPENINGS.concat(OPENINGS_NEW,OPENINGS_TRAPS).map(o=>{
+/* ---- Zugbäume (trees.js): jedes Blatt wird eine Variante, dazu die Häufigkeit jedes Gegnerzugs ----
+   Bestehende Varianten behalten ihre Nummer, damit Fortschritt, Wiederholungen und Notizen gültig bleiben. */
+const TREE_SRC=typeof TREES!=="undefined"?TREES:{};
+const plyNo=i=>i%2===0?(i/2+1)+".":(Math.floor(i/2)+1)+"…";
+function parseTreeSrc(src){
+  const root={san:null,w:0,label:null,kids:[],parent:null};
+  const toks=String(src).match(/\(|\)|\{[^}]*\}|[^\s(){}]+/g)||[];let cur=root;const stack=[];
+  for(const t of toks){
+    if(t==="("){stack.push(cur);cur=cur.parent;continue}
+    if(t===")"){cur=stack.pop()||root;continue}
+    if(t[0]==="{"){cur.label=t.slice(1,-1).trim();continue}
+    let m=t,w=0;const at=m.indexOf("@");if(at>0){w=+m.slice(at+1);m=m.slice(0,at)}
+    let k=cur.kids.find(c=>strip(c.san)===strip(m));
+    if(!k){k={san:m,w,label:null,kids:[],parent:cur};cur.kids.push(k)}else if(w)k.w=Math.max(k.w,w);
+    cur=k;
+  }
+  return root;
+}
+function mergeTree(o){
+  const src=TREE_SRC[o.id];if(!src)return;
+  const root=parseTreeSrc(src);const tw={};const leaves=[];
+  (function walk(n,pre,name,br){
+    if(n.label)name=n.label;
+    if(n.kids.length>1){const sum=n.kids.reduce((s,k)=>s+(k.w||0),0);const t=tw[pre.map(strip).join(" ")]={};n.kids.forEach(k=>{t[strip(k.san)]=sum?(k.w||0)/sum:1/n.kids.length})}
+    if(!n.kids.length){leaves.push({m:pre,name,br});return}
+    const opp=(pre.length%2===0?"w":"b")!==o.side;
+    n.kids.forEach(k=>walk(k,pre.concat(k.san),name,n.kids.length>1&&opp?br.concat(plyNo(pre.length)+de(k.san)):br));
+  })(root,[],o.name,[]);
+  const names=new Set(o.lines.map(l=>l.n));
+  leaves.forEach(L=>{
+    if(o.lines.some(l=>l.m.length>=L.m.length&&L.m.every((x,i)=>strip(x)===strip(l.m[i]))))return;
+    let n=L.name;for(let j=L.br.length-1;names.has(n)&&j>=0;j--)n=L.name+" · "+L.br.slice(j).join(" ");
+    for(let k=2;names.has(n);k++)n=L.name+" ("+k+")";
+    names.add(n);
+    o.lines.push({n,m:L.m.slice(),p:"",notes:{},trap:o.g==="x"&&/Falle|Matt/.test(n),tree:true});
+  });
+  o.tw=tw;
+}
+/* Häufigkeit eines Gegnerzugs nach den Zügen h (Anteil 0–1), oder null, wenn der Baum dazu nichts weiß */
+const twOf=(o,h,san)=>{const t=o&&o.tw&&o.tw[h.map(strip).join(" ")];return t&&t[strip(san)]!=null?t[strip(san)]:null};
+/* Wie oft eine ganze Variante in der Praxis vorkommt: Produkt der Häufigkeiten aller Gegnerzüge */
+function lineProb(o,i){const l=o.lines[i];if(!o.tw||!l)return null;let p=1,any=false;for(let k=0;k<l.m.length;k++){const w=twOf(o,l.m.slice(0,k),l.m[k]);if(w!=null){p*=w;any=true}}return any?p:null}
+const fmtPct=p=>{const x=p*100;return x>=10?Math.round(x)+" %":x>=1?x.toFixed(1).replace(".",",")+" %":x>=.1?x.toFixed(1).replace(".",",")+" %":"< 0,1 %"};
+const BASE=OPENINGS.concat(OPENINGS_NEW,typeof TREE_OPENINGS!=="undefined"?TREE_OPENINGS:[],OPENINGS_TRAPS).map(o=>{
   const Pl=(typeof PLANS!=="undefined"&&PLANS[o.id])||{};
   const lines=o.lines.map((L,i)=>{const notes=L[3]||(Pl.notes&&Pl.notes[i])||{};
     return {n:L[0],m:L[1].split(" "),p:L[2]||(Pl.lp&&Pl.lp[i])||"",notes,trap:o.id.indexOf("fallen_")===0||(o.g==="x"&&(/Falle|Matt/.test(L[0])||Object.keys(notes).length>0))}});
-  return Object.assign({},o,{plan:o.plan||Pl.plan||[],lines});
+  const r=Object.assign({},o,{plan:o.plan||Pl.plan||[],lines});mergeTree(r);return r;
 });
 let ALL=[];
 function buildAll(){
@@ -289,7 +332,7 @@ function resetBoard(fen){
   clearTimeout(learnNext);learnNext=null;learn=false;
   sfEnd=null;clearTimeout(timer);stopBlitz();cancelAuto();if(wrongT){clearTimeout(wrongT);wrongT=null;wrongRevert=null}const g=new Chess(fen||undefined);startFen=fen||null;
   hist=[];fens=[g.fen()];mvs=[];flags=[];view=0;shown=g;target=null;done=false;mistakes=0;usedHelp=false;hintLvl=0;sel=null;busy=false;lock=false;badge=null;sfEval=null;tried=new Set();peeked=false;evalCp=null;
-  marks.a.clear();marks.c.clear();
+  marks.a.clear();marks.c.clear();xpl=null;pickWait=false;
 }
 function commit(mv,flag){const g=new Chess(fens[hist.length]);const r=g.move(mv.san||mv);hist.push(r.san);mvs.push(r);fens.push(g.fen());flags.push(flag);return r}
 function truncate(n){hist.length=n;mvs.length=n;fens.length=n+1;flags.length=n}
@@ -314,28 +357,43 @@ async function bookMove(){
   if(mode!=="train"){busy=false;return}
   const c=consistent(hist);if(!c.length){busy=false;return}
   let tgt=pickTarget();
-  if(S.set.realistic&&forced===null&&!drill){
-    const nexts=[...new Set(c.map(i=>op.lines[i].m[hist.length]).filter(Boolean).map(strip))];
-    if(nexts.length>1){
+  const nexts=[...new Set(c.map(i=>op.lines[i].m[hist.length]).filter(Boolean).map(strip))];
+  /* »Ich wähle«: Bei mehreren Gegnerzügen zeigt das Brett alle als Schatten, du tippst einen an */
+  if(S.set.pickOpp&&forced===null&&!drill&&!learn&&!sess&&nexts.length>1&&live()){
+    busy=false;pickWait=true;render();renderChrome();const opp=op.side==="w"?"Schwarz":"Weiß";
+    setStatus("turn","Wähle den Zug von "+opp,`${opp} hat hier ${nexts.length} Buchzüge. Die Schatten auf dem Brett zeigen sie${op.tw?" mit ihrer Häufigkeit":""}. Tippe einen an, dann bist du dran.`);return;
+  }
+  if(S.set.realistic&&forced===null&&!drill&&nexts.length>1){
+    const candOf=s=>c.filter(i=>strip(op.lines[i].m[hist.length]||"")===s);
+    /* offene Varianten kommen öfter, sichere seltener – aber nie gar nicht */
+    const need=s=>{const cs=candOf(s);return .3+cs.filter(i=>P(op.id,i)<2||isDue(lk(op.id,i))).length/Math.max(1,cs.length)};
+    let w=null;
+    const tws=nexts.map(s=>twOf(op,hist,s));
+    if(tws.some(x=>x!=null)){const lo=Math.min(...tws.filter(x=>x!=null));w=nexts.map((s,i)=>(tws[i]!=null?tws[i]:Math.min(.05,lo/2))*need(s))}
+    else{
       const data=await explorer("lichess",hist.slice(),1500).catch(()=>null);
       if(mode!=="train")return;
-      if(data&&data.moves){const w=nexts.map(s=>{const m=data.moves.find(x=>strip(x.san)===s);const n=m?(m.white+m.draws+m.black):0;const fresh=c.some(i=>strip(op.lines[i].m[hist.length]||"")===s&&P(op.id,i)<2);return (n+1)*(fresh?2:1)});
-        const tot=w.reduce((a,b)=>a+b,0);let r=Math.random()*tot,pick=nexts[0];for(let i=0;i<nexts.length;i++){r-=w[i];if(r<=0){pick=nexts[i];break}}
-        const cand=c.filter(i=>strip(op.lines[i].m[hist.length]||"")===pick);if(cand.length)tgt=cand.indexOf(tgt)>=0?tgt:rnd(cand.filter(i=>P(op.id,i)<2).length?cand.filter(i=>P(op.id,i)<2):cand);}
+      if(data&&data.moves)w=nexts.map(s=>{const m=data.moves.find(x=>strip(x.san)===s);const n=m?(m.white+m.draws+m.black):0;const fresh=c.some(i=>strip(op.lines[i].m[hist.length]||"")===s&&P(op.id,i)<2);return (n+1)*(fresh?2:1)});
     }
+    if(w){const tot=w.reduce((a,b)=>a+b,0);let r=Math.random()*tot,pick=nexts[0];for(let i=0;i<nexts.length;i++){r-=w[i];if(r<=0){pick=nexts[i];break}}
+      const cand=candOf(pick);if(cand.length)tgt=cand.indexOf(tgt)>=0?tgt:rnd(cand.filter(i=>P(op.id,i)<2).length?cand.filter(i=>P(op.id,i)<2):cand);}
   }
-  busy=false;target=tgt;if(target===null)return;
+  busy=false;target=tgt;playBook();
+}
+function playBook(){
+  if(target===null)return;
   const g=new Chess(fens[hist.length]);const mv=findMove(g,op.lines[target].m[hist.length]);
   const wasLive=live();const r=commit(mv,"b");
   if(wasLive){view=hist.length;shown=new Chess(fens[view]);hintLvl=learn?2:0;render({fwd:r});playSound(r)}else render();
   if(hist.length===op.lines[target].m.length)return finish();
   if(learn){const s=["turn","Lernmodus: "+op.lines[target].n,learnTxt()];if(wasLive)setStatus(...s);else liveStatus=s;return}
   const n=consistent(hist).length;
-  const s=["turn","Du bist am Zug",n>1?`${n} Varianten sind noch möglich. Welcher Buchzug folgt?`:`Variante: ${op.lines[target].n}`];
+  const lastW=twOf(op,hist.slice(0,-1),hist[hist.length-1]);
+  const s=["turn","Du bist am Zug",(lastW!=null&&lastW<.995?`${op.side==="w"?"Schwarz":"Weiß"} wählte ${de(r.san)} (≈ ${fmtPct(lastW)} der Partien). `:"")+(n>1?`${n} Varianten sind noch möglich. Welcher Buchzug folgt?`:`Variante: ${op.lines[target].n}`)];
   if(wasLive){setStatus(...s);startBlitz()}else liveStatus=s;
 }
 function trainMove(mv,animate,help){
-  const h=hist.slice(0,view);
+  pickWait=false;const h=hist.slice(0,view);
   const ok=bookMoves(h).indexOf(strip(mv.san))>=0;
   if(!tried.has(view)&&!help&&!learn){tried.add(view);posReview(op.id,h,ok&&hintLvl===0?5:1)}
   if(!ok){wrongMove(mv,animate,h);return}
@@ -362,6 +420,7 @@ function wrongMove(mv,animate,h){
   wrongT=setTimeout(wrongRevert,750);
 }
 let wrongT=null,wrongRevert=null;
+let xpl=null,pickWait=false;
 function finish(){
   if(learn){done=true;stopBlitz();const i=target;learn=false;if(badge&&badge.ply===hist.length)badge.type="ok";
     setStatus("done","Gelernt: "+op.lines[i].n,"Jetzt ohne Hilfe: Gleich spielst du die Variante noch einmal aus dem Gedächtnis.");setTimeout(()=>sfx("done"),180);render();renderChrome();
@@ -600,6 +659,7 @@ function setView(v){
   }
   if(mode==="edit")return;
   if(mode==="online"){onlineStatus();return}
+  if(mode==="train"&&xpl){xplStatus();return}
   if(live()){if(liveStatus)setStatus(...liveStatus,true);startBlitz()}
   else{
     stopBlitz();if(wasLive)liveStatus=curStatus;
@@ -797,6 +857,7 @@ function arrowPath(from,to,color,w){
 }
 function canMoveNow(){
   if(lock||busy)return false;
+  if(mode==="train"&&(xpl||(pickWait&&live())))return false;
   if(mode==="train")return !(done&&live())&&userTurnShown()&&!(drill&&!live());
   if(mode==="puzzle")return !done&&live()&&userTurnShown();
   if(mode==="engine")return live()&&shown.turn()===op.side;
@@ -861,17 +922,20 @@ function render(anim,extra){
   if(bdg){const p=xy(bdg.sq);const b=document.createElement("div");
     if(bdg.type.indexOf("rv-")===0){const c=CLS[bdg.type.slice(3)];b.className="badge cls "+c[1];b.textContent=c[2];b.style.fontSize="calc(var(--s)*.2)"}else{b.className="badge "+bdg.type;b.innerHTML=ICON[bdg.type]}
     b.style.left=((p.x+1)*12.5)+"%";b.style.top=(p.y*12.5)+"%";badgesEl.appendChild(b)}
+  drawGhosts();
   renderMoves();renderVars();renderBars();renderExplain();updateEvalBar();if(tab==="db")renderDb();applyBlind();
-  const canAct=(mode==="train"||mode==="puzzle")&&!done&&!busy&&!lock&&userTurnShown()&&!op.endId;
+  const canAct=(mode==="train"||mode==="puzzle")&&!done&&!busy&&!lock&&userTurnShown()&&!op.endId&&!(mode==="train"&&(xpl||(pickWait&&live())));
   $("hintBtn").disabled=$("showBtn").disabled=!canAct;$("backBtn").disabled=!(mode==="train"&&!drill&&!lock&&!op.endId&&flags.indexOf("u")>=0);renderMaterial();$("restartBtn").disabled=mode==="puzzle"&&!done;
   $("navFirst").disabled=$("navPrev").disabled=view===0;
   $("navNext").disabled=$("navLast").disabled=live();
   $("actsDone").hidden=!!sfEnd||!(mode==="train"&&done&&!op.endId&&((target!==null&&op.lines&&op.lines.length)||drill));
-  $("actsTrain").hidden=!(mode==="train"||mode==="puzzle")||($("actsDone").hidden===false)||!!op.endId||!!sfEnd;
+  if(xpl&&mode==="train")$("actsDone").hidden=true;
+  $("actsTrain").hidden=!(mode==="train"||mode==="puzzle")||($("actsDone").hidden===false)||!!op.endId||!!sfEnd||!!(xpl&&mode==="train");
+  $("actsXpl").hidden=!(xpl&&mode==="train");if(xpl){$("xBack").disabled=view===0}
   $("actsSfEnd").hidden=!(sfEnd&&mode==="train");
   $("sfUndo").disabled=busy||hist.length<=sfStart;
   $("moveInput").disabled=false;updateRevActs();
-  const lmOk=mode==="train"&&!drill&&!op.endId&&op.lines&&op.lines.length&&target!==null&&!(sess&&(sess.blitz||sess.blind))&&!sfEnd;
+  const lmOk=mode==="train"&&!drill&&!op.endId&&op.lines&&op.lines.length&&target!==null&&!(sess&&(sess.blitz||sess.blind))&&!sfEnd&&!xpl;
   $("lmRow").hidden=!lmOk;if(lmOk){$("lmLearn").setAttribute("aria-pressed",String(learn));$("lmTest").setAttribute("aria-pressed",String(!learn))}
 }
 function renderChrome(){
@@ -901,6 +965,8 @@ function renderChrome(){
 }
 function renderBars(){
   if(mode==="online"){onlineClocks();return}
+  if(mode==="train"&&xpl){$("youClock").classList.remove("on");$("oppClock").classList.remove("on");$("youClock").textContent="Erkunden";$("oppClock").textContent="Buch";return}
+  if(mode==="train"&&pickWait&&live()){$("youClock").classList.remove("on");$("oppClock").classList.add("on");$("youClock").textContent="Wartet";$("oppClock").textContent="Du wählst";return}
   const tm=shown.turn();const active=live()&&!done&&mode!=="replay";
   const yourTurn=active&&(mode==="edit"?true:tm===op.side);const oppTurn=active&&!yourTurn;
   $("youClock").classList.toggle("on",!!yourTurn);$("oppClock").classList.toggle("on",!!oppTurn);
@@ -939,7 +1005,8 @@ function renderVars(){
     const row=document.createElement("div");row.className="varrow";
     const b=document.createElement("button");b.className="var"+(hist.length&&!c.has(i)&&mode==="train"?" out":"");b.setAttribute("aria-pressed",forced===i?"true":"false");
     const s=P(op.id,i);const due=isDue(lk(op.id,i));
-    b.innerHTML=`<span class="mk ${s===2?"clean":s===1?"seen":""}">${s?ICON.ok:""}</span><span class="vn"></span>${due?'<span class="due">fällig</span>':""}<span class="vp">${Math.ceil(l.m.length/2)} Züge</span>`;
+    const lp=lineProb(op,i);
+    b.innerHTML=`<span class="mk ${s===2?"clean":s===1?"seen":""}">${s?ICON.ok:""}</span><span class="vn"></span>${due?'<span class="due">fällig</span>':""}<span class="vp">${lp!=null?`<span title="So oft landet eine Partie in dieser Variante">≈ ${fmtPct(lp)}</span> · `:""}${Math.ceil(l.m.length/2)} Züge</span>`;
     b.querySelector(".vn").textContent=l.n;
     b.onclick=()=>{sess=null;drill=null;forced=i;target=i;mode="train";startTrain()};
     row.appendChild(b);
@@ -948,16 +1015,91 @@ function renderVars(){
   });
 }
 function renderTree(){
-  const root={kids:{},lines:[]};
-  op.lines.forEach((l,i)=>{let n=root;l.m.forEach((m,k)=>{n.kids[m]=n.kids[m]||{m,ply:k,kids:{},lines:[]};n=n.kids[m];n.lines.push(i)});n.end=(n.end||[]).concat(i)});
+  const root={kids:{},lines:[],pre:[]};
+  op.lines.forEach((l,i)=>{let n=root;l.m.forEach((m,k)=>{const key=strip(m);n.kids[key]=n.kids[key]||{m,ply:k,kids:{},lines:[],pre:l.m.slice(0,k)};n=n.kids[key];n.lines.push(i)});n.end=(n.end||[]).concat(i)});
   const cls=idxs=>{const s=idxs.map(i=>P(op.id,i));return s.every(x=>x===2)?"ok":s.some(x=>x>0)?"half":""};
-  const node=n=>{let seq=[n];while(Object.keys(seq[seq.length-1].kids).length===1&&!seq[seq.length-1].end){seq.push(Object.values(seq[seq.length-1].kids)[0])}
+  const wOf=n=>twOf(op,n.pre,n.m);
+  const sortK=ks=>ks.sort((a,b)=>(wOf(b)||0)-(wOf(a)||0));
+  const node=(n,sib)=>{let seq=[n];while(Object.keys(seq[seq.length-1].kids).length===1&&!seq[seq.length-1].end){seq.push(Object.values(seq[seq.length-1].kids)[0])}
     const lastN=seq[seq.length-1];const label=fmtMoves(seq.map(s=>s.m),seq[0].ply);
-    const kids=Object.values(lastN.kids);
-    return `<li><button class="tn ${cls(lastN.lines)}" data-l="${lastN.lines[0]}">${esc(label)}${lastN.end?` <span class="ln">${esc(op.lines[lastN.end[0]].n)}</span>`:""}</button>${kids.length?`<ul>${kids.map(node).join("")}</ul>`:""}</li>`};
-  $("tree").innerHTML=`<ul>${Object.values(root.kids).map(node).join("")}</ul><p class="leads" style="font-family:var(--font)">Grün: alles fehlerfrei, orange: angefangen. Antippen übt die Variante.</p>`;
+    const kids=sortK(Object.values(lastN.kids));const w=sib>1?wOf(n):null;
+    const pre=lastN.pre.concat(lastN.m).map(strip).join(" ");
+    return `<li><span class="tnw"><button class="tn ${cls(lastN.lines)}" data-l="${lastN.lines[0]}">${w!=null?`<span class="tpct${w<.15?" lo":""}" title="So oft wird dieser Zug hier gespielt">${fmtPct(w)}</span>`:""}${esc(label)}${lastN.end?` <span class="ln">${esc(op.lines[lastN.end[0]].n)}</span>`:""}</button>${kids.length>1?`<button class="tx" data-x="${esc(pre)}" title="Ab hier am Brett erkunden" aria-label="Ab hier am Brett erkunden">${NI.target}</button>`:""}</span>${kids.length?`<ul>${kids.map(k=>node(k,kids.length)).join("")}</ul>`:""}</li>`};
+  const top=sortK(Object.values(root.kids));
+  $("tree").innerHTML=`<ul>${top.map(k=>node(k,top.length)).join("")}</ul><p class="leads" style="font-family:var(--font)">Grün: alles fehlerfrei, orange: angefangen. ${op.tw?"Die Prozentzahl zeigt, wie oft der Gegner diesen Zug an dieser Stelle spielt. ":""}Antippen übt die Variante, das Zielsymbol erkundet die Stellung am Brett.</p>`;
   $("tree").querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{sess=null;drill=null;forced=+b.dataset.l;target=forced;mode="train";startTrain()});
+  $("tree").querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>{const pre=b.dataset.x?b.dataset.x.split(" "):[];const c=consistentIn(op,pre);if(!c.length)return;startExplore(op.lines[c[0]].m.slice(0,pre.length))});
 }
+
+/* ---------------- Am Brett erkunden: alle Buchzüge als Schatten ---------------- */
+const ghostOn=()=>mode==="train"&&!!op&&!!op.lines&&(!!xpl||(pickWait&&live()));
+function ghostOpts(){
+  if(!ghostOn())return [];
+  const h=hist.slice(0,view);const c=consistentIn(op,h);const by=new Map();
+  c.forEach(i=>{const m=op.lines[i].m[h.length];if(m&&!by.has(strip(m)))by.set(strip(m),m)});
+  const opp=shown.turn()!==op.side;const arr=[...by.values()].map(san=>({san,w:twOf(op,h,san),opp}));
+  if(arr.length>1){const known=arr.filter(a=>a.w!=null);if(known.length<arr.length){const lo=known.length?Math.min(...known.map(a=>a.w))/2:1/arr.length;arr.forEach(a=>{if(a.w==null)a.w=lo})}const s=arr.reduce((t,a)=>t+a.w,0);arr.forEach(a=>a.w=a.w/s)}
+  else arr.forEach(a=>a.w=1);
+  return arr.map(a=>Object.assign(a,{mv:findMove(shown,a.san)})).filter(a=>a.mv);
+}
+function ghostAt(sq){
+  const o=ghostOpts();let c=o.filter(a=>a.mv.to===sq);
+  if(!c.length){c=o.filter(a=>a.mv.from===sq);if(c.length>1)c=[]}
+  return c.length?c.reduce((a,b)=>b.w>a.w?b:a).san:null;
+}
+function drawGhosts(){
+  boardEl.classList.remove("picking");
+  if(!ghostOn()||lock)return;const o=ghostOpts();if(!o.length)return;
+  boardEl.classList.add("picking");const top=o.reduce((a,b)=>b.w>a.w?b:a);let svg="";
+  [...o].sort((a,b)=>a.w-b.w).forEach(a=>{const m=a.mv;
+    svg+=arrowPath(m.from,m.to,a.opp?`rgba(232,142,40,${(.4+.5*a.w).toFixed(2)})`:"rgba(70,140,235,.85)",a.opp?.07+.12*a.w:.16);
+    const g=document.createElement("div");g.className="pc gh"+(a.opp?"":" me")+" "+m.color+(m.promotion||m.piece);g.style.transform=tf(m.to);pcsEl.appendChild(g);
+    const p=xy(m.to);const ch=document.createElement("div");ch.className="gchip"+(a.opp?"":" me")+(a===top&&o.length>1?" top":"");
+    ch.style.left=((p.x+1)*12.5)+"%";ch.style.top=(p.y*12.5)+"%";ch.textContent=a.opp?(o.length>1?fmtPct(a.w).replace(" ",""):"100%"):"Du";badgesEl.appendChild(ch)});
+  ovl.insertAdjacentHTML("beforeend",svg);
+}
+function ghostPlay(san){
+  if(xpl){
+    if(view<hist.length)truncate(view);const mv=findMove(shown,san);if(!mv)return;
+    const r=commit(mv,shown.turn()===op.side?"u":"b");view=hist.length;shown=new Chess(fens[view]);sel=null;badge=null;
+    render({fwd:r});playSound(r);xplStatus();return;
+  }
+  if(pickWait&&live()){
+    pickWait=false;const c=consistent(hist);const cand=c.filter(i=>strip(op.lines[i].m[hist.length]||"")===strip(san));if(!cand.length)return;
+    const fresh=cand.filter(i=>P(op.id,i)<2);target=cand.indexOf(target)>=0?target:rnd(fresh.length?fresh:cand);playBook();renderChrome();
+  }
+}
+function startExplore(pre){
+  if(!op||!op.lines||!op.lines.length||op.endId||op.g==="c"&&!op.lines.length)return;
+  stopEngine();sess=null;drill=null;game=null;puz=null;mode="train";forced=null;
+  if(curView!=="train")showView("train");
+  resetBoard();xpl={};target=null;
+  (pre||[]).forEach(m=>{const g=new Chess(fens[hist.length]);const mv=findMove(g,m);if(mv)commit(mv,g.turn()===op.side?"u":"b")});
+  view=hist.length;shown=new Chess(fens[view]);
+  buildSquares();renderChrome();render();xplStatus();
+}
+function xplStatus(){
+  if(!xpl)return;const o=ghostOpts();const opp=op.side==="w"?"Schwarz":"Weiß";
+  const last=view?`Nach ${plyNo(view-1)}${de(hist[view-1])}: `:"";let t;
+  if(!o.length)t=last+"Hier endet die Variante. Mit »Zurück« probierst du eine andere Abzweigung, oder du trainierst genau diese Variante.";
+  else if(!o[0].opp)t=last+(o.length>1?`Dein Repertoire erlaubt ${o.length} Züge (blaue Schatten). Tippe einen an.`:`Dein Zug ist ${plyNo(view)}${de(o[0].mv.san)} (blauer Schatten). Tippe ihn an.`);
+  else if(o.length>1)t=last+`${opp} hat ${o.length} Buchzüge. Die orangen Schatten zeigen sie${op.tw?", die Prozentzahl ist ihre Häufigkeit":""}. Tippe an, was du sehen willst.`;
+  else t=last+`${opp} spielt hier ${plyNo(view)}${de(o[0].mv.san)}. Tippe den Schatten an.`;
+  const c=consistentIn(op,hist.slice(0,view));const nm=c.length===1?op.lines[c[0]].n:op.name;
+  setStatus("view","Erkunden: "+nm,t,true);
+}
+/* beste Variante zur gezeigten Stellung: die in der Praxis häufigste */
+function bestLineAt(h){const c=consistentIn(op,h);if(!c.length)return null;return c.reduce((a,b)=>(lineProb(op,b)||0)>(lineProb(op,a)||0)?b:a)}
+$("xBack").onclick=()=>{if(xpl&&view>0)setView(view-1)};
+$("xTrain").onclick=()=>{if(!xpl)return;const i=bestLineAt(hist.slice(0,view));if(i===null)return;xpl=null;sess=null;forced=i;target=i;startTrain()};
+$("xEnd").onclick=()=>{xpl=null;forced=null;startTrain()};
+$("xplBtn").onclick=()=>startExplore([]);
+$("xplMi").onclick=()=>{$("bMenu").hidden=true;$("moreBtn").setAttribute("aria-expanded","false");if(op&&op.lines&&op.lines.length&&!op.endId)startExplore(hist.slice(0,view).length&&consistentIn(op,hist.slice(0,view)).length?hist.slice(0,view):[]);else toast("Erkunden geht in einer Eröffnung mit Varianten.")};
+function renderPickSeg(){$("poAuto").setAttribute("aria-pressed",String(!S.set.pickOpp));$("poPick").setAttribute("aria-pressed",String(!!S.set.pickOpp))}
+$("poAuto").onclick=()=>{S.set.pickOpp=false;save("set");renderPickSeg();if(pickWait&&live()&&mode==="train"){pickWait=false;engineSoon()}};
+$("poPick").onclick=()=>{S.set.pickOpp=true;save("set");renderPickSeg();if(mode==="train"&&busy&&live()&&!done&&shown.turn()!==op.side){clearTimeout(timer);busy=false;bookMove()}};
+renderPickSeg();
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&xpl&&mode==="train"&&!$("v-train").hidden){e.preventDefault();$("xEnd").click()}});
 
 /* ---------------- Buttons ---------------- */
 $("hintBtn").onclick=()=>{if($("hintBtn").disabled)return;hintLvl=Math.min(2,hintLvl+1);usedHelp=true;render();setStatus("turn",hintLvl===1?"Diese Figur zieht":"So geht der Zug",hintLvl===1?"Noch ein Klick auf »Hinweis« zeigt das Zielfeld.":"Spiel den markierten Zug.")};
@@ -1031,6 +1173,7 @@ boardEl.addEventListener("pointerdown",e=>{
   if(mode==="online"&&ON.pre){ON.pre=null;sel=null;render();return}
   if(marks.a.size||marks.c.size){marks.a.clear();marks.c.clear();renderMarks()}
   const startSwipe=()=>{swipe={x:e.clientX,y:e.clientY,t:Date.now()};try{boardEl.setPointerCapture(e.pointerId)}catch(_){}};
+  if(ghostOn()){const s=ghostAt(name);if(s){e.preventDefault();ghostPlay(s);return}}
   if(!canMoveNow()){startSwipe();return}
   const p=shown.get(name);
   if(sel&&sel!==name&&!ownPiece(p)){const s=sel;sel=null;if(!tryMove(s,name,true)){render();startSwipe()}return}

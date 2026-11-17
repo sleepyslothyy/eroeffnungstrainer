@@ -1582,3 +1582,22 @@ th{font-size:12.5px;font-weight:600}
 #board{box-shadow:0 10px 26px rgba(0,0,0,.32)}
 .theme-light #board{box-shadow:0 8px 20px rgba(60,40,20,.18)}
 .card:has(#authForm){max-width:480px;width:100%}
+
+/* ---- Zugbaum: Häufigkeiten, Erkunden, Schatten-Züge ---- */
+.vseg{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vseg .xplb{margin-left:auto;padding:6px 12px;font-size:13px}
+.vseg.po{padding-top:8px}
+.vseg.po small{color:var(--muted);font-size:12px;font-weight:600}
+.vseg.po .seg button{padding:5px 10px;font-size:12.5px}
+.tree .tnw{display:inline-flex;align-items:center;gap:2px;max-width:100%}
+.tree .tpct{font-family:var(--font);font-weight:800;font-size:11.5px;font-variant-numeric:tabular-nums;color:#fff;background:#C27A22;border-radius:4px;padding:1px 5px;flex:none}
+.tree .tpct.lo{background:#7A6650}
+.tree .tx{border:0;background:none;color:var(--muted);width:26px;height:26px;border-radius:5px;display:grid;place-items:center;cursor:pointer;flex:none}
+.tree .tx svg{width:15px;height:15px}
+.tree .tx:hover{background:var(--hover);color:var(--text)}
+.pc.gh{opacity:.42;filter:saturate(.6) drop-shadow(0 0 calc(var(--s)*.06) rgba(0,0,0,.45));z-index:3;pointer-events:none}
+.pc.gh.me{opacity:.55}
+.gchip{position:absolute;transform:translate(-100%,0);margin:calc(var(--s)*.04) 0 0 calc(var(--s)*-.04);font:800 calc(var(--s)*.2)/1.15 var(--font);font-variant-numeric:tabular-nums;color:#fff;padding:calc(var(--s)*.03) calc(var(--s)*.07);border-radius:calc(var(--s)*.08);background:#D98A1E;box-shadow:0 1px 3px rgba(0,0,0,.4);z-index:7;pointer-events:none;white-space:nowrap}
+.gchip.me{background:#3E7BD6}
+.gchip.top{outline:2px solid #fff}
+.board.picking{cursor:pointer}
