@@ -210,7 +210,10 @@ function sm2(s,q){
   if(q<3){s.reps=0;s.lapses=(s.lapses||0)+1;s.iv=1}else{s.reps++;s.iv=s.reps===1?1:s.reps===2?3:Math.max(1,Math.round(s.iv*s.ef))}
   s.ef=Math.max(1.3,s.ef+(0.1-(5-q)*(0.08+(5-q)*0.02)));s.due=startOfDay(Date.now())+s.iv*DAY;s.last=Date.now();return s;
 }
-function srsReview(k,q){const o=S.srs[k];if(o&&o.last){st.rlog.push([Date.now(),Math.round((Date.now()-o.last)/DAY*10)/10,q>=3?1:0]);if(st.rlog.length>1500)st.rlog.splice(0,st.rlog.length-1500)}S.srs[k]=sm2(S.srs[k],q);save("srs")}
+function srsReview(k,q){const o=S.srs[k];
+  /* Mehrmals am selben Tag richtig: zählt fürs Lernen, verlängert den Abstand aber nicht – erst der Abruf an einem späteren Tag zeigt echtes Behalten (verteiltes Üben) */
+  if(o&&o.last&&o.last>=startOfDay(Date.now())&&q>=3){o.last=Date.now();o.due=Math.max(o.due||0,startOfDay(Date.now())+DAY);save("srs");return}
+  if(o&&o.last){st.rlog.push([Date.now(),Math.round((Date.now()-o.last)/DAY*10)/10,q>=3?1:0]);if(st.rlog.length>1500)st.rlog.splice(0,st.rlog.length-1500)}S.srs[k]=sm2(S.srs[k],q);save("srs")}
 const endToday=()=>startOfDay(Date.now())+DAY-1;
 const isDue=k=>{const s=S.srs[k];return !!(s&&s.due<=endToday())};
 function posReview(id,pre,q){const k=id+"|"+pre.join(" ");const s=sm2(S.pos[k],q);s.id=id;s.pre=pre.slice();s.n=(s.n||0)+1;if(q<3)s.err=(s.err||0)+1;S.pos[k]=s;save("pos")}
@@ -359,7 +362,7 @@ function selectOpening(o,line,keepSess){
   stopEngine();mode="train";game=null;drill=null;puz=null;op=o;forced=(line===undefined||line===null)?null:line;flipped=false;
   store.set("et-last",o.id);showView("train");renderList();startTrain();
 }
-function learnWanted(){return mode==="train"&&!drill&&!op.endId&&target!==null&&op.lines&&op.lines.length&&!(sess&&(sess.blitz||sess.blind))&&S.set.learnFirst!==false&&P(op.id,target)===0&&!S.srs[lk(op.id,target)]}
+function learnWanted(){if(sess&&sess.plan)return mode==="train"&&!drill&&target!==null&&sess.roles[sess.idx]==="new"&&sess.method==="show";return mode==="train"&&!drill&&!op.endId&&target!==null&&op.lines&&op.lines.length&&!(sess&&(sess.blitz||sess.blind))&&S.set.learnFirst!==false&&P(op.id,target)===0&&!S.srs[lk(op.id,target)]}
 function startTrain(noLearn,forceLearn){
   resetBoard();mode="train";drill=null;target=pickTarget();learn=!noLearn&&(learnWanted()||(!!forceLearn&&target!==null));if(learn)forced=target;if(learn&&shown.turn()===op.side)hintLvl=2;buildSquares();renderChrome();render();
   const fl=forced!==null&&op.lines[forced]?" Variante: "+op.lines[forced].n+".":"";
@@ -430,6 +433,7 @@ function wrongMove(mv,animate,h){
   render(animate?{fwd:r}:null,{bad:[r.from,r.to]});sfx("wrong");
   setStatus("bad",de(r.san)+(mode==="puzzle"?" ist nicht die Lösung":" ist nicht im Buch"),mistakes>=2&&hintLvl===0?"Tipp: Mit »Hinweis« siehst du, welche Figur ziehen sollte.":"Versuch es noch einmal.");
   if(mode==="puzzle")reportPuzzle(false);else if(mode==="train")crsOnMove(false);
+  if(mode==="train"&&sess&&sess.plan&&sess.method==="guess"&&sess.roles[sess.idx]==="new"){const myIdx=sess.idx;setTimeout(()=>{if(mode==="train"&&!done&&sess&&sess.idx===myIdx){hintLvl=2;usedHelp=true;render();setStatus("turn","So geht der Zug","Dein Versuch war nicht der Buchzug. Spiel jetzt den markierten Zug – gleich danach weißt du ihn selbst.")}},820)}
   const myMode=mode;
   wrongRevert=()=>{clearTimeout(wrongT);wrongT=null;wrongRevert=null;if(mode!==myMode){lock=false;return}shown=keep;badge=null;lock=false;render({back:r});boardEl.classList.remove("shake");void boardEl.offsetWidth;boardEl.classList.add("shake")};
   wrongT=setTimeout(wrongRevert,750);
@@ -439,22 +443,22 @@ let xpl=null,pickWait=false;
 function finish(){
   if(learn){done=true;stopBlitz();const i=target;learn=false;if(badge&&badge.ply===hist.length)badge.type="ok";
     setStatus("done","Gelernt: "+op.lines[i].n,"Jetzt ohne Hilfe: Gleich spielst du die Variante noch einmal aus dem Gedächtnis.");crsOnFinish(true,true);setTimeout(()=>sfx("done"),180);render();renderChrome();
-    clearTimeout(learnNext);learnNext=setTimeout(()=>startLearnTest(i),S.set.calm?600:1800);return}
+    clearTimeout(learnNext);if(sess&&sess.plan){crsAskExplain(i);return}learnNext=setTimeout(()=>startLearnTest(i),S.set.calm?600:1800);return}
   done=true;stopBlitz();const i=target;const k=lk(op.id,i);const clean=mistakes===0&&!usedHelp;const firstClean=clean&&P(op.id,i)<2;
   S.prog[op.id]=S.prog[op.id]||{};S.prog[op.id][i]=Math.max(P(op.id,i),clean?2:1);save("prog");
   srsReview(k,clean?5:mistakes<=1?3:1);
   const s=opStat(op.id);s.att++;if(clean)s.clean++;st.days[today()]=(st.days[today()]||0)+1;gain("line",{clean,first:firstClean});
   if(clean&&sess&&sess.blitz)st.blitz++;if(clean&&blindOn&&!peeked)st.blind++;saveStats();
   if(badge&&badge.ply===hist.length)badge.type="ok";
-  if(sess){sess.res.push({k,clean});if(sess.type==="daily"){markDailyDone(k);const qk=sess.queue[sess.idx];if(qk&&qk!==k)markDailyDone(qk)}}else markDailyDone(k);
+  if(sess){sess.res.push({k,clean,i:sess.idx});if(sess.type==="daily"){markDailyDone(k);const qk=sess.queue[sess.idx];if(qk&&qk!==k)markDailyDone(qk)}}else markDailyDone(k);
   const nxt=S.srs[k]?Math.round((S.srs[k].due-startOfDay(Date.now()))/DAY):1;
   setStatus("done","Variante geschafft: "+op.lines[i].n,(clean?"Fehlerfrei gespielt.":`Mit ${mistakes} ${mistakes===1?"Fehler":"Fehlern"} – sie kommt bald wieder.`)+` Nächste Wiederholung in ${nxt} ${nxt===1?"Tag":"Tagen"}.`);
-  crsOnFinish(clean);
+  crsOnFinish(clean,false,k);
   setTimeout(()=>sfx("done"),180);
   if(forced===i&&!sess)forced=null;
   render();renderChrome();renderList();renderTabbar();checkBadges();
   if(firstClean)confetti();
-  scheduleAuto(sess?1500:2600);
+  scheduleAuto(sess?(sess.plan&&clean?5000:1500):2600);
 }
 
 /* ---- Stellungs-Drill: nur einen Zug in einer bestimmten Stellung finden ---- */
@@ -533,6 +537,8 @@ function runSessionItem(){
 }
 function sessNext(){
   if(sess.next){sess.next();return}
+  if(sess.plan){const r=sess.res[sess.res.length-1],ro=sess.roles[sess.idx];
+    if(r&&r.i===sess.idx&&!r.clean&&ro!=="new"){sess.rq[r.k]=(sess.rq[r.k]||0)+1;if(sess.rq[r.k]<=2){sess.queue.push(r.k);sess.roles.push("relearn")}}}
   sess.idx++;
   if(sess.idx>=sess.queue.length){
     const ok=sess.res.filter(r=>r.clean).length,n=sess.res.length,t=sess.title;const cc=crsSess(),cs=sess;sess=null;blindOn=false;applyBlind();renderChrome();
@@ -961,6 +967,7 @@ function renderChrome(){
    $("sessIc").hidden=!cc;$("sessRank").hidden=!cc;if(cc){$("sessIc").innerHTML=crsIcon(thOf(cc).ic,16);const r=crsRank(cc);$("sessRank").textContent=r.name;$("sessRank").title=`Rang ${r.i+1} von 6`}}
   if(inSess&&sess.next){$("sessTitle").textContent=sess.title;$("sessCount").textContent=sess.countText();$("sessProg").style.width=(sess.progress()*100)+"%"}
   else if(inSess){$("sessTitle").textContent=sess.title;$("sessCount").textContent=`${Math.min(sess.idx+1,sess.queue.length)}/${sess.queue.length}`;$("sessProg").style.width=(sess.idx/sess.queue.length*100)+"%"}
+  if(inSess&&sess.plan){const ro=sess.roles[Math.min(sess.idx,sess.roles.length-1)];$("sessCount").textContent=`${PHASE[ro]?PHASE[ro].t:""} · ${Math.min(sess.idx+1,sess.queue.length)}/${sess.queue.length}`}
   $("actsSf").hidden=mode!=="engine";$("editor").hidden=mode!=="edit";
   $("nextBtn").hidden=!((mode==="train"&&!op.endId)||(mode==="puzzle"&&sess))||!!(sess&&sess.kind==="sprint");
   $("nextBtn").textContent=sess?(sess.next?"Nächste Aufgabe":sess.idx+1>=sess.queue.length?"Training abschließen":`Weiter (${sess.idx+2}/${sess.queue.length})`):"Nächste Variante";
@@ -3798,6 +3805,95 @@ function crsMeta(c){
 }
 const crsDue=c=>courseKeys(c).filter(k=>isDue(k));
 const crsWeak=c=>courseKeys(c).filter(k=>Pk(k)===1);
+/* ===== Lernmethode: Lerneinheiten nach Erkenntnissen der Lernforschung =====
+   Ablauf einer Einheit: Aufwärmen mit fälligen Wiederholungen (Testeffekt, Spacing) → wenige neue Varianten (Arbeitsgedächtnis),
+   je nach Stufe vorgezeigt oder erst geraten (Expertise-Reversal, Pretesting), mit Denkfrage (Self-Explanation) →
+   dazwischen ältere Varianten aus anderen Kapiteln (Interleaving) → die neuen noch einmal mit Abstand ohne Hilfe →
+   was nicht sitzt, kommt bis zu zweimal wieder (Successive Relearning). Nach jeder Variante: Wie sicher warst du? (Metakognition) */
+const LEARN_SCI=[
+  {t:"Abrufen statt Anschauen",d:"Jede Variante spielst du aus dem Gedächtnis. Sich selbst zu prüfen festigt Wissen deutlich stärker, als es noch einmal anzusehen.",src:[["Roediger & Karpicke 2006","https://pubmed.ncbi.nlm.nih.gov/16507066/"]]},
+  {t:"Verteilt statt am Stück",d:"Wiederholungen kommen in wachsenden Abständen – kurz bevor du sie vergessen würdest. Verteiltes Üben schlägt Pauken.",src:[["Cepeda u. a. 2006","https://pubmed.ncbi.nlm.nih.gov/16719566/"]]},
+  {t:"Wiederholen, bis es sitzt",d:"Was nicht fehlerfrei klappt, kommt in derselben Einheit noch einmal und an späteren Tagen wieder. So wird aus Gelerntem dauerhaftes Wissen.",src:[["Rawson & Dunlosky 2022","https://journals.sagepub.com/doi/full/10.1177/09637214221100484"]]},
+  {t:"Gemischt üben",d:"Wiederholungen und ältere Varianten aus anderen Kapiteln kommen gemischt. So lernst du, Stellungen auseinanderzuhalten – wie in einer echten Partie.",src:[["Rohrer & Taylor 2007","https://digitalcommons.usf.edu/psy_facpub/1767/"]]},
+  {t:"Kleine Portionen",d:"Höchstens fünf neue Varianten pro Einheit, standardmäßig drei pro Tag. Das Arbeitsgedächtnis fasst nur etwa vier Einheiten gleichzeitig.",src:[["Cowan 2001","https://pubmed.ncbi.nlm.nih.gov/11515286/"]]},
+  {t:"Vorzeigen oder erst raten",d:"Einsteiger lernen am besten an vorgezeigten Beispielen. Wer schon mehr weiß, profitiert davon, erst selbst zu raten und dann korrigiert zu werden – auch falsche Versuche helfen beim Merken.",src:[["Kalyuga u. a. 2003","https://ro.uow.edu.au/edupapers/136"],["Kornell, Hays & Bjork 2009","https://pubmed.ncbi.nlm.nih.gov/19586265/"]]},
+  {t:"Sich selbst erklären",d:"Nach dem Vorzeigen stellt dir der Trainer eine Denkfrage zur Idee der Variante. Wer sich Züge selbst erklärt, versteht und behält sie besser.",src:[["Chi u. a. 1989","https://education.asu.edu/lcl/publications/chi-m-t-h-bassok-m-lewis-m-reimann-p-glaser-r-1989-self-explanations-how-students"]]},
+  {t:"Ehrliche Selbsteinschätzung",d:"Nach jeder Variante sagst du, wie sicher du warst. Geratene Treffer kommen früher wieder, denn wer sich überschätzt, übt zu wenig.",src:[["Dunlosky & Rawson 2012","https://doi.org/10.1016/j.learninstruc.2011.08.003"]]},
+  {t:"Pausen und Schlaf",d:"Ein festes Tagespensum statt Marathon: Im Schlaf festigt das Gehirn, was du geübt hast.",src:[["Diekelmann & Born 2010","https://www.nature.com/articles/nrn2762"]]}
+];
+const LEARN_SUM=["Dunlosky u. a. 2013","https://www.psychologicalscience.org/news/releases/which-study-strategies-make-the-grade.html"];
+function sciHtml(){
+  return `<details class="crs-sci"><summary><span class="crs-sci-ic">${crsIcon("cap",18)}</span><span><b>So lernst du hier</b><small>Neun Prinzipien aus der Lernforschung – mit Quellen</small></span></summary>
+  <ol>${LEARN_SCI.map(x=>`<li><b>${esc(x.t)}</b><span>${esc(x.d)}</span><small>${x.src.map(s=>`<a href="${s[1]}" target="_blank" rel="noopener">${esc(s[0])}</a>`).join(" · ")}</small></li>`).join("")}</ol>
+  <p class="crs-sci-sum">Abrufen und verteiltes Üben gehören laut der großen Übersichtsarbeit von <a href="${LEARN_SUM[1]}" target="_blank" rel="noopener">${esc(LEARN_SUM[0])}</a> zu den wirksamsten Lerntechniken überhaupt.</p></details>`;
+}
+const PHASE={
+  warm:{t:"Aufwärmen",d:"Wir starten mit fälligen Wiederholungen – gemischt aus allen Kapiteln. Abrufen festigt stärker als nochmal Anschauen."},
+  new:{t:"Neu",d:"",show:"Neue Variante: Erst zeige ich dir die Züge, dann spielst du sie selbst.",guess:"Neue Variante: Rate jeden Zug zuerst selbst. Liegst du daneben, zeige ich dir die Lösung – auch falsche Versuche helfen beim Merken."},
+  mix:{t:"Gemischt",d:"Zwischendurch eine ältere Variante aus einem anderen Kapitel. Das Mischen trainiert, die richtige Variante zu erkennen."},
+  retest:{t:"Mit Abstand",d:"Jetzt die neuen Varianten noch einmal – ohne Hilfe und mit etwas Abstand. Genau das macht sie haltbar."},
+  relearn:{t:"Nachlernen",d:"Die saß noch nicht. Wir holen sie noch einmal, bis sie einmal fehlerfrei klappt."}
+};
+const PACES=[2,3,5];
+const crsMethod=c=>{const m=crsMeta(c);return m.meth==="show"||m.meth==="guess"?m.meth:(c.lvl==="Stark"||c.lvl==="Für Mutige")?"guess":"show"};
+const crsPace=c=>{const p=crsMeta(c).pace;return PACES.indexOf(p)>=0?p:3};
+const crsNewToday=c=>{const m=crsMeta(c);return m.day===today()?(m.nw||0):0};
+const isFresh=k=>!S.srs[k]&&Pk(k)<2;
+/* Für Prüfungen zählen nur Varianten, die an einem früheren Tag geübt wurden – sonst misst die Prüfung nur das Kurzzeitgedächtnis */
+const examKeys=x=>x.ix.filter(i=>P(x.id,i)===2).map(i=>lk(x.id,i)).filter(k=>S.srs[k]&&S.srs[k].last&&S.srs[k].last<startOfDay(Date.now()));
+/* Eine Lerneinheit zusammenstellen */
+function crsUnit(c,extra){
+  const all=courseKeys(c);
+  const due=shuffle(all.filter(k=>isDue(k))).slice(0,8);
+  const left=extra?crsPace(c):Math.max(0,crsPace(c)-crsNewToday(c));
+  const nw=all.filter(isFresh).slice(0,Math.min(left,5));
+  const nwOps=new Set(nw.map(k=>pk(k)[0]));
+  const mix=nw.length?shuffle(all.filter(k=>S.srs[k]&&!isDue(k)&&Pk(k)===2&&!nwOps.has(pk(k)[0]))).slice(0,Math.min(2,nw.length)):[];
+  const q=[],roles=[];
+  due.forEach(k=>{q.push(k);roles.push("warm")});
+  nw.forEach((k,j)=>{q.push(k);roles.push("new");if(mix[j]){q.push(mix[j]);roles.push("mix")}});
+  nw.forEach(k=>{q.push(k);roles.push("retest")});
+  return {q,roles,due:due.length,nw:nw.length,mix:mix.length};
+}
+function crsStartUnit(c,extra){
+  const u=crsUnit(c,extra);if(!u.q.length){toast("Für heute ist nichts mehr dran – morgen geht es weiter.");return}
+  startSession("course",u.q,c.t,{course:c.id,plan:true,roles:u.roles,method:crsMethod(c),rq:{},unit:u});window.scrollTo(0,0);
+}
+/* Wann ist man mit allen Varianten durch, wenn man täglich übt? */
+function crsFinishDate(c){
+  const rest=courseKeys(c).filter(isFresh).length;if(!rest)return null;
+  const pace=crsPace(c),todayLeft=Math.max(0,pace-crsNewToday(c));
+  const days=rest<=todayLeft?0:Math.ceil((rest-todayLeft)/pace);
+  return new Date(Date.now()+days*DAY).toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"long"});
+}
+/* Behalten statt nur einmal gekonnt: Abstand der nächsten Wiederholung als Maß */
+function crsRetention(c){let fest=0,lang=0;courseKeys(c).forEach(k=>{const s=S.srs[k];if(s&&Pk(k)===2){if(s.iv>=7)fest++;if(s.iv>=21)lang++}});return {fest,lang}}
+/* Trainer sagt einen eigenen Text (Phasen, Denkfragen) */
+function coachRaw(c,html,mood){if(!c)return;const el=$("trSay");el.hidden=false;el.innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> ${html}`;coachPaint(c,mood);crsLast="raw"}
+const EXPLAIN_Q=["Was ist die Idee hinter dieser Variante? Sag es dir in einem Satz.","Welcher Zug war hier der wichtigste – und warum?","Wohin wollen deine Figuren nach dieser Variante? Erklär es dir kurz selbst."];
+function crsAskExplain(i){
+  const c=crsSess();if(!c)return;const l=op.lines[i];const plan=(l&&l.p)||(op.plan&&op.plan.length?op.plan[i%op.plan.length]:"");
+  coachRaw(c,`Denkfrage: ${esc(EXPLAIN_Q[i%EXPLAIN_Q.length])}<span class="tr-acts">${plan?`<button class="chip" data-trx="plan">Plan zeigen</button>`:""}<button class="chip on" data-trx="go">Jetzt selbst spielen</button></span>`,"neutral");
+  const el=$("trSay");
+  const go=el.querySelector('[data-trx="go"]');if(go)go.onclick=()=>startLearnTest(i);
+  const pb=el.querySelector('[data-trx="plan"]');if(pb)pb.onclick=()=>{const sp=document.createElement("span");sp.className="tr-plan";sp.textContent=plan;pb.replaceWith(sp)};
+}
+/* Selbsteinschätzung nach einer fehlerfreien Variante: passt den Wiederholungsabstand an */
+function crsRate(k,v){
+  const s=S.srs[k];
+  if(s&&v==="u"){s.iv=Math.max(1,Math.round(s.iv/2));s.due=startOfDay(Date.now())+s.iv*DAY}
+  if(s&&v==="g"){s.iv=1;s.reps=Math.max(0,(s.reps||1)-1);s.ef=Math.max(1.3,(s.ef||2.5)-.15);s.due=startOfDay(Date.now())+DAY}
+  save("srs");st.cal=st.cal&&typeof st.cal==="object"?st.cal:{s:0,u:0,g:0};st.cal[v]=(st.cal[v]||0)+1;saveStats();
+}
+function crsRateAsk(c,k){
+  const el=$("trSay");if(!c||el.hidden)return;
+  const box=document.createElement("span");box.className="tr-acts tr-rate";
+  box.innerHTML=`<small>Wie sicher warst du?</small><button class="chip" data-rate="s">Sicher</button><button class="chip" data-rate="u">Unsicher</button><button class="chip" data-rate="g">Geraten</button>`;
+  el.appendChild(box);
+  box.querySelectorAll("[data-rate]").forEach(b=>b.onclick=()=>{const v=b.dataset.rate;crsRate(k,v);
+    box.innerHTML=`<small>${v==="s"?"Gut – die Wiederholung bleibt wie geplant.":v==="u"?"Ehrlich ist gut: Die Variante kommt etwas früher wieder.":"Danke! Geratene Treffer kommen schon morgen wieder."}</small>`;
+    cancelAuto();setTimeout(()=>{const nb=$("nextBtn");if(nb&&!nb.hidden&&done)nb.click()},900)});
+}
 const pickL=(a,i)=>Array.isArray(a)?a[i!=null?Math.min(i,a.length-1):Math.floor(Math.random()*a.length)]:a;
 function coachLine(c,key,vars,idx){
   const co=COACHES[coIdOf(c)];const r=crsRank(c);const p=r.p;const th=thOf(c);
@@ -3812,6 +3908,7 @@ function crsComment(c){
   if(r.p.cl===0&&!weak)return {t:coachLine(c,"intro")+" "+coachLine(c,"p0"),mood:"happy"};
   if(due)return {t:coachLine(c,"due",{due}),mood:"neutral"};
   if(weak)return {t:coachLine(c,"weak",{weak}),mood:"worry"};
+  if(r.f<1&&!crsUnit(c).q.length)return {t:coachLine(c,"rest"),mood:"joy"};
   const k=r.f>=1?"p5":r.f>=.75?"p4":r.f>=.5?"p3":r.f>=.25?"p2":"p1";
   return {t:coachLine(c,k),mood:r.f>=1?"joy":"happy"};
 }
@@ -3828,7 +3925,7 @@ function renderCourses(){
   v.innerHTML=pageHead("Kurse","Such dir einen Kurs, der zu deinem Spielstil passt. Jeder Kurs hat seinen eigenen Trainer und eigene Ränge.","learn")+
   `<div class="crs-f"><div class="filters" role="group" aria-label="Spielstil">${SF.map(f=>`<button class="chip${crsF.st===f[0]?" on":""}" data-cst="${f[0]}" aria-pressed="${crsF.st===f[0]}">${f[1]}</button>`).join("")}</div>
   <div class="filters" role="group" aria-label="Farbe">${CF.map(f=>`<button class="chip${crsF.side===f[0]?" on":""}" data-csd="${f[0]}" aria-pressed="${crsF.side===f[0]}">${f[1]}</button>`).join("")}</div>
-  ${crsF.st?`<p class="hint crs-sd"><b>${esc(STYLES[crsF.st].n)}:</b> ${esc(STYLES[crsF.st].d)}</p>`:""}</div>`+
+  ${crsF.st?`<p class="hint crs-sd"><b>${esc(STYLES[crsF.st].n)}:</b> ${esc(STYLES[crsF.st].d)}</p>`:""}</div>`+sciHtml()+
   (list.length?`<div class="crs">${list.map(c=>{const th=thOf(c),co=COACHES[coIdOf(c)],r=crsRank(c);
     return `<button class="crc th-${c.id} co-${coIdOf(c)}" data-crs="${c.id}">
       <span class="crc-band"><span class="crc-emb">${crsIcon(th.ic,26)}</span><span class="crc-rk">${esc(r.name)}</span><span class="crc-av">${coachSvg(coIdOf(c),r.f>=1?"joy":"happy")}</span></span>
@@ -3847,8 +3944,9 @@ function renderCourse(v,c){
   const r=crsRank(c),p=r.p,chs=crsChapters(c);const open=courseKeys(c).filter(k=>Pk(k)<2);const due=crsDue(c),weak=crsWeak(c);
   const med=chs.reduce((a,x)=>a+(x.med?1:0),0),chDone=chs.filter(x=>x.done).length;const cm=crsComment(c);
   const curCh=chs.findIndex(x=>!x.done);
-  const goLbl=open.length?(p.cl?"Weiterlernen":"Kurs starten"):"Alles wiederholen";
-  const goSub=open.length?`${varV(Math.min(open.length,8))} aus „${esc((chs.find(x=>x.cl<x.n)||chs[0]).t)}“`:"Acht zufällige Varianten aus dem ganzen Kurs";
+  const u=crsUnit(c),fresh=courseKeys(c).filter(isFresh).length,pace=crsPace(c),meth=crsMethod(c),fin=crsFinishDate(c),ret=crsRetention(c),nToday=crsNewToday(c);
+  const goLbl=p.cl||nToday?"Lerneinheit starten":"Erste Lerneinheit starten";
+  const goSub=[u.due?nV(u.due,"Wiederholung","Wiederholungen"):"",u.nw?nV(u.nw,"neue Variante","neue Varianten"):"",u.nw?"Abstandstest":""].filter(Boolean).join(" · ");
   const task=(id,ic,t,s,cls)=>`<button class="crs-task${cls?" "+cls:""}" id="${id}"><span class="crs-task-ic">${ic}</span><span><b>${t}</b><small>${s}</small></span><span class="ci-go">›</span></button>`;
   v.innerHTML=`<button class="back" data-cback>← Alle Kurse</button>
   <section class="crs-hero th-${c.id}">
@@ -3857,29 +3955,38 @@ function renderCourse(v,c){
     <div class="crs-rank"><div class="crs-rank-h"><div><small>Dein Rang</small><b>${esc(r.name)}</b></div><span class="crs-rank-n">${r.i+1}/6</span></div>
       <div class="crs-ladder" aria-hidden="true">${th.rk.map((n,j)=>`<span class="${j<r.i?"on":j===r.i?"cur":""}" title="${esc(n)}">${j===r.i?`<i style="width:${r.part*100}%"></i>`:""}</span>`).join("")}</div>
       <small>${r.next?`Noch ${varV(r.left)} bis „${esc(r.next)}“`:"Höchster Rang erreicht"}</small></div>
-    <div class="crs-stats"><span><b>${p.cl}/${p.n}</b>Varianten</span><span><b>${chDone}/${chs.length}</b>Kapitel</span><span><b>${med}</b>${med===1?"Medaille":"Medaillen"}</span></div>
+    <div class="crs-stats"><span title="Mindestens einmal fehlerfrei gespielt"><b>${p.cl}/${p.n}</b>Gelernt</span><span title="Nach mindestens einer Woche Abstand noch gewusst"><b>${ret.fest}</b>Gefestigt</span><span title="Nach mindestens drei Wochen Abstand noch gewusst"><b>${ret.lang}</b>Langzeit</span><span><b>${chDone}/${chs.length}</b>Kapitel</span><span><b>${med}</b>${med===1?"Medaille":"Medaillen"}</span></div>
   </section>
   <section class="crs-coach co-${coId} th-${c.id}">
     <div class="crs-coach-av">${coachSvg(coId,cm.mood)}</div>
     <div class="crs-coach-b"><div class="crs-coach-n"><b>${esc(co.n)}</b><small>${esc(co.r)}</small></div><p class="crs-say">${esc(cm.t)}</p>${crsTip(c)?`<p class="crs-tip"><b>Tipp:</b> ${esc(crsTip(c))}</p>`:""}</div>
   </section>
   <section class="crs-tasks th-${c.id}"><h3>Aufträge von ${esc(co.n)}</h3><div class="crs-task-grid">
-    ${task("crsGo",crsIcon(th.ic,20),goLbl,goSub,"main")}
-    ${due.length?task("crsDue",crsIcon("redo",20),"Wiederholen",`${varV(due.length)} heute fällig`):""}
+    ${u.q.length?task("crsGo",crsIcon(th.ic,20),goLbl,goSub,"main"):fresh?task("crsRest",crsIcon("moon",20),"Für heute geschafft",`Dein Tagesplan ist erfüllt – morgen ${nV(pace,"neue Variante","neue Varianten")}.`,"main rest"):task("crsMix",crsIcon(th.ic,20),"Gemischt üben","Alles gelernt: acht Varianten aus allen Kapiteln durcheinander","main")}
+    ${!u.q.length&&fresh?task("crsExtra",crsIcon("redo",20),"Freiwillig weiterlernen",`${nV(Math.min(pace,fresh),"weitere neue Variante","weitere neue Varianten")} – Pausen helfen aber mehr`):""}
     ${weak.length?task("crsWeak",crsIcon("target",20),"Schwächen ausbügeln",`${varV(weak.length)} mit Fehlern gespielt`):""}
-    ${chs.some(x=>x.cl>=3)?task("crsExam",crsIcon("medal",20),"Kapitelprüfung",`Fünf gelernte Varianten ohne Fehler – für eine Medaille`):""}
+    ${chs.some(x=>examKeys(x).length>=3)?task("crsExam",crsIcon("medal",20),"Kapitelprüfung","Fünf Varianten von früheren Tagen ohne Fehler – für eine Medaille"):""}
   </div></section>
+  <section class="crs-plan th-${c.id}"><h3>Dein Lernplan</h3><div class="crs-plan-b">
+    <div class="crs-plan-row"><span><b>Neue Varianten pro Tag</b><small>Kleine Portionen behält man besser</small></span><span class="seg">${PACES.map(n=>`<button data-pace="${n}" aria-pressed="${pace===n}">${n}</button>`).join("")}</span></div>
+    <div class="crs-plan-row"><span><b>Neues lernen durch</b><small>${meth==="show"?"Erst vorgezeigt, dann selbst gespielt – ideal für Einsteiger":"Erst selbst raten, dann korrigiert – ideal, wenn du schon etwas weißt"}</small></span><span class="seg"><button data-meth="show" aria-pressed="${meth==="show"}">Vorzeigen</button><button data-meth="guess" aria-pressed="${meth==="guess"}">Erst raten</button></span></div>
+    <p class="crs-plan-st"><span><b>${nToday}/${pace}</b> neu heute</span><span><b>${crsDue(c).length}</b> fällig</span><span>${fin?`Alles gelernt bis <b>${esc(fin)}</b> bei täglichem Üben`:"Alle Varianten gelernt – Wiederholen hält sie frisch"}</span></p>
+  </div>${sciHtml()}</section>
   <section class="crs-map th-${c.id}"><h3>Deine Route</h3><ol class="crs-route">${chs.map(x=>{const f=x.n?x.cl/x.n:0;const stt=x.done?"done":x.cl?"run":x.ci===curCh?"next":"";
-    return `<li class="crs-stn ${stt}"><span class="crs-node">${x.done?crsIcon(th.ic,18):x.ci+1}</span><div class="crs-stn-b"><b>${esc(th.stop)} ${x.ci+1}: ${esc(x.t)}</b><small>${esc(x.o?x.o.name:x.id)} · ${x.cl}/${x.n} gelernt</small><span class="prog"><i style="width:${f*100}%"></i></span>${x.med||x.cl>=3?`<div class="crs-stn-a">${x.med?`<span class="medal m${x.med}" title="Medaille aus der Kapitelprüfung">${MEDAL[x.med]}</span>`:""}${x.cl>=3?`<button class="chip" data-exam="${x.ci}">${x.med?"Prüfung wiederholen":"Kapitelprüfung"}</button>`:""}</div>`:""}</div></li>`}).join("")}</ol></section>
+    return `<li class="crs-stn ${stt}"><span class="crs-node">${x.done?crsIcon(th.ic,18):x.ci+1}</span><div class="crs-stn-b"><b>${esc(th.stop)} ${x.ci+1}: ${esc(x.t)}</b><small>${esc(x.o?x.o.name:x.id)} · ${x.cl}/${x.n} gelernt</small><span class="prog"><i style="width:${f*100}%"></i></span>${x.med||examKeys(x).length>=3?`<div class="crs-stn-a">${x.med?`<span class="medal m${x.med}" title="Medaille aus der Kapitelprüfung">${MEDAL[x.med]}</span>`:""}${examKeys(x).length>=3?`<button class="chip" data-exam="${x.ci}">${x.med?"Prüfung wiederholen":"Kapitelprüfung"}</button>`:""}</div>`:""}</div></li>`}).join("")}</ol></section>
   ${chs.map(x=>{const o=x.o;if(!o)return "";const more=o.lines.length-x.n;
     return `<details class="coll crs-chd th-${c.id}"${x.ci===(curCh<0?-1:curCh)?" open":""}><summary class="coll-h"><span class="coll-ic chn">${x.ci+1}</span><div><h3>${esc(x.t)}</h3><small>${esc(o.name)} · ${x.cl}/${x.n} gelernt${more>0?` · ${more} weitere im Eröffnungstraining`:""}</small></div></summary><div class="coll-items">${x.ix.map(i=>{const l=o.lines[i];const st2=P(x.id,i);const du=isDue(lk(x.id,i));const pr=lineProb(o,i);return `<button class="ci" data-cl="${x.id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}${pr!=null?` · ≈ ${fmtPct(pr)}`:""}</small></span>${du?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></details>`}).join("")}`;
   v.querySelector("[data-cback]").onclick=()=>{courseOpen=null;renderCourses()};
   const run=(ks,title,extra)=>{ks=[...new Set(ks)];if(!ks.length){toast("Dafür gibt es gerade keine Varianten.");return}startSession("course",ks,title,Object.assign({course:c.id},extra||{}));window.scrollTo(0,0)};
-  $("crsGo").onclick=()=>run(open.length?open.slice(0,8):shuffle(courseKeys(c)).slice(0,8),c.t);
-  if($("crsDue"))$("crsDue").onclick=()=>run(due.slice(0,12),c.t+" · Wiederholung");
-  if($("crsWeak"))$("crsWeak").onclick=()=>run(weak.slice(0,8),c.t+" · Schwächen");
-  const exam=ci=>{const x=chs[ci];const ks=shuffle(x.ix.filter(i=>P(x.id,i)===2).map(i=>lk(x.id,i))).slice(0,5);if(ks.length<3){toast("Lerne erst mindestens drei Varianten dieses Kapitels.");return}run(ks,`Prüfung: ${x.t}`,{exam:ci})};
-  if($("crsExam"))$("crsExam").onclick=()=>{const best=chs.filter(x=>x.cl>=3).sort((a,b)=>(a.med-b.med)||(b.cl/b.n-a.cl/a.n))[0];if(best)exam(best.ci)};
+  if($("crsGo"))$("crsGo").onclick=()=>crsStartUnit(c);
+  if($("crsExtra"))$("crsExtra").onclick=()=>crsStartUnit(c,true);
+  if($("crsRest"))$("crsRest").onclick=()=>toast("Pause gehört zum Lernen. Morgen wartet die nächste Einheit.");
+  if($("crsMix"))$("crsMix").onclick=()=>{const ks=shuffle(courseKeys(c)).slice(0,8);startSession("course",ks,c.t+" · Gemischt",{course:c.id,plan:true,roles:ks.map(()=>"mix"),method:meth,rq:{}});window.scrollTo(0,0)};
+  if($("crsWeak"))$("crsWeak").onclick=()=>{const ks=weak.slice(0,8);startSession("course",ks,c.t+" · Schwächen",{course:c.id,plan:true,roles:ks.map(()=>"relearn"),method:meth,rq:{}});window.scrollTo(0,0)};
+  v.querySelectorAll("[data-pace]").forEach(b=>b.onclick=()=>{crsMeta(c).pace=+b.dataset.pace;saveStats();renderCourse(v,c)});
+  v.querySelectorAll("[data-meth]").forEach(b=>b.onclick=()=>{crsMeta(c).meth=b.dataset.meth;saveStats();renderCourse(v,c)});
+  const exam=ci=>{const x=chs[ci];const ks=shuffle(examKeys(x)).slice(0,5);if(ks.length<3){toast("Für die Prüfung brauchst du drei Varianten, die du an früheren Tagen gelernt hast.");return}run(ks,`Prüfung: ${x.t}`,{exam:ci})};
+  if($("crsExam"))$("crsExam").onclick=()=>{const best=chs.filter(x=>examKeys(x).length>=3).sort((a,b)=>(a.med-b.med)||(b.cl/b.n-a.cl/a.n))[0];if(best)exam(best.ci)};
   v.querySelectorAll("[data-exam]").forEach(b=>b.onclick=()=>exam(+b.dataset.exam));
   v.querySelectorAll("[data-cl]").forEach(b=>b.onclick=()=>{const [id,i]=pk(b.dataset.cl);selectOpening(byId(id),i)});
 }
@@ -3900,21 +4007,31 @@ function coachSay(c,key,vars,mood,idx){
 function coachClear(){const co=$("coach");if(co.dataset.co){delete co.dataset.co;co.style.removeProperty("--k1");co.style.removeProperty("--k2")}$("trSay").hidden=true;crsLast=""}
 function crsOnItem(){
   const c=crsSess();if(!c||mode!=="train"||!op||target==null)return;const l=op.lines[target];
+  if(sess.plan){const ro=sess.roles[sess.idx],prev=sess.idx>0?sess.roles[sess.idx-1]:null;const ph=PHASE[ro]||PHASE.warm;
+    const pd=ro==="new"?ph[sess.method]||ph.show:ph.d;
+    if(!sess.greeted){sess.greeted=true;const u=sess.unit||{};
+      const plan=[u.due?nV(u.due,"Wiederholung","Wiederholungen"):"",u.nw?nV(u.nw,"neue Variante","neue Varianten"):"",u.nw?"zum Schluss ein Abstandstest":""].filter(Boolean).join(", ");
+      coachRaw(c,`Heute: ${esc(plan)}. ${esc(pd)}`,"happy");return}
+    if(ro!==prev){coachRaw(c,`<span class="tr-ph">${esc(ph.t)}</span> ${esc(pd)}`,"neutral");return}
+    coachSay(c,"line",{line:l?l.n:""},"neutral");return}
   if(!sess.greeted){sess.greeted=true;coachSay(c,sess.exam!=null?"line":"start",{n:sess.queue.length,line:l?l.n:""},"happy");if(sess.exam!=null)$("trSay").innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> Prüfung! Spiel ${varV(sess.queue.length)} ohne Fehler und ohne Hilfe.`;return}
   coachSay(c,"line",{line:l?l.n:""},"neutral");
 }
 function crsOnMove(ok){
   const c=crsSess();if(!c)return;
   if(!ok){coachSay(c,"bad",{},"worry");return}
+  if(crsLast==="raw")return;
   if(crsLast==="bad"||Math.random()<(learn?.15:.3))coachSay(c,"good",{},"happy");
 }
-function crsOnFinish(clean,learned){
+function crsOnFinish(clean,learned,k){
   const c=crsSess();if(!c)return;
   if(learned){coachSay(c,"learned",{},"happy");return}
   const m=crsMeta(c),r=crsRank(c);const chs=crsChapters(c);const ci=chs.findIndex(x=>x.id===op.id);
-  if(r.i>m.r){m.r=r.i;saveStats();coachSay(c,"rank",{},"joy");toast(`${COACHES[coIdOf(c)].n}: Neuer Rang „${r.name}“!`);confetti();return}
-  if(ci>=0&&chs[ci].done&&m.ch.indexOf(ci)<0){m.ch.push(ci);saveStats();coachSay(c,"chapter",{ch:chs[ci].t},"joy");return}
-  coachSay(c,clean?"clean":"dirty",{},clean?"joy":"worry");
+  if(sess.plan&&sess.roles[sess.idx]==="new"){if(m.day!==today()){m.day=today();m.nw=0}m.nw=(m.nw||0)+1;saveStats()}
+  const ask=()=>{if(sess&&sess.plan&&clean&&k)crsRateAsk(c,k)};
+  if(r.i>m.r){m.r=r.i;saveStats();coachSay(c,"rank",{},"joy");toast(`${COACHES[coIdOf(c)].n}: Neuer Rang „${r.name}“!`);confetti();ask();return}
+  if(ci>=0&&chs[ci].done&&m.ch.indexOf(ci)<0){m.ch.push(ci);saveStats();coachSay(c,"chapter",{ch:chs[ci].t},"joy");ask();return}
+  coachSay(c,clean?"clean":"dirty",{},clean?"joy":"worry");ask();
 }
 function crsOnEnd(c,s,ok,n){
   if(!c)return;

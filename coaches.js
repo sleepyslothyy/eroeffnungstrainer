@@ -27,6 +27,7 @@ const COACHES={
       rank:["Du bist jetzt „{rank}“! Weiter so."],
       chapter:["Kapitel „{ch}“ geschafft – eine {stop} mehr!"],
       end:["Alles fehlerfrei – ein toller Tag!","{ok} von {n} fehlerfrei. Morgen sitzt der Rest.","{ok} von {n} – das wird! Morgen wiederholen wir die Wackelkandidaten."],
+      rest:"Für heute ist dein Plan erfüllt. Jetzt Pause – im Schlaf festigt sich, was du geübt hast. Morgen geht's weiter!",
       exam:["Medaille: {medal}! Du kannst das Kapitel wirklich.","Diesmal keine Medaille – übe die Varianten und versuch es nochmal."]
     }},
   bruno:{n:"Bruno",r:"Baumeister der Aufbausysteme",bg:["#C9781E","#F0B24A"],
@@ -52,6 +53,7 @@ const COACHES={
       rank:["Beförderung: Du bist jetzt „{rank}“!"],
       chapter:["Bauabschnitt „{ch}“ abgenommen!"],
       end:["Alles fehlerfrei – Feierabend mit gutem Gewissen!","{ok} von {n} sauber. Gute Schicht.","{ok} von {n} – morgen bessern wir nach."],
+      rest:"Feierabend! Der Beton muss erst aushärten – im Schlaf festigt sich das Gelernte. Morgen bauen wir weiter.",
       exam:["Bauabnahme bestanden: {medal}!","Die Abnahme hat noch Mängel gefunden. Nacharbeiten und nochmal!"]
     }},
   greta:{n:"Greta",r:"Hüterin der Festung",bg:["#4D5B70","#8D9BB2"],
@@ -77,6 +79,7 @@ const COACHES={
       rank:["Deine Festung wächst: „{rank}“!"],
       chapter:["„{ch}“ ist gesichert – ein {stop} mehr steht."],
       end:["Keine Lücke – vorbildlich!","{ok} von {n} fehlerfrei. Die Mauer steht.","{ok} von {n} – morgen schließen wir die Lücken."],
+      rest:"Die Wache für heute ist vorbei. Ruhe festigt die Mauern – im Schlaf verankert sich das Gelernte.",
       exam:["Belagerung abgewehrt: {medal}!","Die Mauer hat nachgegeben. Ausbessern und neu versuchen."]
     }},
   konrad:{n:"Kapitän Konrad",r:"Navigator der großen Pläne",bg:["#244E7A","#4F86BF"],
@@ -102,6 +105,7 @@ const COACHES={
       rank:["Befördert: „{rank}“!"],
       chapter:["„{ch}“ erreicht – {stop} in Sicht!"],
       end:["Fehlerfreie Fahrt – Respekt!","{ok} von {n} auf Kurs. Gute Wache.","{ok} von {n} – morgen korrigieren wir den Kurs."],
+      rest:"Heute sind wir weit genug gesegelt. Vor Anker gehen: Im Schlaf festigt sich die Route. Morgen weiter!",
       exam:["Prüfungsfahrt bestanden: {medal}!","Die Prüfungsfahrt ging daneben. Route üben und nochmal raus."]
     }},
   linus:{n:"Linus Langbogen",r:"Meister der langen Diagonale",bg:["#2E7A4C","#6DB585"],
@@ -127,6 +131,7 @@ const COACHES={
       rank:["Neuer Rang: „{rank}“!"],
       chapter:["„{ch}“ getroffen – eine {stop} mehr!"],
       end:["Jeder Schuss ein Treffer!","{ok} von {n} im Ziel. Gute Übung.","{ok} von {n} – morgen schärfen wir den Blick."],
+      rest:"Genug geschossen für heute. Die Hand braucht Ruhe – im Schlaf festigt sich, was du geübt hast.",
       exam:["Wettkampf gewonnen: {medal}!","Diesmal reicht es nicht aufs Treppchen. Üben und neu antreten."]
     }},
   rex:{n:"Rex",r:"Trainer für Königsangriffe",bg:["#B8322A","#EE7A3C"],
@@ -152,6 +157,7 @@ const COACHES={
       rank:["Feuer frei: Du bist „{rank}“!"],
       chapter:["„{ch}“ erobert!"],
       end:["Alles weggeräumt – fehlerfrei!","{ok} von {n} – starker Angriff.","{ok} von {n} – morgen wird schärfer angegriffen."],
+      rest:"Stark gekämpft! Jetzt Pause – auch Angreifer brauchen Schlaf, damit das Gelernte sitzt. Morgen geht's weiter!",
       exam:["Sturm erfolgreich: {medal}!","Der Angriff wurde abgewehrt. Nachladen und nochmal!"]
     }},
   nova:{n:"Nova",r:"Trainerin für Kampfstellungen",bg:["#5631A8","#9B72E8"],
@@ -177,6 +183,7 @@ const COACHES={
       rank:["Energielevel: „{rank}“!"],
       chapter:["„{ch}“ voll aufgeladen!"],
       end:["Fehlerfrei – pure Energie!","{ok} von {n}. Starke Ladung!","{ok} von {n} – morgen laden wir nach."],
+      rest:"Akku für heute voll geladen. Jetzt abschalten – im Schlaf speichert dein Gehirn die Ladung ab.",
       exam:["Volle Ladung: {medal}!","Die Sicherung ist rausgeflogen. Nochmal aufladen!"]
     }},
   ilka:{n:"Dr. Ilka Glut",r:"Vulkanologin des Sizilianers",bg:["#A6370F","#F08A24"],
@@ -202,6 +209,7 @@ const COACHES={
       rank:["Neue Stufe: „{rank}“!"],
       chapter:["Krater „{ch}“ vollständig kartiert!"],
       end:["Alle Messungen fehlerfrei!","{ok} von {n} sauber gemessen.","{ok} von {n} – morgen wiederholen wir die Versuche."],
+      rest:"Messreihe für heute abgeschlossen. Laut Forschung festigt Schlaf das Gelernte – also: Feierabend!",
       exam:["Gutachten bestanden: {medal}!","Die Messungen reichen noch nicht. Weiterforschen und nochmal!"]
     }},
   rika:{n:"Rika Rotsegel",r:"Piratin der Gambits",bg:["#0F6E78","#D9A93A"],
@@ -227,6 +235,7 @@ const COACHES={
       rank:["Neuer Titel an Bord: „{rank}“!"],
       chapter:["{stop} „{ch}“ geplündert!"],
       end:["Keine Planke verloren – fehlerfrei!","{ok} von {n} – reiche Beute.","{ok} von {n} – morgen segeln wir nochmal raus."],
+      rest:"Genug Beute für heute! Anker werfen – im Schlaf wird die Schatzkarte ins Gedächtnis gebrannt.",
       exam:["Schatz gefunden: {medal}!","Kein Gold diesmal. Karte studieren und nochmal los!"]
     }}
 };
