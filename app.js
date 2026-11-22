@@ -420,7 +420,7 @@ function trainMove(mv,animate,help){
   target=pickTarget();render(animate?{fwd:r}:null);playSound(r);
   if(drill){finishDrill(mistakes===0&&!usedHelp);return}
   if(target!==null&&hist.length===op.lines[target].m.length){finish();return}
-  setStatus("good",de(r.san)+" ist ein Buchzug",learn?explain(fens[view-1],r,view>1?mvs[view-2]:null).text:"Das Buch antwortet …");engineSoon();
+  setStatus("good",de(r.san)+" ist ein Buchzug",learn?explain(fens[view-1],r,view>1?mvs[view-2]:null).text:"Das Buch antwortet …");crsOnMove(true);engineSoon();
 }
 function wrongMove(mv,animate,h){
   mistakes++;lock=true;sel=null;
@@ -429,7 +429,7 @@ function wrongMove(mv,animate,h){
   const keep=shown;shown=tmp;badge={ply:-1,sq:r.to,type:"no"};
   render(animate?{fwd:r}:null,{bad:[r.from,r.to]});sfx("wrong");
   setStatus("bad",de(r.san)+(mode==="puzzle"?" ist nicht die Lösung":" ist nicht im Buch"),mistakes>=2&&hintLvl===0?"Tipp: Mit »Hinweis« siehst du, welche Figur ziehen sollte.":"Versuch es noch einmal.");
-  if(mode==="puzzle")reportPuzzle(false);
+  if(mode==="puzzle")reportPuzzle(false);else if(mode==="train")crsOnMove(false);
   const myMode=mode;
   wrongRevert=()=>{clearTimeout(wrongT);wrongT=null;wrongRevert=null;if(mode!==myMode){lock=false;return}shown=keep;badge=null;lock=false;render({back:r});boardEl.classList.remove("shake");void boardEl.offsetWidth;boardEl.classList.add("shake")};
   wrongT=setTimeout(wrongRevert,750);
@@ -438,7 +438,7 @@ let wrongT=null,wrongRevert=null;
 let xpl=null,pickWait=false;
 function finish(){
   if(learn){done=true;stopBlitz();const i=target;learn=false;if(badge&&badge.ply===hist.length)badge.type="ok";
-    setStatus("done","Gelernt: "+op.lines[i].n,"Jetzt ohne Hilfe: Gleich spielst du die Variante noch einmal aus dem Gedächtnis.");setTimeout(()=>sfx("done"),180);render();renderChrome();
+    setStatus("done","Gelernt: "+op.lines[i].n,"Jetzt ohne Hilfe: Gleich spielst du die Variante noch einmal aus dem Gedächtnis.");crsOnFinish(true,true);setTimeout(()=>sfx("done"),180);render();renderChrome();
     clearTimeout(learnNext);learnNext=setTimeout(()=>startLearnTest(i),S.set.calm?600:1800);return}
   done=true;stopBlitz();const i=target;const k=lk(op.id,i);const clean=mistakes===0&&!usedHelp;const firstClean=clean&&P(op.id,i)<2;
   S.prog[op.id]=S.prog[op.id]||{};S.prog[op.id][i]=Math.max(P(op.id,i),clean?2:1);save("prog");
@@ -449,6 +449,7 @@ function finish(){
   if(sess){sess.res.push({k,clean});if(sess.type==="daily"){markDailyDone(k);const qk=sess.queue[sess.idx];if(qk&&qk!==k)markDailyDone(qk)}}else markDailyDone(k);
   const nxt=S.srs[k]?Math.round((S.srs[k].due-startOfDay(Date.now()))/DAY):1;
   setStatus("done","Variante geschafft: "+op.lines[i].n,(clean?"Fehlerfrei gespielt.":`Mit ${mistakes} ${mistakes===1?"Fehler":"Fehlern"} – sie kommt bald wieder.`)+` Nächste Wiederholung in ${nxt} ${nxt===1?"Tag":"Tagen"}.`);
+  crsOnFinish(clean);
   setTimeout(()=>sfx("done"),180);
   if(forced===i&&!sess)forced=null;
   render();renderChrome();renderList();renderTabbar();checkBadges();
@@ -528,16 +529,16 @@ function runSessionItem(){
     else startPuzzle({fen:p.fen,sol:[p.best],title:"Dein Fehler",eco:p.opening||"Eigene Partie",sub:`Gegen ${p.opp}, ${p.date?fmtDate(p.date):""}`,prompt:`Du spieltest ${de(p.played)} (${p.cls}). Finde den besseren Zug.`,after:`Stockfish empfiehlt ${de(p.best)}.`,key:p.key});
     blindOn=false;return}
   if(k.indexOf("|")>0){const s=S.pos[k];startPosition(byId(s.id),s.pre);return}
-  const [id,i]=pk(k);selectOpening(byId(id),i,true);
+  const [id,i]=pk(k);selectOpening(byId(id),i,true);crsOnItem();
 }
 function sessNext(){
   if(sess.next){sess.next();return}
   sess.idx++;
   if(sess.idx>=sess.queue.length){
-    const ok=sess.res.filter(r=>r.clean).length,n=sess.res.length,t=sess.title;sess=null;blindOn=false;applyBlind();renderChrome();
+    const ok=sess.res.filter(r=>r.clean).length,n=sess.res.length,t=sess.title;const cc=crsSess(),cs=sess;sess=null;blindOn=false;applyBlind();renderChrome();
     if(n&&ok===n)confetti();
     setStatus("done",t+" abgeschlossen",`${ok} von ${n} fehlerfrei. ${dueKeys().length?dueKeys().length+" Varianten sind noch fällig.":"Für heute ist alles wiederholt."}`);
-    renderTabbar();return;
+    crsOnEnd(cc,cs,ok,n);renderTabbar();return;
   }
   runSessionItem();
 }
@@ -842,6 +843,7 @@ function setStatus(k,t,s,noStore){
   $("coach").style.removeProperty("--k");$("face").style.background="";
   $("coach").dataset.k=k;$("stTitle").textContent=t;$("stText").textContent=s||"";
   $("face").innerHTML=k==="done"||k==="good"?ICON.ok.replace('viewBox','width="20" height="20" viewBox'):k==="bad"?ICON.no.replace('viewBox','width="18" height="18" viewBox'):k==="sf"?ICON.cpu:ICON.face;
+  const cc=mode==="train"?crsSess():null;if(cc)coachPaint(cc,k==="bad"?"worry":k==="done"?"joy":k==="good"?"happy":"neutral");else coachClear();
   const ev=$("evalTag");if(mode==="engine"&&sfEval){ev.hidden=false;ev.textContent="Bewertung: "+sfEval}else ev.hidden=true;
 }
 function xy(sq){const f=fi(sq),r=ri(sq);return orient()==="b"?{x:7-f,y:r}:{x:f,y:7-r}}
@@ -955,6 +957,8 @@ function render(anim,extra){
 }
 function renderChrome(){
   const inSess=!!sess;$("sessBar").hidden=!inSess;
+  {const cc=crsSess(),vt=$("v-train");vt.className=vt.className.replace(/\bth-\S+/g,"").replace(/\s+/g," ").trim();vt.classList.toggle("crs-on",!!cc);if(cc)vt.classList.add("th-"+cc.id);
+   $("sessIc").hidden=!cc;$("sessRank").hidden=!cc;if(cc){$("sessIc").innerHTML=crsIcon(thOf(cc).ic,16);const r=crsRank(cc);$("sessRank").textContent=r.name;$("sessRank").title=`Rang ${r.i+1} von 6`}}
   if(inSess&&sess.next){$("sessTitle").textContent=sess.title;$("sessCount").textContent=sess.countText();$("sessProg").style.width=(sess.progress()*100)+"%"}
   else if(inSess){$("sessTitle").textContent=sess.title;$("sessCount").textContent=`${Math.min(sess.idx+1,sess.queue.length)}/${sess.queue.length}`;$("sessProg").style.width=(sess.idx/sess.queue.length*100)+"%"}
   $("actsSf").hidden=mode!=="engine";$("editor").hidden=mode!=="edit";
@@ -1376,7 +1380,7 @@ function renderLearn(){
   v.innerHTML=pageHead("Training","Such dir aus, was du heute üben willst.","learn")+
   `<div class="colls">`+
   coll("op","book","Eröffnungen",`${cl} von ${tot} Varianten fehlerfrei · ${S.rep.length} im Repertoire`,tot?cl/tot:0,
-    item("courses","learn","Kurse",`${COURSES.length} Kurse für jeden Spielstil – vom Einsteiger bis stark`,`${COURSES.filter(c=>{const p=courseProg(c);return p.n&&p.cl===p.n}).length}/${COURSES.length}`)+
+    item("courses","learn","Kurse",`${COURSES.length} Kurse mit eigenem Trainer – für jeden Spielstil`,`${COURSES.filter(c=>{const p=courseProg(c);return p.n&&p.cl===p.n}).length}/${COURSES.length}`)+
     item("openings","list","Alle Eröffnungen",`${ALL.length} Eröffnungen mit Suche und Filtern`)+
     item("review","review","Fällige Varianten","Wiederholung nach Lernkurve",due,due>0)+
     item("positions","target","Schwache Stellungen","Nur die Züge, bei denen du danebenliegst",dp,dp>0)+
@@ -3763,6 +3767,57 @@ let courseOpen=null;
 /* Filter der Kursseite (nur für diesen Browser gemerkt) */
 const crsF={st:"",side:""};try{Object.assign(crsF,JSON.parse(localStorage.getItem("et-crsf")||"{}"))}catch(e){}
 const crsStyles=c=>c.st.map(k=>STYLES[k]?STYLES[k].n:k).join(" · ");
+
+/* ---- Kursdesign, Ränge und Trainer (Figuren und Themen in coaches.js) ---- */
+(function(){const css=Object.keys(COURSE_THEME).map(id=>{const t=COURSE_THEME[id];return `.th-${id}{--c1:${t.c1};--c2:${t.c2};--pat:${crsPat(t.pat)}}`}).join("\n")+"\n"+
+  Object.keys(COACHES).map(id=>`.co-${id}{--k1:${COACHES[id].bg[0]};--k2:${COACHES[id].bg[1]}}`).join("\n");
+  const el=document.createElement("style");el.id="crs-themes";el.textContent=css;document.head.appendChild(el)})();
+if(!st.crs||typeof st.crs!=="object"||Array.isArray(st.crs))st.crs={};
+const thOf=c=>COURSE_THEME[c.id]||COURSE_THEME.w_start;
+const coIdOf=c=>COACHES[thOf(c).co]?thOf(c).co:"mila";
+const MEDAL=["","Bronze","Silber","Gold"];
+const nV=(n,one,many)=>`${n} ${n===1?one:many}`;
+const varV=n=>nV(n,"Variante","Varianten");
+function crsChapters(c){
+  const m=st.crs[c.id];
+  return c.ch.map(([id,t],ci)=>{const o=byId(id);const ix=o?courseLines(c,id):[];const cl=ix.filter(i=>P(id,i)===2).length;
+    return {id,t,ci,o,ix,cl,n:ix.length,done:ix.length>0&&cl===ix.length,med:m&&m.med&&m.med[ci]||0}});
+}
+function crsRank(c){
+  const p=courseProg(c);const f=p.n?p.cl/p.n:0;let i=0;RANK_TH.forEach((t,j)=>{if(f>=t-1e-9)i=j});
+  const th=thOf(c);const nx=i<5?RANK_TH[i+1]:null;const left=nx==null?0:Math.max(1,Math.ceil(nx*p.n-1e-9)-p.cl);
+  const lo=RANK_TH[i],part=nx==null?1:Math.min(1,Math.max(0,(f-lo)/(nx-lo)));
+  return {i,name:th.rk[i],next:nx==null?null:th.rk[i+1],left,f,part,p};
+}
+/* Stand, mit dem der Trainer Aufstiege und geschaffte Kapitel erkennt (wird mit dem Konto synchronisiert) */
+function crsMeta(c){
+  let m=st.crs[c.id];
+  if(!m||typeof m!=="object"){m=st.crs[c.id]={r:crsRank(c).i,ch:[],med:{}};m.ch=crsChapters(c).filter(x=>x.done).map(x=>x.ci)}
+  if(!Array.isArray(m.ch))m.ch=[];if(!m.med||typeof m.med!=="object")m.med={};if(typeof m.r!=="number")m.r=0;
+  return m;
+}
+const crsDue=c=>courseKeys(c).filter(k=>isDue(k));
+const crsWeak=c=>courseKeys(c).filter(k=>Pk(k)===1);
+const pickL=(a,i)=>Array.isArray(a)?a[i!=null?Math.min(i,a.length-1):Math.floor(Math.random()*a.length)]:a;
+function coachLine(c,key,vars,idx){
+  const co=COACHES[coIdOf(c)];const r=crsRank(c);const p=r.p;const th=thOf(c);
+  const v=Object.assign({rank:r.name,next:r.next||r.name,left:r.left,leftV:varV(r.left),cl:p.cl,clV:varV(p.cl),open:p.n-p.cl,openV:varV(p.n-p.cl),stop:th.stop,
+    progress:r.next?`Noch ${varV(r.left)} bis „${r.next}“.`:"Du hast den höchsten Rang."},vars||{});
+  if(v.due!=null)v.dueV=varV(v.due);if(v.weak!=null)v.weakV=varV(v.weak);if(v.n!=null)v.nV=varV(v.n);
+  const s=pickL(co.say[key],idx);return s?String(s).replace(/\{(\w+)\}/g,(m,k)=>v[k]!=null?v[k]:""):"";
+}
+/* Kommentar des Trainers zum Fortschritt auf der Kursseite */
+function crsComment(c){
+  const r=crsRank(c);const due=crsDue(c).length,weak=crsWeak(c).length;
+  if(r.p.cl===0&&!weak)return {t:coachLine(c,"intro")+" "+coachLine(c,"p0"),mood:"happy"};
+  if(due)return {t:coachLine(c,"due",{due}),mood:"neutral"};
+  if(weak)return {t:coachLine(c,"weak",{weak}),mood:"worry"};
+  const k=r.f>=1?"p5":r.f>=.75?"p4":r.f>=.5?"p3":r.f>=.25?"p2":"p1";
+  return {t:coachLine(c,k),mood:r.f>=1?"joy":"happy"};
+}
+const crsTip=c=>{const t=COACHES[coIdOf(c)].say.tips||[];return t.length?t[Math.floor(Date.now()/DAY)%t.length]:""};
+const sideTxt=c=>c.side==="w"?"Weiß":c.side==="b"?"Schwarz":"Weiß & Schwarz";
+
 function renderCourses(){
   const v=$("v-courses");if(!v)return;
   if(courseOpen){const c=COURSES.find(x=>x.id===courseOpen);if(c){renderCourse(v,c);return}courseOpen=null}
@@ -3770,11 +3825,16 @@ function renderCourses(){
   const SF=[["","Alle Stile"]].concat(Object.keys(STYLES).map(k=>[k,STYLES[k].n]));
   const CF=[["","Beide Farben"],["w","Weiß"],["b","Schwarz"]];
   const list=COURSES.filter(c=>(!crsF.st||c.st.indexOf(crsF.st)>=0)&&(!crsF.side||c.side.indexOf(crsF.side)>=0));
-  v.innerHTML=pageHead("Kurse","Such dir einen Kurs, der zu deinem Spielstil passt. Erst zeigt dir der Kurs die Züge, dann spielst du sie selbst.","learn")+
+  v.innerHTML=pageHead("Kurse","Such dir einen Kurs, der zu deinem Spielstil passt. Jeder Kurs hat seinen eigenen Trainer und eigene Ränge.","learn")+
   `<div class="crs-f"><div class="filters" role="group" aria-label="Spielstil">${SF.map(f=>`<button class="chip${crsF.st===f[0]?" on":""}" data-cst="${f[0]}" aria-pressed="${crsF.st===f[0]}">${f[1]}</button>`).join("")}</div>
   <div class="filters" role="group" aria-label="Farbe">${CF.map(f=>`<button class="chip${crsF.side===f[0]?" on":""}" data-csd="${f[0]}" aria-pressed="${crsF.side===f[0]}">${f[1]}</button>`).join("")}</div>
   ${crsF.st?`<p class="hint crs-sd"><b>${esc(STYLES[crsF.st].n)}:</b> ${esc(STYLES[crsF.st].d)}</p>`:""}</div>`+
-  (list.length?`<div class="crs">${list.map(c=>{const p=courseProg(c);const f=p.n?p.cl/p.n:0;return `<button class="crc" data-crs="${c.id}"><span class="crc-top"><span class="crc-tags"><span class="crc-tag">${esc(c.lvl)}</span>${c.st.map(k=>`<span class="crc-st">${esc(STYLES[k]?STYLES[k].n:k)}</span>`).join("")}</span><span class="crc-side">${c.side==="w"?"Weiß":c.side==="b"?"Schwarz":"Weiß & Schwarz"}</span></span><b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-p"><span class="prog"><i style="width:${f*100}%"></i></span><small>${p.cl}/${p.n} Varianten · ${c.ch.length} Kapitel</small></span></button>`}).join("")}</div>`
+  (list.length?`<div class="crs">${list.map(c=>{const th=thOf(c),co=COACHES[coIdOf(c)],r=crsRank(c);
+    return `<button class="crc th-${c.id} co-${coIdOf(c)}" data-crs="${c.id}">
+      <span class="crc-band"><span class="crc-emb">${crsIcon(th.ic,26)}</span><span class="crc-rk">${esc(r.name)}</span><span class="crc-av">${coachSvg(coIdOf(c),r.f>=1?"joy":"happy")}</span></span>
+      <span class="crc-body"><span class="crc-top"><span class="crc-tags"><span class="crc-tag">${esc(c.lvl)}</span>${c.st.map(k=>`<span class="crc-st">${esc(STYLES[k]?STYLES[k].n:k)}</span>`).join("")}</span><span class="crc-side">${sideTxt(c)}</span></span>
+      <b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-co">Trainer: <b>${esc(co.n)}</b> · ${esc(co.r)}</span>
+      <span class="crc-p"><span class="prog"><i style="width:${r.f*100}%"></i></span><small>${r.p.cl}/${r.p.n} Varianten · Rang ${r.i+1} von 6 · ${c.ch.length} Kapitel</small></span></span></button>`}).join("")}</div>`
    :`<p class="hint">Für diese Auswahl gibt es noch keinen Kurs. <button class="chip" data-creset>Alle Kurse zeigen</button></p>`);
   const save=()=>{try{localStorage.setItem("et-crsf",JSON.stringify(crsF))}catch(e){}renderCourses()};
   v.querySelectorAll("[data-cst]").forEach(b=>b.onclick=()=>{crsF.st=b.dataset.cst;save()});
@@ -3783,14 +3843,85 @@ function renderCourses(){
   v.querySelectorAll("[data-crs]").forEach(b=>b.onclick=()=>{courseOpen=b.dataset.crs;renderCourses();window.scrollTo(0,0)});
 }
 function renderCourse(v,c){
-  const p=courseProg(c);const open=courseKeys(c).filter(k=>Pk(k)<2);
-  v.innerHTML=`<button class="back" data-cback>← Alle Kurse</button>`+pageHead(esc(c.t),`${esc(c.lvl)} · ${esc(crsStyles(c))} · ${p.cl} von ${p.n} Varianten fehlerfrei`,"learn")+
-  `<div class="card crs-go"><p class="hint" style="margin:0 0 8px">${esc(c.d)}</p><p class="crs-fit">${c.st.map(k=>STYLES[k]?`<span><b>${esc(STYLES[k].n)}</b> ${esc(STYLES[k].d)}</span>`:"").join("")}</p><div class="prog" style="margin-bottom:12px"><i style="width:${p.n?p.cl/p.n*100:0}%"></i></div><button class="btn grn wide" id="crsGo">${open.length?(p.cl?"Weiterlernen":"Kurs starten")+` (${Math.min(open.length,8)} Varianten)`:"Alles gelernt – wiederholen"}</button></div>
-  ${c.ch.map(([id,t],ci)=>{const o=byId(id);if(!o)return "";const ix=courseLines(c,id);const cl=ix.filter(i=>P(id,i)===2).length;const more=o.lines.length-ix.length;
-    return `<section class="coll"><div class="coll-h"><span class="coll-ic chn">${ci+1}</span><div><h3>${esc(t)}</h3><small>${esc(o.name)} · ${cl}/${ix.length} gelernt${more>0?` · ${more} weitere im Eröffnungstraining`:""}</small></div></div><div class="coll-items">${ix.map(i=>{const l=o.lines[i];const st2=P(id,i);const due=isDue(lk(id,i));const pr=lineProb(o,i);return `<button class="ci" data-cl="${id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}${pr!=null?` · ≈ ${fmtPct(pr)}`:""}</small></span>${due?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></section>`}).join("")}`;
+  const th=thOf(c),coId=coIdOf(c),co=COACHES[coId];crsMeta(c);
+  const r=crsRank(c),p=r.p,chs=crsChapters(c);const open=courseKeys(c).filter(k=>Pk(k)<2);const due=crsDue(c),weak=crsWeak(c);
+  const med=chs.reduce((a,x)=>a+(x.med?1:0),0),chDone=chs.filter(x=>x.done).length;const cm=crsComment(c);
+  const curCh=chs.findIndex(x=>!x.done);
+  const goLbl=open.length?(p.cl?"Weiterlernen":"Kurs starten"):"Alles wiederholen";
+  const goSub=open.length?`${varV(Math.min(open.length,8))} aus „${esc((chs.find(x=>x.cl<x.n)||chs[0]).t)}“`:"Acht zufällige Varianten aus dem ganzen Kurs";
+  const task=(id,ic,t,s,cls)=>`<button class="crs-task${cls?" "+cls:""}" id="${id}"><span class="crs-task-ic">${ic}</span><span><b>${t}</b><small>${s}</small></span><span class="ci-go">›</span></button>`;
+  v.innerHTML=`<button class="back" data-cback>← Alle Kurse</button>
+  <section class="crs-hero th-${c.id}">
+    <div class="crs-hero-in"><span class="crs-emb">${crsIcon(th.ic,34)}</span>
+      <div class="crs-hero-t"><div class="crs-hero-tags"><span>${esc(c.lvl)}</span><span>${esc(crsStyles(c))}</span><span>${sideTxt(c)}</span></div><h1>${esc(c.t)}</h1><p>${esc(c.d)}</p></div></div>
+    <div class="crs-rank"><div class="crs-rank-h"><div><small>Dein Rang</small><b>${esc(r.name)}</b></div><span class="crs-rank-n">${r.i+1}/6</span></div>
+      <div class="crs-ladder" aria-hidden="true">${th.rk.map((n,j)=>`<span class="${j<r.i?"on":j===r.i?"cur":""}" title="${esc(n)}">${j===r.i?`<i style="width:${r.part*100}%"></i>`:""}</span>`).join("")}</div>
+      <small>${r.next?`Noch ${varV(r.left)} bis „${esc(r.next)}“`:"Höchster Rang erreicht"}</small></div>
+    <div class="crs-stats"><span><b>${p.cl}/${p.n}</b>Varianten</span><span><b>${chDone}/${chs.length}</b>Kapitel</span><span><b>${med}</b>${med===1?"Medaille":"Medaillen"}</span></div>
+  </section>
+  <section class="crs-coach co-${coId} th-${c.id}">
+    <div class="crs-coach-av">${coachSvg(coId,cm.mood)}</div>
+    <div class="crs-coach-b"><div class="crs-coach-n"><b>${esc(co.n)}</b><small>${esc(co.r)}</small></div><p class="crs-say">${esc(cm.t)}</p>${crsTip(c)?`<p class="crs-tip"><b>Tipp:</b> ${esc(crsTip(c))}</p>`:""}</div>
+  </section>
+  <section class="crs-tasks th-${c.id}"><h3>Aufträge von ${esc(co.n)}</h3><div class="crs-task-grid">
+    ${task("crsGo",crsIcon(th.ic,20),goLbl,goSub,"main")}
+    ${due.length?task("crsDue",crsIcon("redo",20),"Wiederholen",`${varV(due.length)} heute fällig`):""}
+    ${weak.length?task("crsWeak",crsIcon("target",20),"Schwächen ausbügeln",`${varV(weak.length)} mit Fehlern gespielt`):""}
+    ${chs.some(x=>x.cl>=3)?task("crsExam",crsIcon("medal",20),"Kapitelprüfung",`Fünf gelernte Varianten ohne Fehler – für eine Medaille`):""}
+  </div></section>
+  <section class="crs-map th-${c.id}"><h3>Deine Route</h3><ol class="crs-route">${chs.map(x=>{const f=x.n?x.cl/x.n:0;const stt=x.done?"done":x.cl?"run":x.ci===curCh?"next":"";
+    return `<li class="crs-stn ${stt}"><span class="crs-node">${x.done?crsIcon(th.ic,18):x.ci+1}</span><div class="crs-stn-b"><b>${esc(th.stop)} ${x.ci+1}: ${esc(x.t)}</b><small>${esc(x.o?x.o.name:x.id)} · ${x.cl}/${x.n} gelernt</small><span class="prog"><i style="width:${f*100}%"></i></span>${x.med||x.cl>=3?`<div class="crs-stn-a">${x.med?`<span class="medal m${x.med}" title="Medaille aus der Kapitelprüfung">${MEDAL[x.med]}</span>`:""}${x.cl>=3?`<button class="chip" data-exam="${x.ci}">${x.med?"Prüfung wiederholen":"Kapitelprüfung"}</button>`:""}</div>`:""}</div></li>`}).join("")}</ol></section>
+  ${chs.map(x=>{const o=x.o;if(!o)return "";const more=o.lines.length-x.n;
+    return `<details class="coll crs-chd th-${c.id}"${x.ci===(curCh<0?-1:curCh)?" open":""}><summary class="coll-h"><span class="coll-ic chn">${x.ci+1}</span><div><h3>${esc(x.t)}</h3><small>${esc(o.name)} · ${x.cl}/${x.n} gelernt${more>0?` · ${more} weitere im Eröffnungstraining`:""}</small></div></summary><div class="coll-items">${x.ix.map(i=>{const l=o.lines[i];const st2=P(x.id,i);const du=isDue(lk(x.id,i));const pr=lineProb(o,i);return `<button class="ci" data-cl="${x.id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}${pr!=null?` · ≈ ${fmtPct(pr)}`:""}</small></span>${du?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></details>`}).join("")}`;
   v.querySelector("[data-cback]").onclick=()=>{courseOpen=null;renderCourses()};
-  $("crsGo").onclick=()=>{const ks=open.length?open.slice(0,8):courseKeys(c).filter(k=>isDue(k)).concat(shuffle(courseKeys(c))).slice(0,8);startSession("course",[...new Set(ks)],c.t)};
+  const run=(ks,title,extra)=>{ks=[...new Set(ks)];if(!ks.length){toast("Dafür gibt es gerade keine Varianten.");return}startSession("course",ks,title,Object.assign({course:c.id},extra||{}));window.scrollTo(0,0)};
+  $("crsGo").onclick=()=>run(open.length?open.slice(0,8):shuffle(courseKeys(c)).slice(0,8),c.t);
+  if($("crsDue"))$("crsDue").onclick=()=>run(due.slice(0,12),c.t+" · Wiederholung");
+  if($("crsWeak"))$("crsWeak").onclick=()=>run(weak.slice(0,8),c.t+" · Schwächen");
+  const exam=ci=>{const x=chs[ci];const ks=shuffle(x.ix.filter(i=>P(x.id,i)===2).map(i=>lk(x.id,i))).slice(0,5);if(ks.length<3){toast("Lerne erst mindestens drei Varianten dieses Kapitels.");return}run(ks,`Prüfung: ${x.t}`,{exam:ci})};
+  if($("crsExam"))$("crsExam").onclick=()=>{const best=chs.filter(x=>x.cl>=3).sort((a,b)=>(a.med-b.med)||(b.cl/b.n-a.cl/a.n))[0];if(best)exam(best.ci)};
+  v.querySelectorAll("[data-exam]").forEach(b=>b.onclick=()=>exam(+b.dataset.exam));
   v.querySelectorAll("[data-cl]").forEach(b=>b.onclick=()=>{const [id,i]=pk(b.dataset.cl);selectOpening(byId(id),i)});
+}
+
+/* ---- Der Kurstrainer während des Trainings ---- */
+function crsSess(){return sess&&sess.course?COURSES.find(c=>c.id===sess.course)||null:null}
+var crsLast="";
+function coachPaint(c,mood){
+  const co=$("coach"),f=$("face");const id=coIdOf(c);
+  co.dataset.co=id;co.style.setProperty("--k1",COACHES[id].bg[0]);co.style.setProperty("--k2",COACHES[id].bg[1]);
+  f.innerHTML=coachSvg(id,mood||"neutral");f.style.background="";
+}
+function coachSay(c,key,vars,mood,idx){
+  if(!c)return;const t=coachLine(c,key,vars,idx);if(!t)return;crsLast=key;
+  const el=$("trSay");el.hidden=false;el.innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> ${esc(t)}`;
+  coachPaint(c,mood);
+}
+function coachClear(){const co=$("coach");if(co.dataset.co){delete co.dataset.co;co.style.removeProperty("--k1");co.style.removeProperty("--k2")}$("trSay").hidden=true;crsLast=""}
+function crsOnItem(){
+  const c=crsSess();if(!c||mode!=="train"||!op||target==null)return;const l=op.lines[target];
+  if(!sess.greeted){sess.greeted=true;coachSay(c,sess.exam!=null?"line":"start",{n:sess.queue.length,line:l?l.n:""},"happy");if(sess.exam!=null)$("trSay").innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> Prüfung! Spiel ${varV(sess.queue.length)} ohne Fehler und ohne Hilfe.`;return}
+  coachSay(c,"line",{line:l?l.n:""},"neutral");
+}
+function crsOnMove(ok){
+  const c=crsSess();if(!c)return;
+  if(!ok){coachSay(c,"bad",{},"worry");return}
+  if(crsLast==="bad"||Math.random()<(learn?.15:.3))coachSay(c,"good",{},"happy");
+}
+function crsOnFinish(clean,learned){
+  const c=crsSess();if(!c)return;
+  if(learned){coachSay(c,"learned",{},"happy");return}
+  const m=crsMeta(c),r=crsRank(c);const chs=crsChapters(c);const ci=chs.findIndex(x=>x.id===op.id);
+  if(r.i>m.r){m.r=r.i;saveStats();coachSay(c,"rank",{},"joy");toast(`${COACHES[coIdOf(c)].n}: Neuer Rang „${r.name}“!`);confetti();return}
+  if(ci>=0&&chs[ci].done&&m.ch.indexOf(ci)<0){m.ch.push(ci);saveStats();coachSay(c,"chapter",{ch:chs[ci].t},"joy");return}
+  coachSay(c,clean?"clean":"dirty",{},clean?"joy":"worry");
+}
+function crsOnEnd(c,s,ok,n){
+  if(!c)return;
+  if(s.exam!=null){const q=n?ok/n:0;const md=q>=1?3:q>=.8?2:q>=.6?1:0;const m=crsMeta(c);const old=m.med[s.exam]||0;
+    if(md>old){m.med[s.exam]=md;saveStats()}
+    coachSay(c,"exam",{medal:MEDAL[md]},md?"joy":"worry",md?0:1);if(md>old)toast(`Medaille: ${MEDAL[md]} für „${c.ch[s.exam][1]}“`);return}
+  coachSay(c,"end",{ok,n},ok===n?"joy":ok/n>=.6?"happy":"worry",ok===n?0:ok/n>=.6?1:2);
 }
 
 /* ---- Repertoire-Baum: eigene Varianten ansehen, abzweigen, löschen ---- */

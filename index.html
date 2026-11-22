@@ -63,14 +63,14 @@
       </div>
 
       <section class="panel" aria-label="Training">
-        <div class="sessbar" id="sessBar" hidden><b id="sessTitle"></b><div class="prog"><i id="sessProg"></i></div><small id="sessCount"></small><button id="sessEnd">Beenden</button></div>
+        <div class="sessbar" id="sessBar" hidden><span class="sess-ic" id="sessIc" hidden></span><b id="sessTitle"></b><span class="sess-rk" id="sessRank" hidden></span><div class="prog"><i id="sessProg"></i></div><small id="sessCount"></small><button id="sessEnd">Beenden</button></div>
         <div class="ph">
           <span class="bookicon" id="phIcon"></span>
           <div style="min-width:0"><div class="ph-eco" id="eco"></div><h2 id="title">Zugzwang</h2><p id="desc"></p></div>
         </div>
         <div class="coach" id="coach" data-k="turn" aria-live="polite">
           <span class="face" id="face"></span>
-          <div class="bub"><b id="stTitle">Seite lädt …</b><small id="stText">Bleibt dieser Text stehen, ist JavaScript in diesem Programm blockiert. Öffne die Seite in Safari, Chrome oder Firefox.</small><span class="eval" id="evalTag" hidden></span></div>
+          <div class="bub"><b id="stTitle">Seite lädt …</b><small id="stText">Bleibt dieser Text stehen, ist JavaScript in diesem Programm blockiert. Öffne die Seite in Safari, Chrome oder Firefox.</small><span class="eval" id="evalTag" hidden></span><span class="trsay" id="trSay" hidden></span></div>
         </div>
         <div class="lmrow" id="lmRow" hidden><span class="seg"><button id="lmLearn" aria-pressed="false" title="Züge werden vorgezeigt">Lernen</button><button id="lmTest" aria-pressed="true" title="Ohne Hilfe spielen">Prüfen</button></span><small>Neue Varianten werden zuerst vorgezeigt.</small></div>
         <div class="mvin"><input id="moveInput" placeholder="Zug eintippen, z. B. Sf3 oder e4" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Zug eintippen"><span class="timer" id="timer" hidden></span></div>
@@ -183,6 +183,7 @@
 <script src="lib/chess.js"></script>
 <script src="data.js"></script>
 <script src="trees.js"></script>
+<script src="coaches.js"></script>
 <script src="app.js"></script>
 <script>if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js").catch(function(){})}</script>
 </body>
