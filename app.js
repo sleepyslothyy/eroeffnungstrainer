@@ -1376,7 +1376,7 @@ function renderLearn(){
   v.innerHTML=pageHead("Training","Such dir aus, was du heute üben willst.","learn")+
   `<div class="colls">`+
   coll("op","book","Eröffnungen",`${cl} von ${tot} Varianten fehlerfrei · ${S.rep.length} im Repertoire`,tot?cl/tot:0,
-    item("courses","learn","Kurse",`${COURSES.length} Kurse: Schritt für Schritt vom Einsteiger bis stark`,`${COURSES.filter(c=>{const p=courseProg(c);return p.n&&p.cl===p.n}).length}/${COURSES.length}`)+
+    item("courses","learn","Kurse",`${COURSES.length} Kurse für jeden Spielstil – vom Einsteiger bis stark`,`${COURSES.filter(c=>{const p=courseProg(c);return p.n&&p.cl===p.n}).length}/${COURSES.length}`)+
     item("openings","list","Alle Eröffnungen",`${ALL.length} Eröffnungen mit Suche und Filtern`)+
     item("review","review","Fällige Varianten","Wiederholung nach Lernkurve",due,due>0)+
     item("positions","target","Schwache Stellungen","Nur die Züge, bei denen du danebenliegst",dp,dp>0)+
@@ -3717,36 +3717,75 @@ window.addEventListener("hashchange",()=>{const h=location.hash;if(!HASHV[h])ret
 /* ================= Phase 2: Kurse, Baum-Editor, Koordinaten, Meisterzug, Bot-Stile ================= */
 
 /* ---- Kurse: Eröffnungen als Kapitel in sinnvoller Reihenfolge ---- */
+/* Spielstile: Jeder Kurs gehört zu einem oder mehreren Stilen, die Kursseite filtert danach */
+const STYLES={
+  einstieg:{n:"Einstieg",d:"Die ersten Eröffnungen: einfache Pläne, schnelle Entwicklung und die wichtigsten Fallen."},
+  angriff:{n:"Angriff",d:"Du willst den König jagen: offene Linien, Bauernstürme und lange Rochade."},
+  solide:{n:"Solide",d:"Du willst sicher stehen: feste Bauernstruktur, wenig Risiko und ein gesundes Endspiel."},
+  strategie:{n:"Strategie",d:"Du spielst gern mit Plan: Raumvorteil, langsamer Druck und die besseren Figuren."},
+  dynamisch:{n:"Dynamisch",d:"Du magst Kampfstellungen: unausgeglichen, mit Gegenspiel und Gewinnchancen für beide Seiten."},
+  gambit:{n:"Gambits",d:"Du opferst gern Material für Tempo und Initiative – besonders stark im Blitz und Schnellschach."},
+  system:{n:"Wenig Theorie",d:"Du willst einen Aufbau, der gegen fast alles funktioniert, statt lange Varianten auswendig zu lernen."}
+};
 const COURSES=[
-  {id:"w_start",t:"Erste Schritte mit Weiß",lvl:"Einsteiger",side:"w",d:"Ein einfaches, aktives Repertoire mit 1.e4 und dem Londoner System – dazu die wichtigsten Fallen.",ch:[["italienisch","Italienisch – schnell entwickeln"],["fallen_w","Fallen, die jeder kennen muss"],["londoner","Londoner System – ein Aufbau gegen alles"]]},
-  {id:"b_start",t:"Erste Schritte mit Schwarz",lvl:"Einsteiger",side:"b",d:"Mit 1...e5 und Skandinavisch kommst du sicher aus der Eröffnung – und tappst in keine Falle.",ch:[["e5_schwarz","1...e5 gegen die Offenen Spiele"],["skandinavisch","Skandinavisch gegen 1.e4"],["fallen_b","Fallen für Schwarz"]]},
-  {id:"w_e4",t:"Weiß mit 1.e4 – das komplette Repertoire",lvl:"Fortgeschritten",side:"w",d:"Antworten auf alle großen Verteidigungen: Sizilianisch, Französisch, Caro-Kann, Skandinavisch und 1...e5.",ch:[["spanisch","Spanisch gegen 1...e5"],["offen_siz_w","Offenes Sizilianisch"],["gegen_franz_w","Gegen Französisch"],["gegen_caro_w","Gegen Caro-Kann"],["gegen_skandi_w","Gegen Skandinavisch"]]},
-  {id:"w_d4",t:"Weiß mit 1.d4 – solide und strategisch",lvl:"Fortgeschritten",side:"w",d:"Damengambit und Katalanisch, dazu Pläne gegen Königsindisch und Holländisch.",ch:[["damengambit","Damengambit"],["katalanisch","Katalanisch"],["gegen_ki_w","Gegen Königsindisch"],["gegen_holl_w","Gegen Holländisch"]]},
-  {id:"b_solid",t:"Schwarz: solide gegen alles",lvl:"Fortgeschritten",side:"b",d:"Caro-Kann gegen 1.e4 und das abgelehnte Damengambit gegen 1.d4 – bewährt bis in die Weltspitze.",ch:[["carokann","Caro-Kann"],["dg_abgelehnt","Damengambit abgelehnt"],["nimzo","Nimzo-Indisch als Waffe"]]},
-  {id:"b_sharp",t:"Schwarz: scharf und dynamisch",lvl:"Stark",side:"b",d:"Najdorf und Königsindisch – komplexe Stellungen mit Gewinnchancen.",ch:[["najdorf","Sizilianisch Najdorf"],["drachen","Sizilianisch Drachen"],["koenigsindisch","Königsindisch"],["gruenfeld","Grünfeld-Indisch"]]},
-  {id:"gambits",t:"Gambits und Überfälle",lvl:"Für Mutige",side:"wb",d:"Bauernopfer für schnellen Angriff – ideal für Blitz und Schnellschach.",ch:[["evans","Evans-Gambit"],["koenigsgambit","Königsgambit"],["friedliver","Fegatello (Fried Liver)"],["stafford","Stafford-Gambit"],["englund","Englund-Gambit"]]}
+  {id:"w_start",t:"Erste Schritte mit Weiß",lvl:"Einsteiger",side:"w",st:["einstieg"],d:"Ein einfaches, aktives Repertoire mit 1.e4 und dem Londoner System – dazu die wichtigsten Fallen.",ch:[["italienisch","Italienisch – schnell entwickeln"],["fallen_w","Fallen, die jeder kennen muss"],["londoner","Londoner System – ein Aufbau gegen alles"]]},
+  {id:"b_start",t:"Erste Schritte mit Schwarz",lvl:"Einsteiger",side:"b",st:["einstieg"],d:"Mit 1...e5 und Skandinavisch kommst du sicher aus der Eröffnung – und tappst in keine Falle.",ch:[["e5_schwarz","1...e5 gegen die Offenen Spiele"],["skandinavisch","Skandinavisch gegen 1.e4"],["fallen_b","Fallen für Schwarz"]]},
+  {id:"w_system",t:"Weiß: Aufbausysteme mit wenig Theorie",lvl:"Einsteiger",side:"w",st:["system"],d:"Immer derselbe Aufbau, egal was Schwarz spielt: Londoner System, Jobava-London, Colle und Königsindischer Angriff.",ch:[["londoner","Londoner System – der Klassiker"],["jobava","Jobava-London – die angriffslustige Version"],["colle","Colle-System – mit dem Durchbruch e4"],["kia","Königsindischer Angriff – ein Aufbau mit 1.Sf3"]]},
+  {id:"b_system",t:"Schwarz: sicher mit wenig Theorie",lvl:"Einsteiger",side:"b",st:["system","solide"],d:"Skandinavisch gegen 1.e4, Slawisch und Halbslawisch gegen 1.d4 und ein klarer Plan gegen das Londoner System – überschaubar und robust.",ch:[["skandinavisch","Skandinavisch gegen 1.e4"],["slawisch","Slawisch gegen das Damengambit"],["halbslawisch","Halbslawisch – der feste Aufbau"],["gegen_london_b","Gegen das Londoner System"]]},
+  {id:"w_quiet_e4",t:"Weiß: 1.e4 ruhig und gesund",lvl:"Fortgeschritten",side:"w",st:["solide"],d:"1.e4 ohne Theorieschlacht: Italienisch mit c3 und d3, Alapin gegen Sizilianisch und klare Pläne gegen die übrigen Verteidigungen.",ch:[["italienisch","Italienisch – langsam aufbauen"],["alapin_w","Alapin gegen Sizilianisch"],["gegen_caro_w","Gegen Caro-Kann"],["gegen_franz_w","Gegen Französisch"],["gegen_skandi_w","Gegen Skandinavisch"]]},
+  {id:"b_solid",t:"Schwarz: solide gegen alles",lvl:"Fortgeschritten",side:"b",st:["solide"],d:"Caro-Kann gegen 1.e4 und das abgelehnte Damengambit gegen 1.d4 – bewährt bis in die Weltspitze.",ch:[["carokann","Caro-Kann"],["dg_abgelehnt","Damengambit abgelehnt"],["nimzo","Nimzo-Indisch als Waffe"]]},
+  {id:"b_classic",t:"Schwarz: klassisch gegen alles",lvl:"Fortgeschritten",side:"b",st:["strategie","solide"],d:"Mit 1...e5 und 1...d5 direkt ins Zentrum – dazu feste Antworten auf das Londoner System und 1.c4.",ch:[["e5_schwarz","1...e5 gegen 1.e4"],["dg_abgelehnt","Damengambit abgelehnt"],["gegen_london_b","Gegen das Londoner System"],["gegen_englisch_b","Gegen Englisch – umgekehrtes Sizilianisch"]]},
+  {id:"w_d4",t:"Weiß mit 1.d4 – solide und strategisch",lvl:"Fortgeschritten",side:"w",st:["strategie"],d:"Damengambit und Katalanisch, dazu Pläne gegen Königsindisch und Holländisch.",ch:[["damengambit","Damengambit"],["katalanisch","Katalanisch"],["gegen_ki_w","Gegen Königsindisch"],["gegen_holl_w","Gegen Holländisch"]]},
+  {id:"w_flank",t:"Weiß: Flankenspiel mit 1.Sf3 und 1.c4",lvl:"Fortgeschritten",side:"w",st:["strategie"],d:"Réti, Englisch und Katalanisch: Weiß greift das Zentrum vom Rand aus an – mit Fianchetto und langem Druck auf der Diagonale.",ch:[["reti","Réti-Eröffnung"],["englisch","Englisch"],["katalanisch","Katalanisch"],["kia","Königsindischer Angriff als Ausweichsystem"]]},
+  {id:"w_e4",t:"Weiß mit 1.e4 – das komplette Repertoire",lvl:"Fortgeschritten",side:"w",st:["strategie","angriff"],d:"Antworten auf alle großen Verteidigungen: Sizilianisch, Französisch, Caro-Kann, Skandinavisch und 1...e5.",ch:[["spanisch","Spanisch gegen 1...e5"],["offen_siz_w","Offenes Sizilianisch"],["gegen_franz_w","Gegen Französisch"],["gegen_caro_w","Gegen Caro-Kann"],["gegen_skandi_w","Gegen Skandinavisch"]]},
+  {id:"w_attack",t:"Weiß: Angriff mit 1.e4",lvl:"Fortgeschritten",side:"w",st:["angriff"],d:"Gegen jede Verteidigung ein Plan auf den König: Wiener Partie mit f4, Englischer Angriff gegen Sizilianisch, Dg4 gegen Französisch und der 150-Angriff gegen Pirc.",ch:[["wiener","Wiener Partie – f4 gegen 1...e5"],["offen_siz_w","Offenes Sizilianisch mit Englischem Angriff"],["gegen_franz_w","Gegen Französisch – Dg4 und lange Rochade"],["gegen_caro_w","Gegen Caro-Kann – Raum und h-Bauer"],["gegen_skandi_w","Gegen Skandinavisch – lange Rochade"],["gegen_pirc_w","Gegen Pirc – der 150-Angriff"]]},
+  {id:"b_counter",t:"Schwarz: Konter statt Verteidigung",lvl:"Fortgeschritten",side:"b",st:["angriff","dynamisch"],d:"Schwarz will selbst die Initiative: Aljechin gegen 1.e4, Holländisch, Moderne Benoni und Grünfeld gegen 1.d4 stellen früh Fragen.",ch:[["aljechin","Aljechin-Verteidigung"],["hollaendisch","Holländisch"],["benoni","Moderne Benoni"],["gruenfeld","Grünfeld-Indisch"]]},
+  {id:"b_hyper",t:"Schwarz: Fianchetto und Konter",lvl:"Fortgeschritten",side:"b",st:["dynamisch"],d:"Erst aufbauen, dann zurückschlagen: Pirc und Moderne gegen 1.e4, Königsindisch gegen 1.d4 – mit dem Läufer auf g7 als Waffe.",ch:[["pirc","Pirc-Verteidigung"],["modern","Moderne Verteidigung"],["koenigsindisch","Königsindisch"],["beschl_drachen","Beschleunigter Drachen – Fianchetto im Sizilianer"]]},
+  {id:"b_sharp",t:"Schwarz: scharf und dynamisch",lvl:"Stark",side:"b",st:["dynamisch"],d:"Najdorf und Königsindisch – komplexe Stellungen mit Gewinnchancen.",ch:[["najdorf","Sizilianisch Najdorf"],["drachen","Sizilianisch Drachen"],["koenigsindisch","Königsindisch"],["gruenfeld","Grünfeld-Indisch"]]},
+  {id:"b_sicilian",t:"Schwarz: Sizilianisch für Kämpfer",lvl:"Stark",side:"b",st:["dynamisch","angriff"],d:"Die großen Systeme gegen das Offene Sizilianisch – such dir eins aus oder lerne alle: Najdorf, Sweschnikow, Taimanow und Beschleunigter Drachen.",ch:[["najdorf","Najdorf"],["sweschnikow","Sweschnikow"],["taimanow","Taimanow"],["beschl_drachen","Beschleunigter Drachen – auch gegen Alapin und Rossolimo"]]},
+  {id:"gambits",t:"Gambits und Überfälle",lvl:"Für Mutige",side:"wb",st:["gambit"],d:"Bauernopfer für schnellen Angriff – ideal für Blitz und Schnellschach.",ch:[["evans","Evans-Gambit"],["koenigsgambit","Königsgambit"],["friedliver","Fegatello (Fried Liver)"],["stafford","Stafford-Gambit"],["englund","Englund-Gambit"]]},
+  {id:"w_gambit",t:"Weiß: Gambits gegen alles",lvl:"Für Mutige",side:"w",st:["gambit","angriff"],d:"Für jede schwarze Antwort ein Bauernopfer: Nordisches Gambit und Evans gegen 1...e5, Smith-Morra gegen Sizilianisch, Blackmar-Diemer gegen 1...d5.",ch:[["daenisch","Nordisches Gambit gegen 1...e5"],["evans","Evans-Gambit im Italiener"],["morra","Smith-Morra gegen Sizilianisch"],["blackmar","Blackmar-Diemer mit 1.d4 d5 2.e4"],["halloween","Halloween-Gambit – für die Überraschung"]]},
+  {id:"b_gambit",t:"Schwarz: Gegengambits",lvl:"Für Mutige",side:"b",st:["gambit"],d:"Schwarz reißt die Initiative an sich: Lettisch, Traxler und Jänisch gegen 1.e4, Albin, Budapester und Wolga-Gambit gegen 1.d4.",ch:[["lettisch","Lettisches Gambit"],["traxler","Traxler-Gegenangriff"],["jaenisch","Jänisch-Gambit gegen Spanisch"],["albin","Albins Gegengambit"],["budapester","Budapester Gambit"],["benko","Wolga-Gambit"]]}
 ];
 /* Kurse zeigen pro Kapitel die Varianten, die zur Stufe passen: Einsteiger nur die Kernvarianten, Fortgeschrittene ohne Raritäten.
    Sortiert nach Häufigkeit, damit man mit dem Wichtigsten anfängt. */
 const COURSE_MIN={"Einsteiger":.04,"Fortgeschritten":.012};
 function courseLines(c,id){
   const o=byId(id);if(!o)return [];const min=COURSE_MIN[c.lvl]||0;const pr=o.lines.map((l,i)=>lineProb(o,i));
-  return o.lines.map((l,i)=>i).filter(i=>!o.lines[i].tree||pr[i]==null||pr[i]>=min).sort((a,b)=>(pr[b]==null?1:pr[b])-(pr[a]==null?1:pr[a])||a-b);
+  const all=o.lines.map((l,i)=>i).sort((a,b)=>(pr[b]==null?1:pr[b])-(pr[a]==null?1:pr[a])||a-b);
+  const ix=all.filter(i=>!o.lines[i].tree||pr[i]==null||pr[i]>=min);
+  /* jedes Kapitel hat mindestens drei Varianten, auch wenn der Baum sehr breit verzweigt */
+  return ix.length>=3?ix:all.slice(0,Math.max(ix.length,Math.min(3,all.length)));
 }
 const courseKeys=c=>[].concat(...c.ch.map(([id])=>courseLines(c,id).map(i=>lk(id,i))));
 const courseProg=c=>{const ks=courseKeys(c);return {n:ks.length,cl:ks.filter(k=>Pk(k)===2).length}};
 let courseOpen=null;
+/* Filter der Kursseite (nur für diesen Browser gemerkt) */
+const crsF={st:"",side:""};try{Object.assign(crsF,JSON.parse(localStorage.getItem("et-crsf")||"{}"))}catch(e){}
+const crsStyles=c=>c.st.map(k=>STYLES[k]?STYLES[k].n:k).join(" · ");
 function renderCourses(){
   const v=$("v-courses");if(!v)return;
   if(courseOpen){const c=COURSES.find(x=>x.id===courseOpen);if(c){renderCourse(v,c);return}courseOpen=null}
-  v.innerHTML=pageHead("Kurse","Erst zeigt dir der Kurs die Züge, dann spielst du sie selbst.","learn")+
-  `<div class="crs">${COURSES.map(c=>{const p=courseProg(c);const f=p.n?p.cl/p.n:0;return `<button class="crc" data-crs="${c.id}"><span class="crc-top"><span class="crc-tag">${esc(c.lvl)}</span><span class="crc-side">${c.side==="w"?"Weiß":c.side==="b"?"Schwarz":"Weiß & Schwarz"}</span></span><b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-p"><span class="prog"><i style="width:${f*100}%"></i></span><small>${p.cl}/${p.n} Varianten · ${c.ch.length} Kapitel</small></span></button>`}).join("")}</div>`;
+  if(crsF.st&&!STYLES[crsF.st])crsF.st="";
+  const SF=[["","Alle Stile"]].concat(Object.keys(STYLES).map(k=>[k,STYLES[k].n]));
+  const CF=[["","Beide Farben"],["w","Weiß"],["b","Schwarz"]];
+  const list=COURSES.filter(c=>(!crsF.st||c.st.indexOf(crsF.st)>=0)&&(!crsF.side||c.side.indexOf(crsF.side)>=0));
+  v.innerHTML=pageHead("Kurse","Such dir einen Kurs, der zu deinem Spielstil passt. Erst zeigt dir der Kurs die Züge, dann spielst du sie selbst.","learn")+
+  `<div class="crs-f"><div class="filters" role="group" aria-label="Spielstil">${SF.map(f=>`<button class="chip${crsF.st===f[0]?" on":""}" data-cst="${f[0]}" aria-pressed="${crsF.st===f[0]}">${f[1]}</button>`).join("")}</div>
+  <div class="filters" role="group" aria-label="Farbe">${CF.map(f=>`<button class="chip${crsF.side===f[0]?" on":""}" data-csd="${f[0]}" aria-pressed="${crsF.side===f[0]}">${f[1]}</button>`).join("")}</div>
+  ${crsF.st?`<p class="hint crs-sd"><b>${esc(STYLES[crsF.st].n)}:</b> ${esc(STYLES[crsF.st].d)}</p>`:""}</div>`+
+  (list.length?`<div class="crs">${list.map(c=>{const p=courseProg(c);const f=p.n?p.cl/p.n:0;return `<button class="crc" data-crs="${c.id}"><span class="crc-top"><span class="crc-tags"><span class="crc-tag">${esc(c.lvl)}</span>${c.st.map(k=>`<span class="crc-st">${esc(STYLES[k]?STYLES[k].n:k)}</span>`).join("")}</span><span class="crc-side">${c.side==="w"?"Weiß":c.side==="b"?"Schwarz":"Weiß & Schwarz"}</span></span><b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-p"><span class="prog"><i style="width:${f*100}%"></i></span><small>${p.cl}/${p.n} Varianten · ${c.ch.length} Kapitel</small></span></button>`}).join("")}</div>`
+   :`<p class="hint">Für diese Auswahl gibt es noch keinen Kurs. <button class="chip" data-creset>Alle Kurse zeigen</button></p>`);
+  const save=()=>{try{localStorage.setItem("et-crsf",JSON.stringify(crsF))}catch(e){}renderCourses()};
+  v.querySelectorAll("[data-cst]").forEach(b=>b.onclick=()=>{crsF.st=b.dataset.cst;save()});
+  v.querySelectorAll("[data-csd]").forEach(b=>b.onclick=()=>{crsF.side=b.dataset.csd;save()});
+  const rs=v.querySelector("[data-creset]");if(rs)rs.onclick=()=>{crsF.st="";crsF.side="";save()};
   v.querySelectorAll("[data-crs]").forEach(b=>b.onclick=()=>{courseOpen=b.dataset.crs;renderCourses();window.scrollTo(0,0)});
 }
 function renderCourse(v,c){
   const p=courseProg(c);const open=courseKeys(c).filter(k=>Pk(k)<2);
-  v.innerHTML=`<button class="back" data-cback>← Alle Kurse</button>`+pageHead(esc(c.t),`${esc(c.lvl)} · ${p.cl} von ${p.n} Varianten fehlerfrei`,"learn")+
-  `<div class="card crs-go"><p class="hint" style="margin:0 0 10px">${esc(c.d)}</p><div class="prog" style="margin-bottom:12px"><i style="width:${p.n?p.cl/p.n*100:0}%"></i></div><button class="btn grn wide" id="crsGo">${open.length?(p.cl?"Weiterlernen":"Kurs starten")+` (${Math.min(open.length,8)} Varianten)`:"Alles gelernt – wiederholen"}</button></div>
+  v.innerHTML=`<button class="back" data-cback>← Alle Kurse</button>`+pageHead(esc(c.t),`${esc(c.lvl)} · ${esc(crsStyles(c))} · ${p.cl} von ${p.n} Varianten fehlerfrei`,"learn")+
+  `<div class="card crs-go"><p class="hint" style="margin:0 0 8px">${esc(c.d)}</p><p class="crs-fit">${c.st.map(k=>STYLES[k]?`<span><b>${esc(STYLES[k].n)}</b> ${esc(STYLES[k].d)}</span>`:"").join("")}</p><div class="prog" style="margin-bottom:12px"><i style="width:${p.n?p.cl/p.n*100:0}%"></i></div><button class="btn grn wide" id="crsGo">${open.length?(p.cl?"Weiterlernen":"Kurs starten")+` (${Math.min(open.length,8)} Varianten)`:"Alles gelernt – wiederholen"}</button></div>
   ${c.ch.map(([id,t],ci)=>{const o=byId(id);if(!o)return "";const ix=courseLines(c,id);const cl=ix.filter(i=>P(id,i)===2).length;const more=o.lines.length-ix.length;
     return `<section class="coll"><div class="coll-h"><span class="coll-ic chn">${ci+1}</span><div><h3>${esc(t)}</h3><small>${esc(o.name)} · ${cl}/${ix.length} gelernt${more>0?` · ${more} weitere im Eröffnungstraining`:""}</small></div></div><div class="coll-items">${ix.map(i=>{const l=o.lines[i];const st2=P(id,i);const due=isDue(lk(id,i));const pr=lineProb(o,i);return `<button class="ci" data-cl="${id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}${pr!=null?` · ≈ ${fmtPct(pr)}`:""}</small></span>${due?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></section>`}).join("")}`;
   v.querySelector("[data-cback]").onclick=()=>{courseOpen=null;renderCourses()};
