@@ -15,7 +15,7 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
   - **Gegnerzug »Ich wähle«**: Statt des Zufalls tippst du den Gegnerzug auf dem Brett an und suchst dann deine Antwort
   - **Eröffnungslexikon** mit allen 3.865 benannten Eröffnungen und Varianten der Lichess-Datenbank in 141 Familien (deutsche Namen), Suche nach Name, ECO-Code oder Zügen, Variantenbaum, jede Variante oder ganze Familie als Weiß oder Schwarz trainierbar
   - Lern- und Prüfmodus: Neue Varianten werden zuerst mit Pfeilen und Erklärungen vorgezeigt, danach spielst du sie ohne Hilfe
-  - Sieben Kurse mit Kapiteln vom Einsteiger bis stark, Varianten-Baum für eigene Varianten (abzweigen, löschen)
+  - **18 Kurse für sieben Spielstile** (Einstieg, Angriff, Solide, Strategie, Dynamisch, Gambits, Wenig Theorie) mit Kapiteln vom Einsteiger bis stark, Filter nach Stil und Farbe, Varianten-Baum für eigene Varianten (abzweigen, löschen)
   - Millionen echter Lichess-Rätsel (CC0) mit Wertung, Levels, Themen-Pfaden und Taktik-Rush (3 Min, 5 Min, Überleben)
   - Koordinaten-Trainer (Feld finden, Feld benennen), „Finde den Meisterzug“ mit berühmten Partien, Endspiel-Kapitel (Grundmatts, Bauern-, Turm- und Damenendspiele)
 - **Spielen** – Schnellsuche nach gleich starken Gegnern, online gegen Freunde (Einladungslink oder Herausforderung, Uhren, Fernschach mit 1 oder 3 Tagen pro Zug, Remis, Zurücknahme, Vorzüge, Schnellnachrichten, Revanche), Turniere jeder gegen jeden unter Freunden, gegen den Computer in sechs Stufen und drei Spielstilen (auch ab einer Eröffnung) und Live-Partien zum Zuschauen
