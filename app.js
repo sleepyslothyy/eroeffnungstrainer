@@ -119,13 +119,24 @@ function parseTreeSrc(src){
 function mergeTree(o){
   const src=TREE_SRC[o.id];if(!src)return;
   const root=parseTreeSrc(src);const tw={};const leaves=[];
+  const oppAt=len=>(len%2===0?"w":"b")!==o.side;
   (function walk(n,pre,name,br){
     if(n.label)name=n.label;
-    if(n.kids.length>1){const sum=n.kids.reduce((s,k)=>s+(k.w||0),0);const t=tw[pre.map(strip).join(" ")]={};n.kids.forEach(k=>{t[strip(k.san)]=sum?(k.w||0)/sum:1/n.kids.length})}
+    const opp=oppAt(pre.length);
+    /* Häufigkeiten nur für Gegnerzüge – eigene Alternativen (z. B. 3.e5 oder 3.Sc3 gegen Caro-Kann) wählst du selbst */
+    if(n.kids.length>1&&opp){const sum=n.kids.reduce((s,k)=>s+(k.w||0),0);const t=tw[pre.map(strip).join(" ")]={};n.kids.forEach(k=>{t[strip(k.san)]=sum?(k.w||0)/sum:1/n.kids.length})}
     if(!n.kids.length){leaves.push({m:pre,name,br});return}
-    const opp=(pre.length%2===0?"w":"b")!==o.side;
     n.kids.forEach(k=>walk(k,pre.concat(k.san),name,n.kids.length>1&&opp?br.concat(plyNo(pre.length)+de(k.san)):br));
   })(root,[],o.name,[]);
+  /* Alte Varianten, die mitten im Baum aufhören, laufen bis zum Ende der Hauptfortsetzung weiter.
+     So gibt es keine doppelte Kurzfassung mehr, und keine Variante endet nach einem Gegnerzug. Nummer und Fortschritt bleiben. */
+  o.lines.forEach(l=>{
+    if(l.trap)return;let n=root;
+    for(const s of l.m){n=n.kids.find(k=>strip(k.san)===strip(s));if(!n)return}
+    const add=[];
+    while(n.kids.length){const k=oppAt(l.m.length+add.length)?n.kids.reduce((a,b)=>(b.w||0)>(a.w||0)?b:a):n.kids[0];add.push(k.san);n=k}
+    if(add.length){l.ext=l.m.length;l.m=l.m.concat(add)}
+  });
   const names=new Set(o.lines.map(l=>l.n));
   leaves.forEach(L=>{
     if(o.lines.some(l=>l.m.length>=L.m.length&&L.m.every((x,i)=>strip(x)===strip(l.m[i]))))return;
@@ -140,6 +151,9 @@ function mergeTree(o){
 const twOf=(o,h,san)=>{const t=o&&o.tw&&o.tw[h.map(strip).join(" ")];return t&&t[strip(san)]!=null?t[strip(san)]:null};
 /* Wie oft eine ganze Variante in der Praxis vorkommt: Produkt der Häufigkeiten aller Gegnerzüge */
 function lineProb(o,i){const l=o.lines[i];if(!o.tw||!l)return null;let p=1,any=false;for(let k=0;k<l.m.length;k++){const w=twOf(o,l.m.slice(0,k),l.m[k]);if(w!=null){p*=w;any=true}}return any?p:null}
+/* Gewicht einer Variante für die Auswahl: so oft, wie sie in Partien vorkommt – seltene haben eine Untergrenze und kommen trotzdem dran */
+const lineW=(o,i)=>{const p=lineProb(o,i);return p==null?.05:Math.max(p,.002)};
+const wrnd=(a,f)=>{if(!a.length)return null;const w=a.map(f);const t=w.reduce((x,y)=>x+y,0);if(!(t>0))return rnd(a);let r=Math.random()*t;for(let i=0;i<a.length;i++){r-=w[i];if(r<=0)return a[i]}return a[a.length-1]};
 const fmtPct=p=>{const x=p*100;return x>=10?Math.round(x)+" %":x>=1?x.toFixed(1).replace(".",",")+" %":x>=.1?x.toFixed(1).replace(".",",")+" %":"< 0,1 %"};
 const BASE=OPENINGS.concat(OPENINGS_NEW,typeof TREE_OPENINGS!=="undefined"?TREE_OPENINGS:[],OPENINGS_TRAPS).map(o=>{
   const Pl=(typeof PLANS!=="undefined"&&PLANS[o.id])||{};
@@ -207,7 +221,8 @@ function newKeys(n,pool0){
   const r=[];const pools=pool0?[pool0]:[scopeOpenings()];
   if(!pool0){if(S.ana&&S.ana.stats)pools.push(Object.keys(S.ana.stats).map(byId).filter(Boolean));pools.push(ALL.filter(o=>o.g!=="c"))}
   for(const pool of pools){
-    const ks=shuffle([].concat(...pool.map(o=>o.lines.map((l,i)=>lk(o.id,i))))).filter(k=>!S.srs[k]&&Pk(k)<2&&r.indexOf(k)<0);
+    /* gewichtet gemischt (Efraimidis–Spirakis): häufige Varianten kommen eher dran, die Reihenfolge bleibt aber zufällig */
+    const ks=[].concat(...pool.map(o=>o.lines.map((l,i)=>({k:lk(o.id,i),r:Math.pow(Math.random(),1/lineW(o,i))})))).sort((a,b)=>b.r-a.r).map(x=>x.k).filter(k=>!S.srs[k]&&Pk(k)<2&&r.indexOf(k)<0);
     for(const k of ks){if(r.length>=n)break;r.push(k)}if(r.length>=n)break;
   }
   return r;
@@ -326,7 +341,7 @@ function pickTarget(){
   if(forced!==null&&c.indexOf(forced)>=0)return forced;
   if(target!==null&&c.indexOf(target)>=0)return target;
   const fresh=c.filter(i=>P(op.id,i)<2);const due=c.filter(i=>isDue(lk(op.id,i)));const pool=due.length?due:fresh.length?fresh:c;
-  return rnd(pool);
+  return wrnd(pool,i=>lineW(op,i));
 }
 function resetBoard(fen){
   clearTimeout(learnNext);learnNext=null;learn=false;
@@ -376,7 +391,7 @@ async function bookMove(){
       if(data&&data.moves)w=nexts.map(s=>{const m=data.moves.find(x=>strip(x.san)===s);const n=m?(m.white+m.draws+m.black):0;const fresh=c.some(i=>strip(op.lines[i].m[hist.length]||"")===s&&P(op.id,i)<2);return (n+1)*(fresh?2:1)});
     }
     if(w){const tot=w.reduce((a,b)=>a+b,0);let r=Math.random()*tot,pick=nexts[0];for(let i=0;i<nexts.length;i++){r-=w[i];if(r<=0){pick=nexts[i];break}}
-      const cand=candOf(pick);if(cand.length)tgt=cand.indexOf(tgt)>=0?tgt:rnd(cand.filter(i=>P(op.id,i)<2).length?cand.filter(i=>P(op.id,i)<2):cand);}
+      const cand=candOf(pick);const cf=cand.filter(i=>P(op.id,i)<2);if(cand.length)tgt=cand.indexOf(tgt)>=0?tgt:wrnd(cf.length?cf:cand,i=>lineW(op,i));}
   }
   busy=false;target=tgt;playBook();
 }
@@ -1001,7 +1016,10 @@ function renderVars(){
   if(tab!=="var")return;
   if(vtab==="tree"){renderTree();return}
   v.innerHTML="";const c=new Set(consistent(hist));
-  op.lines.forEach((l,i)=>{
+  /* Mit Zugbaum: häufigste Varianten oben, damit man bei vielen Varianten das Wichtige zuerst sieht */
+  const pr=op.tw?op.lines.map((l,i)=>lineProb(op,i)):null;
+  const order=op.lines.map((l,i)=>i);if(pr)order.sort((a,b)=>(pr[b]==null?0:pr[b])-(pr[a]==null?0:pr[a])||a-b);
+  order.forEach(i=>{const l=op.lines[i];
     const row=document.createElement("div");row.className="varrow";
     const b=document.createElement("button");b.className="var"+(hist.length&&!c.has(i)&&mode==="train"?" out":"");b.setAttribute("aria-pressed",forced===i?"true":"false");
     const s=P(op.id,i);const due=isDue(lk(op.id,i));
@@ -3708,7 +3726,14 @@ const COURSES=[
   {id:"b_sharp",t:"Schwarz: scharf und dynamisch",lvl:"Stark",side:"b",d:"Najdorf und Königsindisch – komplexe Stellungen mit Gewinnchancen.",ch:[["najdorf","Sizilianisch Najdorf"],["drachen","Sizilianisch Drachen"],["koenigsindisch","Königsindisch"],["gruenfeld","Grünfeld-Indisch"]]},
   {id:"gambits",t:"Gambits und Überfälle",lvl:"Für Mutige",side:"wb",d:"Bauernopfer für schnellen Angriff – ideal für Blitz und Schnellschach.",ch:[["evans","Evans-Gambit"],["koenigsgambit","Königsgambit"],["friedliver","Fegatello (Fried Liver)"],["stafford","Stafford-Gambit"],["englund","Englund-Gambit"]]}
 ];
-const courseKeys=c=>[].concat(...c.ch.map(([id])=>{const o=byId(id);return o?o.lines.map((l,i)=>lk(id,i)):[]}));
+/* Kurse zeigen pro Kapitel die Varianten, die zur Stufe passen: Einsteiger nur die Kernvarianten, Fortgeschrittene ohne Raritäten.
+   Sortiert nach Häufigkeit, damit man mit dem Wichtigsten anfängt. */
+const COURSE_MIN={"Einsteiger":.04,"Fortgeschritten":.012};
+function courseLines(c,id){
+  const o=byId(id);if(!o)return [];const min=COURSE_MIN[c.lvl]||0;const pr=o.lines.map((l,i)=>lineProb(o,i));
+  return o.lines.map((l,i)=>i).filter(i=>!o.lines[i].tree||pr[i]==null||pr[i]>=min).sort((a,b)=>(pr[b]==null?1:pr[b])-(pr[a]==null?1:pr[a])||a-b);
+}
+const courseKeys=c=>[].concat(...c.ch.map(([id])=>courseLines(c,id).map(i=>lk(id,i))));
 const courseProg=c=>{const ks=courseKeys(c);return {n:ks.length,cl:ks.filter(k=>Pk(k)===2).length}};
 let courseOpen=null;
 function renderCourses(){
@@ -3722,8 +3747,8 @@ function renderCourse(v,c){
   const p=courseProg(c);const open=courseKeys(c).filter(k=>Pk(k)<2);
   v.innerHTML=`<button class="back" data-cback>← Alle Kurse</button>`+pageHead(esc(c.t),`${esc(c.lvl)} · ${p.cl} von ${p.n} Varianten fehlerfrei`,"learn")+
   `<div class="card crs-go"><p class="hint" style="margin:0 0 10px">${esc(c.d)}</p><div class="prog" style="margin-bottom:12px"><i style="width:${p.n?p.cl/p.n*100:0}%"></i></div><button class="btn grn wide" id="crsGo">${open.length?(p.cl?"Weiterlernen":"Kurs starten")+` (${Math.min(open.length,8)} Varianten)`:"Alles gelernt – wiederholen"}</button></div>
-  ${c.ch.map(([id,t],ci)=>{const o=byId(id);if(!o)return "";const cl=o.lines.filter((l,i)=>P(id,i)===2).length;
-    return `<section class="coll"><div class="coll-h"><span class="coll-ic chn">${ci+1}</span><div><h3>${esc(t)}</h3><small>${esc(o.name)} · ${cl}/${o.lines.length} gelernt</small></div></div><div class="coll-items">${o.lines.map((l,i)=>{const st2=P(id,i);const due=isDue(lk(id,i));return `<button class="ci" data-cl="${id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}</small></span>${due?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></section>`}).join("")}`;
+  ${c.ch.map(([id,t],ci)=>{const o=byId(id);if(!o)return "";const ix=courseLines(c,id);const cl=ix.filter(i=>P(id,i)===2).length;const more=o.lines.length-ix.length;
+    return `<section class="coll"><div class="coll-h"><span class="coll-ic chn">${ci+1}</span><div><h3>${esc(t)}</h3><small>${esc(o.name)} · ${cl}/${ix.length} gelernt${more>0?` · ${more} weitere im Eröffnungstraining`:""}</small></div></div><div class="coll-items">${ix.map(i=>{const l=o.lines[i];const st2=P(id,i);const due=isDue(lk(id,i));const pr=lineProb(o,i);return `<button class="ci" data-cl="${id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}${pr!=null?` · ≈ ${fmtPct(pr)}`:""}</small></span>${due?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></section>`}).join("")}`;
   v.querySelector("[data-cback]").onclick=()=>{courseOpen=null;renderCourses()};
   $("crsGo").onclick=()=>{const ks=open.length?open.slice(0,8):courseKeys(c).filter(k=>isDue(k)).concat(shuffle(courseKeys(c))).slice(0,8);startSession("course",[...new Set(ks)],c.t)};
   v.querySelectorAll("[data-cl]").forEach(b=>b.onclick=()=>{const [id,i]=pk(b.dataset.cl);selectOpening(byId(id),i)});
