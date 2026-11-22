@@ -7,8 +7,10 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
 ## Bereiche (fünf Tabs, am Computer in der Seitenleiste)
 - **Start** – Begrüßung, Weitermachen, „Heute“ mit Tagestraining, Taktik-Ziel und Wiederholungen, Hinweise auf laufende Online-Partien, Schnellstart und dein Stand
 - **Training** – Übersicht mit Sammlungen (Eröffnungen, Taktik, Drills, Endspiele & Partien, Repertoire), dazu Eröffnungen, Taktik, Endspiele, Quiz und Musterpartien
-  - 61 Eröffnungen mit 731 geprüften Varianten, Wiederholung nach Lernkurve, schwache Stellungen, Fallen, Blitz- und Blind-Drill
-  - **Zugbäume** für 39 Eröffnungen (`trees.js`): alle realistischen Gegnerzüge mit ihrer Häufigkeit. Der Gegner wählt danach (offline, offene Varianten etwas öfter), die Variantenliste zeigt, wie oft eine Variante vorkommt, der Baum die Prozentzahl jedes Gegnerzugs
+  - 65 Eröffnungen mit 1.085 geprüften Varianten, Wiederholung nach Lernkurve, schwache Stellungen, Fallen, Blitz- und Blind-Drill
+  - **Zugbäume** für alle 63 Eröffnungen außer den Fallensammlungen (`trees.js`): alle realistischen Gegnerzüge mit ihrer Häufigkeit. Der Gegner wählt danach (offline, offene Varianten etwas öfter), die Variantenliste steht nach Häufigkeit sortiert, der Baum zeigt die Prozentzahl jedes Gegnerzugs. Ältere Varianten, die mitten im Baum aufhörten, laufen bis zum Ende der Hauptfortsetzung weiter
+  - **Häufiges zuerst**: Neue Varianten, Tagestraining und Kurse beginnen mit den Varianten, die in echten Partien am häufigsten vorkommen. Einsteigerkurse zeigen nur die Kernvarianten, der Rest steht im Eröffnungstraining
+  - Neu: Sizilianisch Alapin (2.c3), Gegen Pirc (150-Angriff), Gegen das Londoner System und Gegen Englisch (1.c4 e5)
   - **Am Brett erkunden**: alle Buchzüge als Schatten mit Pfeil und Häufigkeit, antippen spielt sie, »Diese Variante trainieren« übt den gewählten Weg (Varianten-Tab, Menü ⋯ oder Zielsymbol im Baum)
   - **Gegnerzug »Ich wähle«**: Statt des Zufalls tippst du den Gegnerzug auf dem Brett an und suchst dann deine Antwort
   - **Eröffnungslexikon** mit allen 3.865 benannten Eröffnungen und Varianten der Lichess-Datenbank in 141 Familien (deutsche Namen), Suche nach Name, ECO-Code oder Zügen, Variantenbaum, jede Variante oder ganze Familie als Weiß oder Schwarz trainierbar

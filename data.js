@@ -86,7 +86,7 @@ const OPENINGS = [
 {id:"hollaendisch",g:"b",side:"b",name:"Holländisch",eco:"A80–A99",d:"1...f5 kontrolliert e4 und bereitet einen Königsangriff vor. Unausgeglichen und kampfbetont.",lines:[
 ["Leningrader System","d4 f5 g3 Nf6 Bg2 g6 Nf3 Bg7 O-O O-O c4 d6 Nc3 Qe8"],
 ["Leningrader, Sh3","d4 f5 g3 Nf6 Bg2 g6 c4 Bg7 Nc3 O-O Nh3 d6"],
-["Gegen 2.Lg5","d4 f5 Bg5 Nf6 Bxf6 exf6 e3 d5 c4 c6 Nc3"],
+["Gegen 2.Lg5","d4 f5 Bg5 Nf6 Bxf6 exf6 e3 d5 c4 c6 Nc3 Be6"],
 ["Staunton-Gambit","d4 f5 e4 fxe4 Nc3 Nf6 Bg5 g6 f3 exf3 Nxf3 Bg7"]]},
 {id:"aljechin",g:"b",side:"b",name:"Aljechin-Verteidigung",eco:"B02–B05",d:"1...Sf6 lockt die weißen Bauern nach vorn, um sie später als Angriffsziele zu nutzen. Provokant und hypermodern.",lines:[
 ["Moderne Variante","e4 Nf6 e5 Nd5 d4 d6 Nf3 Bg4 Be2 e6 O-O Be7 h3 Bh5 c4 Nb6"],
@@ -95,7 +95,7 @@ const OPENINGS = [
 ["Gegen 2.Sc3","e4 Nf6 Nc3 d5 exd5 Nxd5 Bc4 Nb6 Bb3 c5"]]},
 {id:"gruenfeld",g:"b",side:"b",name:"Grünfeld-Indisch",eco:"D70–D99",d:"Schwarz erlaubt ein großes weißes Zentrum und greift es mit ...c5 und dem Läufer g7 an.",lines:[
 ["Abtausch mit Sf3","d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Nf3 c5 Be3 Qa5 Qd2 O-O Rc1"],
-["Abtausch mit Lc4","d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Bc4 c5 Ne2 Nc6 Be3 O-O O-O"],
+["Abtausch mit Lc4","d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Bc4 c5 Ne2 Nc6 Be3 O-O O-O Bg4"],
 ["4.Lf4","d4 Nf6 c4 g6 Nc3 d5 Bf4 Bg7 e3 c5 dxc5 Qa5 Rc1 dxc4 Bxc4 O-O"],
 ["Russisches System","d4 Nf6 c4 g6 Nc3 d5 Nf3 Bg7 Qb3 dxc4 Qxc4 O-O e4 Bg4 Be3 Nfd7"]]},
 {id:"pirc",g:"b",side:"b",name:"Pirc-Verteidigung",eco:"B07–B09",d:"...d6, ...Sf6 und ...g6: Schwarz baut sich flexibel auf und kontert später im Zentrum.",lines:[
@@ -105,14 +105,14 @@ const OPENINGS = [
 ["Mit 4.Lg5","e4 d6 d4 Nf6 Nc3 g6 Bg5 Bg7 Qd2 h6 Bh4 c6"]]},
 {id:"petrow",g:"b",side:"b",name:"Russisch (Petrow)",eco:"C42–C43",d:"Schwarz spiegelt mit 2...Sf6 und greift e4 an. Sehr solide, aber mit einigen Fallen.",lines:[
 ["Klassisch 5.d4","e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 d4 d5 Bd3 Nc6 O-O Be7 c4 Nb4"],
-["5.Sc3","e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 Nc3 Nxc3 dxc3 Be7 Be3 O-O Qd2 Nd7 O-O-O"],
+["5.Sc3","e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 Nc3 Nxc3 dxc3 Be7 Be3 O-O Qd2 Nd7 O-O-O Nf6"],
 ["Steinitz 3.d4","e4 e5 Nf3 Nf6 d4 Nxe4 Bd3 d5 Nxe5 Nd7 Nxd7 Bxd7 O-O Bd6"],
 ["Cochrane-Gambit","e4 e5 Nf3 Nf6 Nxe5 d6 Nxf7 Kxf7 d4 c5"]]},
 
 // ---------- Gambits & Fallen ----------
 {id:"koenigsgambit",g:"x",side:"w",name:"Königsgambit",eco:"C30–C39",d:"2.f4: Romantisches Schach des 19. Jahrhunderts. Weiß opfert einen Bauern für offene f-Linie und Initiative.",lines:[
 ["Kieseritzky","e4 e5 f4 exf4 Nf3 g5 h4 g4 Ne5 Nf6 Bc4 d5 exd5 Bd6 d4"],
-["Fischer-Verteidigung","e4 e5 f4 exf4 Nf3 d6 d4 g5 h4 g4 Ng1 f3 gxf3 Be7"],
+["Fischer-Verteidigung","e4 e5 f4 exf4 Nf3 d6 d4 g5 h4 g4 Ng1 f3 gxf3 Be7 Be3"],
 ["Falkbeer-Gegengambit","e4 e5 f4 d5 exd5 exf4 Nf3 Nf6 Bb5+ c6 dxc6 Nxc6 d4"],
 ["Abgelehnt mit 2...Lc5","e4 e5 f4 Bc5 Nf3 d6 c3 Nf6 d4 exd4 cxd4 Bb4+ Bd2 Bxd2+ Nbxd2"]]},
 {id:"evans",g:"x",side:"w",name:"Evans-Gambit",eco:"C51–C52",d:"Im Italiener opfert Weiß mit 4.b4 einen Bauern, um mit c3 und d4 Tempo für das Zentrum zu gewinnen.",lines:[
@@ -128,7 +128,7 @@ const OPENINGS = [
 {id:"daenisch",g:"x",side:"w",name:"Nordisches Gambit",eco:"C21",d:"Das Dänische Gambit opfert zwei Bauern für zwei Läufer, die auf das schwarze Lager zielen.",lines:[
 ["Doppelt angenommen","e4 e5 d4 exd4 c3 dxc3 Bc4 cxb2 Bxb2 d5 Bxd5 Nf6 Bxf7+ Kxf7 Qxd8 Bb4+ Qd2 Bxd2+ Nxd2"],
 ["Abgelehnt 3...d5","e4 e5 d4 exd4 c3 d5 exd5 Qxd5 cxd4 Nc6 Nf3 Bg4 Be2 Bb4+ Nc3"],
-["Einfach angenommen","e4 e5 d4 exd4 c3 dxc3 Nxc3 Nc6 Bc4 Nf6 Nf3 d6 Qb3 Qd7"]]},
+["Einfach angenommen","e4 e5 d4 exd4 c3 dxc3 Nxc3 Nc6 Bc4 Nf6 Nf3 d6 Qb3 Qd7 Ng5"]]},
 {id:"bird",g:"x",side:"w",name:"Bird-Eröffnung",eco:"A02–A03",d:"1.f4 kontrolliert e5 wie ein umgekehrtes Holländisch. Selten, unbequem für Gegner ohne Vorbereitung.",lines:[
 ["Gegen 1...d5","f4 d5 Nf3 Nf6 e3 g6 b3 Bg7 Bb2 O-O Be2 c5 O-O"],
 ["From-Gambit","f4 e5 fxe5 d6 exd6 Bxd6 Nf3 g5 d4 g4 Ne5 Bxe5 dxe5 Qxd1+ Kxd1"],

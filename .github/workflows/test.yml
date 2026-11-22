@@ -5,7 +5,7 @@ on:
   pull_request:
 jobs:
   smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright 1.56 kennt Ubuntu 26.04 noch nicht
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -13,7 +13,7 @@ jobs:
         with:
           node-version: 22
       - name: Syntax prüfen
-        run: node --check app.js && node --check data.js && node --check sw.js
+        run: node --check app.js && node --check data.js && node --check trees.js && node --check sw.js
       - name: Playwright installieren
         run: npm install --no-save playwright@1.56.0 && npx playwright install --with-deps chromium
       - name: Server starten
