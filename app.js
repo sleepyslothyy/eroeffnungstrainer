@@ -574,10 +574,10 @@ async function startEngine(fromEnd){
   if(tok!==sfToken||mode!=="engine")return;
   if(gameOverCheck())return;
   renderChrome();
-  if(shown.turn()!==op.side)sfThink();else setStatus("sf","Du bist am Zug",`${sfName} (Stufe ${S.set.sf}). Setze den Plan um!`);
+  if(shown.turn()!==op.side){if(op.botCo)botQuip=botSay("hi");sfThink()}else setStatus("sf","Du bist am Zug",op.botCo?botSay("hi"):`${sfName} (Stufe ${S.set.sf}). Setze den Plan um!`);
 }
 async function sfThink(){
-  const tok=sfToken;busy=true;renderBars();setStatus("sf","Stockfish denkt …","");
+  const tok=sfToken;busy=true;renderBars();renderChrome();setStatus("sf",`${botNick()} denkt …`,botQuip||"");botQuip="";
   const fen=fens[hist.length];const styled=op&&op.bot&&op.botStyle&&op.botStyle!=="bal";const r=await sfRun(fen,{skill:S.set.sf,ms:250+S.set.sf*45,multi:styled?4:1});if(styled)r.best=botPick(fen,r)||r.best;
   if(tok!==sfToken||mode!=="engine")return;busy=false;
   if(!r.best||r.best==="(none)"){gameOverCheck();return}
@@ -587,9 +587,10 @@ async function sfThink(){
   const wasLive=live();const res=commit(mv,"e");
   if(wasLive){view=hist.length;shown=new Chess(fens[view]);render({fwd:res});playSound(res)}else render();
   if(gameOverCheck())return;
-  setStatus("sf","Du bist am Zug",`Stockfish spielte ${de(res.san)}.`);
+  const chk=/[+#]/.test(res.san);if(op.botCo){botMood=chk?"wow":res.captured?"happy":"neutral";renderChrome()}
+  setStatus("sf","Du bist am Zug",`${botNick()} spielte ${de(res.san)}.${op.botCo&&(chk||res.captured)?" "+botSay(chk?"chk":"cap"):""}`);
 }
-function engineUserMove(mv,animate){const r=commit(mv,"p");view=hist.length;shown=new Chess(fens[view]);sel=null;render(animate?{fwd:r}:null);playSound(r);if(gameOverCheck())return;sfThink()}
+function engineUserMove(mv,animate){const r=commit(mv,"p");if(op&&op.botCo){botMood=r.captured?"worry":/[+#]/.test(r.san)?"wow":"think";botQuip=r.captured?botSay("ouch"):""}view=hist.length;shown=new Chess(fens[view]);sel=null;render(animate?{fwd:r}:null);playSound(r);if(gameOverCheck())return;sfThink()}
 function gameOverCheck(){
   const g=new Chess(fens[hist.length]);if(!g.game_over())return false;
   let t,s;
@@ -597,6 +598,7 @@ function gameOverCheck(){
   if(g.in_checkmate()){const winner=g.turn()==="w"?"b":"w";res=winner===op.side?"win":"loss";why="Schachmatt";t=res==="win"?"Matt – du hast gewonnen!":"Matt – Stockfish gewinnt";s=res==="win"?"Stark gespielt! Mit »Partie analysieren« siehst du deine besten Züge.":"Mit »Partie analysieren« siehst du, wo es kippte."}
   else{res="draw";why=g.in_stalemate()?"Patt":g.insufficient_material()?"zu wenig Material":g.in_threefold_repetition()?"Stellungswiederholung":"50-Züge-Regel";t="Remis";s=why+". Mit »Partie analysieren« siehst du die Bewertung jedes Zugs."}
   if(op.endId){st.ends[op.endId]=true;saveStats()}
+  if(op.botCo){botMood=res==="win"?"worry":res==="draw"?"think":"joy";renderChrome();if(res!=="draw")s=botSay(res==="win"?"lose":"win")+" "+s}
   endEngine(res,why);setStatus(res==="win"?"done":res==="draw"?"view":"bad",t,s);return true;
 }
 let sfEnd=null;
@@ -975,9 +977,10 @@ function renderChrome(){
   if(mode==="replay"&&game){eco.textContent=(game.free?"Analyse":game.review?"Game Review":"Partie")+(game.year?" · "+game.year:"");title.textContent=game.title;desc.textContent=game.players||"";$("phIcon").innerHTML=ICON.crown}
   else if(mode==="edit"){eco.textContent="Editor";title.textContent="Eigene Variante";desc.textContent=op.d;$("phIcon").innerHTML=ICON.pen}
   else if(mode==="puzzle"){eco.textContent=op.eco;title.textContent=op.name;desc.textContent=op.d;$("phIcon").innerHTML=ICON.puzzle}
-  else{eco.textContent=op.eco+" · Du spielst "+(op.side==="w"?"Weiß":"Schwarz")+(mode==="engine"?" · gegen "+(sfName||"Stockfish"):"");title.textContent=op.name;desc.textContent=op.d;$("phIcon").innerHTML=op.endId?ICON.crown:ICON.bookL}
-  const av=$("oppAv");
-  if(mode==="engine"){av.className="avatar sfav";av.innerHTML=ICON.cpu;$("oppName").textContent=(op.botName||sfName||"Stockfish")+" · Stufe "+S.set.sf}
+  else{eco.textContent=op.eco+" · Du spielst "+(op.side==="w"?"Weiß":"Schwarz")+(mode==="engine"?" · gegen "+(op.botCo?botNick():(sfName||"Stockfish")):"");title.textContent=op.name;desc.textContent=op.d;$("phIcon").innerHTML=op.endId?ICON.crown:ICON.bookL}
+  const av=$("oppAv");if(!(mode==="engine"&&op&&op.botCo))av.dataset.k="";
+  if(mode==="engine"&&op.botCo){const k=op.botCo+":"+botMood;if(av.dataset.k!==k){av.className="avatar sfav trav co-"+op.botCo;av.innerHTML=coachSvg(op.botCo,botMood);av.dataset.k=k}$("oppName").textContent=(op.botName||botNick())+" · Stufe "+S.set.sf}
+  else if(mode==="engine"){av.className="avatar sfav";av.innerHTML=ICON.cpu;av.dataset.k="";$("oppName").textContent=(op.botName||sfName||"Stockfish")+" · Stufe "+S.set.sf}
   else if(mode==="replay"&&game){av.className="avatar bookav";av.innerHTML=ICON.crown}
   else if(mode==="edit"){av.className="avatar bookav";av.innerHTML=ICON.pen;$("oppName").textContent="Gegenseite"}
   else if(mode==="puzzle"){av.className="avatar bookav";av.innerHTML=ICON.puzzle;$("oppName").textContent="Gegner"}
@@ -1353,7 +1356,7 @@ let opFilter="all",opQuery="";
 function renderOpenings(){
   const v=$("v-openings");
   const F=[["all","Alle"],["rep","Repertoire"],["w","Weiß"],["b","Schwarz"],["x","Gambits & Fallen"],["c","Eigene"],["due","Fällig"],["weak","Schwach"]];
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.list}</span><div><h2>Eröffnungen</h2><p>${ALL.length} Eröffnungen, ${totalLines()} Varianten. Mit dem Stern kommt eine Eröffnung in dein Repertoire.</p></div></div>
+  v.innerHTML=`${pageHead("Eröffnungen",`${ALL.length} Eröffnungen, ${totalLines()} Varianten. Mit dem Stern kommt eine Eröffnung in dein Repertoire.`,"list","open")}
   <input class="txt" id="opSearch" type="search" placeholder="Name, ECO oder Züge" value="${esc(opQuery)}" aria-label="Eröffnung suchen">
   <div class="filters">${F.map(f=>`<button class="chip${opFilter===f[0]?" on":""}" data-f="${f[0]}">${f[1]}</button>`).join("")}</div>
   <div id="opInfo" class="hint"></div><div class="opgrid" id="opGrid"></div>`;
@@ -1376,8 +1379,13 @@ function renderOpenings(){
 
 /* ---------------- Lernen ---------------- */
 function ringSvg(frac){const r=36,c=2*Math.PI*r;return `<svg class="ring" viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" style="stroke:var(--line)" stroke-width="8"/><circle cx="42" cy="42" r="${r}" fill="none" style="stroke:var(--acc)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-frac)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" font-size="16" font-weight="800" fill="currentColor">${Math.round(frac*100)}%</text></svg>`}
-function pageHead(title,sub,ic){return `<header class="hero">${ic?`<span class="ic">${NI[ic]}</span>`:""}<div><h2>${title}</h2>${sub?`<p>${sub}</p>`:""}</div></header>`}
-function emptyState(ic,title,text,act){return `<div class="empty-st"><span class="es-ic">${NI[ic]||""}</span><b>${title}</b>${text?`<p>${text}</p>`:""}${act||""}</div>`}
+function pageHead(title,sub,ic,sec){
+  if(sec&&typeof SECT!=="undefined"&&SECT[sec])return `<header class="hero shero sec-${sec}"><div class="shero-scn" aria-hidden="true">${sectSvg(sec)}</div><div class="shero-c">${ic?`<span class="ic">${NI[ic]}</span>`:""}<div><h2>${title}</h2>${sub?`<p>${sub}</p>`:""}</div></div></header>`;
+  return `<header class="hero">${ic?`<span class="ic">${NI[ic]}</span>`:""}<div><h2>${title}</h2>${sub?`<p>${sub}</p>`:""}</div></header>`}
+/* Leere Zustände: ein Trainer schaut vorbei, statt nur ein Symbol */
+const EMPTY_CO={search:"konrad",profile:"mila",swords:"rex",online:"nova",edit:"bruno",bolt:"linus"};
+function emptyState(ic,title,text,act){const co=EMPTY_CO[ic];
+  return `<div class="empty-st${co?" co-"+co:""}">${co?`<span class="es-tr">${coachImg(co,"think")}</span>`:`<span class="es-ic">${NI[ic]||""}</span>`}<b>${title}</b>${text?`<p>${text}</p>`:""}${act||""}</div>`}
 /* Training: Sammlungen statt einer langen Kachelwand */
 function renderLearn(){
   ensureDaily();const v=$("v-learn");const due=dueKeys().length;const dp=duePositions().length;const mine=S.puz.filter(p=>!p.solved||p.solved<2).length;
@@ -1385,7 +1393,7 @@ function renderLearn(){
   const item=(act,ic,t,d,meta,hot)=>`<button class="ci" data-act="${act}"><span class="ci-ic">${NI[ic]}</span><span class="ci-t"><b>${t}</b><small>${d}</small></span>${meta!=null&&meta!==""?`<span class="ci-m${hot?" hot":""}">${meta}</span>`:""}<span class="ci-go" aria-hidden="true">›</span></button>`;
   const coll=(id,ic,t,sub,frac,items)=>`<section class="coll" data-coll="${id}"><div class="coll-h"><span class="coll-ic">${NI[ic]}</span><div><h3>${t}</h3><small>${sub}</small></div>${frac!=null?`<span class="coll-p"><span class="prog"><i style="width:${Math.round(frac*100)}%"></i></span><small>${Math.round(frac*100)} %</small></span>`:""}</div><div class="coll-items">${items}</div></section>`;
   const lc=COURSES.find(x=>x.id===st.crsLast);
-  v.innerHTML=pageHead("Training","Such dir aus, was du heute üben willst.","learn")+(lc?crsHomeTile(lc):"")+
+  v.innerHTML=pageHead("Training","Such dir aus, was du heute üben willst.","learn","train")+(lc?crsHomeTile(lc):"")+
   `<div class="colls">`+
   coll("op","book","Eröffnungen",`${cl} von ${tot} Varianten fehlerfrei · ${S.rep.length} im Repertoire`,tot?cl/tot:0,
     item("courses","learn","Kurse",`${COURSES.length} Kurse mit eigenem Trainer – für jeden Spielstil`,`${COURSES.filter(c=>{const p=courseProg(c);return p.n&&p.cl===p.n}).length}/${COURSES.length}`)+
@@ -1463,7 +1471,7 @@ function qName(){
 }
 function renderQuizIntro(){
   const v=$("v-quiz");
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.quiz}</span><div><h2>Eröffnungs-Quiz</h2><p>Zehn gemischte Fragen: Buchzug finden, Eröffnung erkennen und den passenden Plan zuordnen. ${S.rep.length?"Die Fragen stammen aus deinem Repertoire.":"Markiere Eröffnungen mit einem Stern, damit die Fragen aus deinem Repertoire kommen."}</p></div></div>
+  v.innerHTML=`${pageHead(`Eröffnungs-Quiz`,`Zehn gemischte Fragen: Buchzug finden, Eröffnung erkennen und den passenden Plan zuordnen. ${S.rep.length?"Die Fragen stammen aus deinem Repertoire.":"Markiere Eröffnungen mit einem Stern, damit die Fragen aus deinem Repertoire kommen."}`,"quiz","quiz")}
   <div class="tiles"><div class="tile"><small>Beantwortet</small><b>${st.quiz.n}</b></div><div class="tile win"><small>Richtig</small><b>${st.quiz.ok}</b><span>${st.quiz.n?pct(st.quiz.ok/st.quiz.n):"–"}</span></div><div class="tile gold"><small>Bestes Quiz</small><b>${st.quiz.best||0}/10</b></div><div class="tile"><small>Pool</small><b>${quizPool().length}</b><span>Eröffnungen</span></div></div>
   <button class="big" id="quizGo" style="margin:0">Quiz starten</button>`;
   wireBack(v);$("quizGo").onclick=()=>{quiz={i:0,ok:0,n:10};nextQuestion()};
@@ -1471,7 +1479,7 @@ function renderQuizIntro(){
 function wireBack(v){const b=v.querySelector("[data-back]");if(b)b.onclick=()=>showView("learn")}
 function nextQuestion(){
   if(quiz.i>=quiz.n){st.quiz.best=Math.max(st.quiz.best||0,quiz.ok);saveStats();checkBadges();
-    $("v-quiz").innerHTML=`<div class="hero"><span class="ic">${NI.quiz}</span><div><h2>${quiz.ok} von ${quiz.n} richtig</h2><p>${quiz.ok>=8?"Ausgezeichnet!":quiz.ok>=5?"Gut gemacht – die falschen Fragen kommen beim Training wieder.":"Übung macht den Meister. Trainiere die Eröffnungen und versuch es erneut."}</p></div></div><div class="btnrow"><button class="btn grn" id="qAgain">Neues Quiz</button><button class="btn" id="qBack">Zurück zum Training</button></div>`;
+    $("v-quiz").innerHTML=`${pageHead(`${quiz.ok} von ${quiz.n} richtig`,`${quiz.ok>=8?"Ausgezeichnet!":quiz.ok>=5?"Gut gemacht – die falschen Fragen kommen beim Training wieder.":"Übung macht den Meister. Trainiere die Eröffnungen und versuch es erneut."}`,"quiz","quiz")}<div class="btnrow"><button class="btn grn" id="qAgain">Neues Quiz</button><button class="btn" id="qBack">Zurück zum Training</button></div>`;
     $("qAgain").onclick=()=>{quiz={i:0,ok:0,n:10};nextQuestion()};$("qBack").onclick=()=>showView("learn");return}
   const type=quiz.i%3;const q=(type===0?qMove():type===1?qName():qPlan())||qMove();quiz.q=q;const v=$("v-quiz");
   v.innerHTML=`<div class="qhead"><h3>${esc(q.prompt)}</h3><span class="qprog">Frage ${quiz.i+1}/${quiz.n} · ${quiz.ok} richtig</span></div>
@@ -1488,7 +1496,7 @@ function nextQuestion(){
 /* ---------------- Musterpartien & Meisterpartien ---------------- */
 function renderGames(){
   const v=$("v-games");const opts=ALL.filter(o=>o.g!=="c").map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("");
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.games}</span><div><h2>Musterpartien</h2><p>Berühmte Partien, Zug für Zug erklärt.</p></div></div>
+  v.innerHTML=`${pageHead("Musterpartien","Berühmte Partien, Zug für Zug erklärt.","games","games")}
   <div class="grid3">${GAMES.map(g=>`<div class="gcard">${st.games[g.id]?'<span class="done-tag">Nachgespielt</span>':""}<h4>${esc(g.title)}</h4><div class="sub">${esc(g.players)} · ${esc(g.year)} · ${g.moves.split(" ").length} Halbzüge</div><p>${esc(g.d)}</p><div class="chips">${g.ops.map(id=>byId(id)).filter(Boolean).map(o=>`<button class="chip" data-op="${o.id}">${esc(o.name)}</button>`).join("")}</div><button class="btn grn" data-game="${g.id}">Nachspielen</button></div>`).join("")}</div>
   <div class="card"><h3>Echte Meisterpartien zu einer Eröffnung</h3><p class="hint" style="margin:0 0 10px">Aus der Lichess-Meisterdatenbank (über 2 Millionen Partien von Spielern ab 2200). Gesucht wird nach der Stellung am Ende einer Variante.</p>
   <div class="btnrow"><select class="txt" id="mOp" style="max-width:320px">${opts}</select><select class="txt" id="mLine" style="max-width:320px"></select><button class="btn grn" id="mGo">Suchen</button></div><div id="mRes" style="margin-top:10px"></div></div>`;
@@ -1508,7 +1516,7 @@ function renderGames(){
 /* ---------------- Endspiele ---------------- */
 function renderEndPage(){
   const v=$("v-end");const done=Object.keys(st.ends).length;
-  v.innerHTML=pageHead("Endspiele",`${done} von ${ENDGAMES.length} gespielt. Du spielst gegen Stockfish.`,"king")+
+  v.innerHTML=pageHead("Endspiele",`${done} von ${ENDGAMES.length} gespielt. Du spielst gegen Stockfish.`,"king","end")+
   END_CH.map(([c,t,d])=>{const es=ENDGAMES.filter(e=>(e.c||"open")===c);if(!es.length)return "";const n=es.filter(e=>st.ends[e.id]).length;
     return `<div class="sec-h"><h3>${t}</h3><small>${n}/${es.length} · ${d}</small></div><div class="grid3">${es.map(e=>`<div class="gcard">${st.ends[e.id]?'<span class="done-tag">Gespielt</span>':""}<h4>${esc(e.t)}</h4><div id="eb-${e.id}"></div><p>${esc(e.goal)}</p><button class="btn grn" data-end="${e.id}">Gegen Stockfish spielen (${e.side==="w"?"Weiß":"Schwarz"})</button></div>`).join("")}</div>`}).join("");
   ENDGAMES.forEach(e=>{const box=$("eb-"+e.id);if(!box)return;const fen=e.fen||(()=>{const g=new Chess();e.moves.split(" ").forEach(m=>g.move(m));return g.fen()})();box.appendChild(staticBoard(fen,e.side))});
@@ -1534,7 +1542,7 @@ function pgnLines(text){
 }
 function renderImport(){
   const v=$("v-import");
-  v.innerHTML=`<button class="back" data-back>← Training</button><div class="hero"><span class="ic">${NI.import}</span><div><h2>Repertoire importieren</h2><p>Lies dein bestehendes Repertoire mit allen Nebenvarianten ein – aus einer PGN-Datei (z. B. aus ChessBase, Chessable-Export oder Lichess) oder direkt aus einer öffentlichen Lichess-Studie.</p></div></div>
+  v.innerHTML=`<button class="back" data-back>← Training</button>${pageHead(`Repertoire importieren`,`Lies dein bestehendes Repertoire mit allen Nebenvarianten ein – aus einer PGN-Datei (z. B. aus ChessBase, Chessable-Export oder Lichess) oder direkt aus einer öffentlichen Lichess-Studie.`,"import","open")}
   <div class="card"><div class="form" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
     <label class="wide">Name des Ordners<input id="imName" placeholder="z. B. Mein Caro-Kann" maxlength="40"></label>
     <label>Ich trainiere<select id="imSide"><option value="w">Weiß</option><option value="b">Schwarz</option></select></label>
@@ -1599,7 +1607,7 @@ let profTab="stats";
 function renderProfile(){
   checkBadges();const v=$("v-profile");
   const H={stats:["Statistik","Dein Fortschritt im Training.","chess"],badges:["Abzeichen",`${st.badges.length} von ${BADGES.length} gesammelt.`,"medal2"],settings:["Einstellungen","Aussehen, Brett, Training und Komfort.","settings"],sync:["Daten","Sichern, übertragen und teilen.","import"]}[profTab];
-  v.innerHTML=pageHead(H[0],H[1],H[2]==="medal2"?"games":H[2])+`<div id="profBody" class="page" style="max-width:none"></div>`;
+  v.innerHTML=pageHead(H[0],H[1],H[2]==="medal2"?"games":H[2],profTab==="stats"||profTab==="badges"?"prof":"")+`<div id="profBody" class="page" style="max-width:none"></div>`;
   ({stats:renderStats,badges:renderBadges,settings:renderSettings,sync:renderSync}[profTab])($("profBody"));
 }
 function renderStats(v){
@@ -1871,9 +1879,9 @@ function renderChess(){
     ${P0.rates&&P0.rates.length?`<div class="rates" style="margin-top:12px">${P0.rates.map(r=>`<div class="rate"><small>${esc(r.t)}</small><b>${r.r}${r.prov?"?":""}</b><span>${r.best?"Bestwert "+r.best:r.games?r.games+" Partien":r.rec?`${r.rec.win} S · ${r.rec.draw} R · ${r.rec.loss} N`:""}</span></div>`).join("")}</div>`:""}</div>`;
   }
   if(CH.user&&(!P0||(!P0.name&&!P0.error))){if(!P0){CH.profile={};loadProfile().then(()=>{if(curView==="chess")renderChess()})}
-    v.innerHTML=`<div class="hero"><span class="ic">${NI.chess}</span><div><h2>${siteName()}-Zentrale</h2><p>Lade das Profil von ${esc(CH.user)} …</p></div></div><div class="card">${SKEL}</div><div class="card">${SKEL}</div>`;return}
+    v.innerHTML=`${pageHead(`${siteName()}-Zentrale`,`Lade das Profil von ${esc(CH.user)} …`,"chess","ana")}<div class="card">${SKEL}</div><div class="card">${SKEL}</div>`;return}
   const linked=!!CH.user&&P0&&!!P0.name;
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.chess}</span><div><h2>${siteName()}-Zentrale</h2><p>Verknüpfe dein Konto über den Benutzernamen (kein Passwort nötig). Du bekommst deine Wertungen, alle Partien mit Game Review, die Eröffnungen, in denen du verlierst, deinen persönlichen Eröffnungsbaum und Übungen aus deinen eigenen Fehlern.</p></div></div>
+  v.innerHTML=`${pageHead(`${siteName()}-Zentrale`,`Verknüpfe dein Konto über den Benutzernamen (kein Passwort nötig). Du bekommst deine Wertungen, alle Partien mit Game Review, die Eröffnungen, in denen du verlierst, deinen persönlichen Eröffnungsbaum und Übungen aus deinen eigenen Fehlern.`,"chess","ana")}
   ${linked?prof:`<div class="card"><form class="form" id="chForm" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto"><label>Plattform${srcSeg}</label><label class="wide" for="chUser">Benutzername<input id="chUser" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="dein ${siteName()}-Name" value="${esc(CH.user)}" required></label><button class="btn grn" type="submit" style="padding:12px 18px">Verknüpfen</button></form>${P0&&P0.error?`<div class="err" style="margin-top:10px">${P0.error==="notfound"?`Den Benutzer gibt es auf ${siteName()} nicht.`:`${siteName()} ist gerade nicht erreichbar. Prüfe die Internetverbindung.`}</div>`:""}</div>`}
   ${linked?`<div class="card"><div class="btnrow"><label class="fld" style="flex:1;min-width:140px">Zeitraum<select id="chMonths">${[1,3,6,12].map(m=>`<option value="${m}" ${CH.months===m?"selected":""}>${m===1?"Letzter Monat":m+" Monate"}</option>`).join("")}</select></label><label class="fld" style="flex:1;min-width:140px">Partien<select id="chType">${[["all","Alle"],["bullet","Bullet"],["blitz","Blitz"],["rapid","Schnellschach"],["daily","Täglich"]].map(t=>`<option value="${t[0]}" ${CH.type===t[0]?"selected":""}>${t[1]}</option>`).join("")}</select></label><button class="btn grn" id="chLoad" style="align-self:flex-end;padding:12px 18px">${CH.games.length?"Partien neu laden":"Partien laden & analysieren"}</button></div>
     <details class="alt"><summary>Oder PGN-Datei hochladen</summary><p>${siteName()}: Archiv herunterladen und hier auswählen.</p><input type="file" id="pgnFile" accept=".pgn,text/plain"></details>
@@ -2632,7 +2640,7 @@ function renderTactics(){
       return `<button class="hc tpath" data-path="${k}" ${open?"":"disabled"} style="${open?"":"opacity:.45;cursor:not-allowed"}"><b>${TTH[k][0]}</b><small>${TTH[k][1]}</small><span class="stars">${[0,1,2,3,4].map(i=>`<i class="${i<ps.step?"on":""}">★</i>`).join("")}</span><small>${done?"Gemeistert":open?`Stufe ${ps.step+1}: ${ps.n}/${PATH_N} gelöst`:"gesperrt"}${th?` · ${pct(th.ok/th.n)} richtig`:""}</small></button>`}).join("")}</div>`}).join("");
   const repOps=S.rep.map(byId).filter(o=>o&&OPENING_ANGLE[o.id]);
   const weakT=Object.entries(PZ.themes).filter(([k,t])=>t.n>=4&&TTH[k]).sort((x,y)=>x[1].ok/x[1].n-y[1].ok/y[1].n).slice(0,5);
-  v.innerHTML=`<div class="tac-hero">
+  v.innerHTML=`${pageHead("Taktik","Löse Aufgaben, steig im Level auf und schärfe dein Gespür für Muster.","bolt","tac")}<div class="tac-hero">
     <div class="tac-r"><small>Taktik-Wertung</small><b>${PZ.r}</b><span>${PZ.n} Aufgaben · ${PZ.n?pct(PZ.ok/PZ.n):"–"} gelöst</span></div>
     <div class="tac-lv"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Level ${lv} · ${rankOf(lv)}</b><small>${PZ.xp-a}/${b-a} XP</small></div><div class="xpbar"><i style="width:${(PZ.xp-a)/(b-a)*100}%"></i></div>
       <div class="tac-mini"><span><b>${d.n}/${PZ.goal}</b> heute</span><span><b>${PZ.streak.last===today()||PZ.streak.last===yesterday()?PZ.streak.n:0}</b> Tage Serie</span><span><b>${stars}</b> ★ Sterne</span><span><b>${Math.max(PZ.sprintBest,PZ.rushBest.s5||0,PZ.rushBest.surv||0)}</b> Rush-Rekord</span></div></div>
@@ -3186,9 +3194,9 @@ function analyzeOnline(){
 /* ---- Ansicht „Online“ ---- */
 function renderOnline(){
   const v=$("v-online");if(!v)return;
-  if(!onlineReady()){v.innerHTML=`<div class="hero"><span class="ic">${NI.online}</span><div><h2>Online spielen</h2><p>Konten und Partien gegen Freunde werden gerade eingerichtet. Sobald das Firebase-Projekt verbunden ist, kannst du dich hier anmelden.</p></div></div>`;return}
+  if(!onlineReady()){v.innerHTML=`${pageHead(`Online spielen`,`Konten und Partien gegen Freunde werden gerade eingerichtet. Sobald das Firebase-Projekt verbunden ist, kannst du dich hier anmelden.`,"online","online")}`;return}
   if(!ON.booted)onlineBoot();
-  if(ON.netErr){v.innerHTML=`<div class="hero"><span class="ic">${NI.online}</span><div><h2>Online spielen</h2><p>Der Server ist gerade nicht erreichbar. Prüfe deine Internetverbindung.</p></div></div><button class="btn" id="onRetry" style="align-self:flex-start;padding:10px 16px">Erneut versuchen</button>`;$("onRetry").onclick=()=>{ON.netErr=false;ON.booted=false;renderOnline()};return}
+  if(ON.netErr){v.innerHTML=`${pageHead(`Online spielen`,`Der Server ist gerade nicht erreichbar. Prüfe deine Internetverbindung.`,"online","online")}<button class="btn" id="onRetry" style="align-self:flex-start;padding:10px 16px">Erneut versuchen</button>`;$("onRetry").onclick=()=>{ON.netErr=false;ON.booted=false;renderOnline()};return}
   if(!ON.authKnown){v.innerHTML=`<div class="card">${SKEL}</div>`;return}
   if(!ON.user){renderAuth(v);return}
   if(!ON.profile){v.innerHTML=`<div class="card"><h3>Wähle deinen Benutzernamen</h3><p class="hint">So finden dich deine Freunde. Er lässt sich später nicht ändern.</p><input class="txt" id="onName" maxlength="20" placeholder="z. B. Springer_Max" autocapitalize="off"><div class="btnrow" style="margin-top:10px"><button class="btn grn" id="onNameGo">Speichern</button><button class="btn" id="onOut">Abmelden</button><span class="hint" id="onMsg"></span></div></div>`;
@@ -3201,7 +3209,7 @@ function renderOnline(){
   const tcs=[["1+0","1 Min"],["3+2","3 | 2"],["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["30+0","30 Min"],["d1","1 Tag/Zug"],["d3","3 Tage/Zug"],["none","Ohne Uhr"]];
   const friends=(P.friends||[]);
   const OTH={leader:["Bestenliste","Alle Spieler im Vergleich."],friends:["Freunde","Anfragen, Online-Status und Herausforderungen."],live:["Live","Laufende Partien – tippe zum Zuschauen."],admin:["Admin","Übersicht über Konten und Partien."]}[ON.tab];
-  v.innerHTML=`${OTH?pageHead(OTH[0],OTH[1],ON.tab==="admin"?"settings":ON.tab==="live"?"swords":"online"):`<div class="onhead"><span class="onav"${avSt(P.av)}>${avTxt(P.name,P.av)}</span><div><h2>${esc(P.name)}</h2><small>Wertung ${P.elo||1200} · ${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>`}
+  v.innerHTML=`${OTH?pageHead(OTH[0],OTH[1],ON.tab==="admin"?"settings":ON.tab==="live"?"swords":"online",ON.tab==="admin"?"":ON.tab==="leader"?"league":"online"):`<div class="onhead"><span class="onav"${avSt(P.av)}>${avTxt(P.name,P.av)}</span><div><h2>${esc(P.name)}</h2><small>Wertung ${P.elo||1200} · ${P.w||0} Siege · ${P.d||0} Remis · ${P.l||0} Niederlagen</small></div></div>`}
   ${P.banned?`<div class="err">Dein Konto wurde gesperrt. Du kannst keine neuen Partien starten.</div>`:""}
   ${ON.tab==="play"?`
   ${inv.length?`<div class="card"><h3>Herausforderungen</h3>${inv.map(g=>row(g,`<span class="onbtns"><button class="btn grn" data-acc="${esc(g.id)}">Annehmen</button><button class="btn" data-dec="${esc(g.id)}">Ablehnen</button></span>`)).join("")}</div>`:""}
@@ -3248,7 +3256,7 @@ function renderOnline(){
 }
 function renderAuth(v){
   const reg=ON.authMode==="reg";
-  v.innerHTML=`<div class="hero"><span class="ic">${NI.online}</span><div><h2>${ON.tab==="play"||ON.tab==="live"?"Online spielen":"Anmelden"}</h2><p>Spiel live gegen deine Freunde. Mit Konto ist dein Fortschritt auf allen Geräten gleich.</p></div></div>
+  v.innerHTML=`${pageHead(`${ON.tab==="play"||ON.tab==="live"?"Online spielen":"Anmelden"}`,`Spiel live gegen deine Freunde. Mit Konto ist dein Fortschritt auf allen Geräten gleich.`,"online","online")}
   <div class="card"><div class="seg" style="margin-bottom:14px"><button data-am="login" aria-pressed="${!reg}">Anmelden</button><button data-am="reg" aria-pressed="${reg}">Registrieren</button></div>
   <form id="authForm" class="authf">${reg?`<label class="fld">Benutzername<input id="auName" maxlength="20" autocomplete="username" autocapitalize="off" placeholder="So sehen dich andere" required></label>`:""}
   <label class="fld">E-Mail<input id="auMail" type="email" autocomplete="email" autocapitalize="off" required></label>
@@ -3556,14 +3564,17 @@ function renderHome(){
   const nq=(dd>=dq)+(tz.n>=PZ.goal)+(due===0);
   const quick=(act,ic,t,d)=>`<button class="qa" data-act="${act}"><span class="qa-ic">${NI[ic]}</span><b>${t}</b><small>${d}</small></button>`;
   const tile=(t,b,s)=>`<div class="kpi"><small>${t}</small><b>${b}</b>${s?`<span>${s}</span>`:""}</div>`;
-  v.innerHTML=`<div class="home-h"><div><h2>${greet}${nm?", "+esc(nm):""}!</h2><small>${streakNow()?`${streakNow()} ${streakNow()===1?"Tag":"Tage"} Serie · `:""}${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}</small></div><span class="home-logo">${LOGO(40)}</span></div>
+  const hco=(()=>{const hc=COURSES.find(x=>x.id===st.crsLast);return hc?coIdOf(hc):"mila"})();
+  const hsay=alerts?"Da wartet eine Partie auf dich – deine Gegner sind schon ungeduldig.":due?`${nV(due,"Wiederholung wartet","Wiederholungen warten")} auf dich – das sind nur ein paar Minuten.`:dd<dq?`Dein Tagestraining: noch ${nV(dq-dd,"Variante","Varianten")}. Los geht's!`:tz.n<PZ.goal?`Noch ${nV(PZ.goal-tz.n,"Taktikaufgabe","Taktikaufgaben")} bis zum Tagesziel.`:"Alles erledigt für heute – stark! Lust auf eine Partie?";
+  v.innerHTML=`<section class="hhero co-${hco}"><div class="hhero-c"><small>${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}${streakNow()?` · ${streakNow()} ${streakNow()===1?"Tag":"Tage"} Serie`:""}</small><h2>${greet}${nm?", "+esc(nm):""}!</h2>
+    <p class="hhero-say"><b>${esc(TRAINER[hco].nick)}:</b> ${esc(HOME_HI[hco]||"")} ${esc(hsay)}</p></div><span class="hhero-tr" aria-hidden="true">${coachSvg(hco,"happy","bust")}</span></section>
   ${alerts?`<div class="alerts">${alerts}</div>`:""}
   ${(()=>{const hc=COURSES.find(x=>x.id===st.crsLast);return hc?crsHomeTile(hc):""})()}
   ${lastOp&&lastOp.lines&&lastOp.lines.length?`<button class="cont" data-act="continue"><span class="cont-b" id="contBoard"></span><span class="cont-t"><small>Weitermachen</small><b>${esc(lastOp.name)}</b><span>${cl}/${lastOp.lines.length} Varianten fehlerfrei · Du spielst ${lastOp.side==="w"?"Weiß":"Schwarz"}</span><span class="prog"><i style="width:${cl/lastOp.lines.length*100}%"></i></span></span><span class="cont-go">▶</span></button>`:""}
   <section class="card today"><div class="today-h"><div><h3>Heute</h3><small>${nq} von 3 erledigt</small></div>${ringSvg(nq/3)}</div><div class="quests">${quests}</div>
     <button class="btn grn wide" data-act="daily">${dd>=dq?"Extra-Training starten":"Tagestraining fortsetzen"}</button></section>
   <div class="sec-h"><h3>Schnellstart</h3></div>
-  <div class="qas">${quick("online:play","swords","Online spielen","Gegen Freunde")}${quick("bots","bot","Gegen Computer","Stockfish in 6 Stufen")}${quick("analyse","search","Partie analysieren","Game Review")}${quick("tactics","bolt","Taktik",`Wertung ${PZ.r}`)}</div>
+  <div class="qas">${quick("online:play","swords","Online spielen","Gegen Freunde")}${quick("bots","bot","Gegen Computer","9 Trainer als Gegner")}${quick("analyse","search","Partie analysieren","Game Review")}${quick("tactics","bolt","Taktik",`Wertung ${PZ.r}`)}</div>
   ${feedHtml()}
   <div class="sec-h"><h3>Dein Stand</h3><button class="linkb" data-act="profile:stats">Statistik ›</button></div>
   <div class="kpis">${tile("Serie",streakNow(),`Rekord ${S.streak.best||0}`)}${tile("Varianten",cleanCount(),`von ${totalLines()} fehlerfrei`)}${tile("Taktik",PZ.r,`${PZ.n} Aufgaben`)}${tile("Online",ON.profile?(ON.profile.elo||1200):"–",ON.profile?`${ON.profile.w||0} S · ${ON.profile.d||0} R · ${ON.profile.l||0} N`:"nicht angemeldet")}</div>
@@ -3579,20 +3590,47 @@ function renderHome(){
 }
 
 /* ---- Gegen den Computer ---- */
-const BOTS=[{lvl:1,name:"Bauer",elo:"ca. 600",d:"Übersieht vieles – ideal zum Reinkommen."},{lvl:4,name:"Springer",elo:"ca. 1000",d:"Spielt solide, macht aber Fehler."},{lvl:7,name:"Läufer",elo:"ca. 1300",d:"Bestraft grobe Fehler."},{lvl:10,name:"Turm",elo:"ca. 1700",d:"Ein starker Vereinsspieler."},{lvl:15,name:"Dame",elo:"ca. 2100",d:"Kaum Fehler, sehr taktisch."},{lvl:20,name:"König",elo:"über 2800",d:"Stockfish mit voller Stärke."}];
+const BOTS=[
+  {co:"mila",lvl:1,elo:"ca. 600",sty:"bal",d:"Spielt freundlich und übersieht vieles – ideal zum Reinkommen."},
+  {co:"bruno",lvl:3,elo:"ca. 800",sty:"def",d:"Baut solide auf und tauscht gern – macht aber noch Fehler."},
+  {co:"linus",lvl:5,elo:"ca. 1100",sty:"bal",d:"Lauert auf lange Diagonalen und ungedeckte Figuren."},
+  {co:"rika",lvl:7,elo:"ca. 1300",sty:"att",d:"Opfert gern und stellt Fallen – pass auf deinen König auf."},
+  {co:"greta",lvl:9,elo:"ca. 1550",sty:"def",d:"Mauert sich ein und wartet geduldig auf deinen Fehler."},
+  {co:"ilka",lvl:11,elo:"ca. 1800",sty:"att",d:"Sucht scharfe Stellungen – dann wird es heiß."},
+  {co:"nova",lvl:14,elo:"ca. 2000",sty:"att",d:"Rechnet blitzschnell und findet fast jede Taktik."},
+  {co:"konrad",lvl:17,elo:"ca. 2400",sty:"bal",d:"Spielt ruhig, planvoll und beinahe fehlerfrei."},
+  {co:"rex",lvl:20,elo:"über 2800",sty:"att",d:"Volle Stärke, volle Angriffslust – der Endgegner."}
+];
+/* Sprüche der Trainer als Gegner: Begrüßung, eigener Schlag, Schach, verlorene Figur, Sieg, Niederlage */
+const BOT_SAY={
+  mila:{hi:"Viel Spaß! Ich erkläre dir hinterher gern alles.",cap:"Hoppla, die nehme ich mal.",chk:"Schach! Schau genau hin.",ouch:"Oh, gut gesehen!",win:"Gut gekämpft – nächstes Mal klappt es!",lose:"Super gespielt! Ich bin stolz auf dich."},
+  bruno:{hi:"Erst mal sauber aufbauen.",cap:"Das Material kommt auf meinen Stapel.",chk:"Schach. Statik prüfen!",ouch:"Autsch, da bröckelt meine Mauer.",win:"Fundament hält. Nächste Runde?",lose:"Saubere Arbeit – du hast mich abgerissen!"},
+  greta:{hi:"Versuch doch, meine Festung zu knacken.",cap:"Wer angreift, verliert Truppen.",chk:"Ausfall! Schach.",ouch:"Ein Riss in der Mauer …",win:"Die Festung steht.",lose:"Respekt. Die Mauer ist gefallen."},
+  konrad:{hi:"Leinen los – möge der bessere Plan gewinnen.",cap:"Eine Prise für die Bordkasse.",chk:"Schach – Sturmwarnung!",ouch:"Mann über Bord!",win:"Kurs gehalten. Gut gesegelt!",lose:"Hut ab, Kapitän – du hast mich ausmanövriert."},
+  linus:{hi:"Mein Läufer zielt schon.",cap:"Treffer!",chk:"Schach – direkt ins Schwarze.",ouch:"Hm, das ging daneben.",win:"Ins Schwarze getroffen.",lose:"Was für ein Schuss – du hast gewonnen!"},
+  rex:{hi:"Volle Attacke, keine Gnade!",cap:"Weg damit!",chk:"SCHACH! Spürst du die Hitze?",ouch:"Pah, nur ein Kratzer.",win:"Das war ein Feuerwerk!",lose:"Unglaublich – du hast meinen Angriff gestoppt!"},
+  nova:{hi:"Systeme hochgefahren. Los geht's!",cap:"Ziel erfasst.",chk:"Schach – Warnstufe Rot!",ouch:"Treffer am Schutzschild …",win:"Mission erfüllt.",lose:"Wow – du hast mich aus der Umlaufbahn geschossen!"},
+  ilka:{hi:"Mal sehen, wann es ausbricht.",cap:"Lava frisst alles.",chk:"Schach! Es brodelt.",ouch:"Uff, das hat gezischt.",win:"Ausbruch gelungen!",lose:"Messwerte eindeutig: du hast gewonnen!"},
+  rika:{hi:"Ahoi! Hoffentlich hast du was zum Plündern dabei.",cap:"Arrr, Beute!",chk:"Schach – entern!",ouch:"Verflixt, ein Leck im Rumpf!",win:"Die Beute gehört uns!",lose:"Arrr … du hast mein Schiff versenkt!"}
+};
+const botNick=()=>op&&op.botCo&&TRAINER[op.botCo]?TRAINER[op.botCo].nick:"Stockfish";
+let botMood="neutral",botQuip="";
+const botSay=k=>op&&op.botCo&&BOT_SAY[op.botCo]?`${botNick()}: „${BOT_SAY[op.botCo][k]}“`:"";
 const BOTCFG=Object.assign({lvl:4,col:"r",start:"std",oid:"",style:"bal"},store.get("et-bot",{}));
 function renderBots(){
   const v=$("v-bots");if(!v)return;const rep=S.rep.map(byId).filter(o=>o&&o.lines&&o.lines.length);const pool=rep.length?rep:ALL.filter(o=>o.g!=="c"&&o.lines.length);
   if(!pool.some(o=>o.id===BOTCFG.oid))BOTCFG.oid=pool[0]?pool[0].id:"";
-  v.innerHTML=pageHead("Gegen den Computer","Such dir einen Gegner aus.","bot")+
-  `<div class="bots">${BOTS.map(b=>`<button class="botc" data-lvl="${b.lvl}" aria-pressed="${BOTCFG.lvl===b.lvl}"><span class="bot-av"><span class="pp ${b.lvl>=15?"b":"w"}${{Bauer:"p",Springer:"n",Läufer:"b",Turm:"r",Dame:"q",König:"k"}[b.name]||"p"}"></span></span><span><b>${b.name}</b><small>Stufe ${b.lvl} · ${b.elo}</small><em>${b.d}</em></span></button>`).join("")}</div>
+  if(!BOTS.some(b=>b.lvl===BOTCFG.lvl))BOTCFG.lvl=BOTS.reduce((a,b)=>Math.abs(b.lvl-BOTCFG.lvl)<Math.abs(a.lvl-BOTCFG.lvl)?b:a).lvl;
+  const sel=BOTS.find(b=>b.lvl===BOTCFG.lvl);
+  v.innerHTML=pageHead("Gegen den Computer","Such dir einen Gegner aus – alle Trainer spielen mit, von gemütlich bis gnadenlos.","bot","bots")+
+  `<div class="bots">${BOTS.map(b=>{const on=b===sel;return `<button class="botc co-${b.co}" data-lvl="${b.lvl}" aria-pressed="${on}"><span class="bot-art">${coachImg(b.co,on?"happy":"neutral")}</span><span class="bot-t"><b>${esc(TRAINER[b.co].nick)}</b><small>Stufe ${b.lvl} · ${b.elo}</small><em>${esc(b.d)}</em></span></button>`}).join("")}</div>
   <div class="card"><div class="setrow"><span><b>Deine Farbe</b></span><span class="seg">${[["w","Weiß"],["r","Zufall"],["b","Schwarz"]].map(c=>`<button data-bcol="${c[0]}" aria-pressed="${BOTCFG.col===c[0]}">${c[1]}</button>`).join("")}</span></div>
   <div class="setrow"><span><b>Spielstil</b><small>${esc((BOTSTYLES.find(x=>x[0]===BOTCFG.style)||BOTSTYLES[0])[2])}</small></span><span class="seg">${BOTSTYLES.map(c=>`<button data-bsty="${c[0]}" aria-pressed="${BOTCFG.style===c[0]}">${c[1]}</button>`).join("")}</span></div>
   <div class="setrow"><span><b>Start</b><small>${BOTCFG.start==="op"?"Die Hauptvariante wird zuerst gespielt, du hast die Farbe der Eröffnung.":"Normale Grundstellung."}</small></span><span class="seg">${[["std","Grundstellung"],["op","Eröffnung"]].map(c=>`<button data-bst="${c[0]}" aria-pressed="${BOTCFG.start===c[0]}">${c[1]}</button>`).join("")}</span></div>
   ${BOTCFG.start==="op"?`<div class="setrow"><span><b>Eröffnung</b><small>${rep.length?"Aus deinem Repertoire":"Markiere Eröffnungen mit einem Stern, um nur dein Repertoire zu sehen"}</small></span><select class="txt" id="botOp" style="width:auto;max-width:56%">${pool.map(o=>`<option value="${o.id}" ${o.id===BOTCFG.oid?"selected":""}>${esc(o.name)}</option>`).join("")}</select></div>`:""}
   <button class="big" id="botGo" style="margin:14px 0 0;width:100%">Partie starten</button></div>`;
   const sv=()=>store.set("et-bot",BOTCFG);
-  v.querySelectorAll("[data-lvl]").forEach(b=>b.onclick=()=>{BOTCFG.lvl=+b.dataset.lvl;sv();v.querySelectorAll("[data-lvl]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
+  v.querySelectorAll("[data-lvl]").forEach(b=>b.onclick=()=>{const bt=BOTS.find(x=>x.lvl===+b.dataset.lvl);if(!bt)return;BOTCFG.lvl=bt.lvl;BOTCFG.style=bt.sty;sv();renderBots()});
   v.querySelectorAll("[data-bcol]").forEach(b=>b.onclick=()=>{BOTCFG.col=b.dataset.bcol;sv();renderBots()});
   v.querySelectorAll("[data-bst]").forEach(b=>b.onclick=()=>{BOTCFG.start=b.dataset.bst;sv();renderBots()});
   v.querySelectorAll("[data-bsty]").forEach(b=>b.onclick=()=>{BOTCFG.style=b.dataset.bsty;sv();renderBots()});
@@ -3600,13 +3638,14 @@ function renderBots(){
   $("botGo").onclick=()=>startBot();
 }
 function startBot(){
-  const b=BOTS.find(x=>x.lvl===BOTCFG.lvl)||BOTS[1];
+  const b=BOTS.find(x=>x.lvl===BOTCFG.lvl)||BOTS[1];const tn=TRAINER[b.co];
   stopEngine();sess=null;game=null;drill=null;puz=null;flipped=false;forced=null;
   S.set.sf=b.lvl;save("set");
   const src=BOTCFG.start==="op"?byId(BOTCFG.oid):null;
   const side=src?src.side:BOTCFG.col==="r"?(Math.random()<.5?"w":"b"):BOTCFG.col;
   const sty=BOTSTYLES.find(x=>x[0]===BOTCFG.style)||BOTSTYLES[0];
-  op={id:"__bot",bot:true,botStyle:sty[0],botName:b.name+(sty[0]!=="bal"?" ("+sty[1]+")":""),g:"c",side,name:src?src.name+" gegen "+b.name:"Partie gegen "+b.name,eco:"Computer",d:`${b.name} · Stufe ${b.lvl} (${b.elo}). ${b.d}`,plan:[],lines:[]};
+  botMood="neutral";
+  op={id:"__bot",bot:true,botCo:b.co,botStyle:sty[0],botName:tn.nick+(sty[0]!==b.sty?" ("+sty[1]+")":""),g:"c",side,name:src?src.name+" gegen "+tn.full:"Partie gegen "+tn.full,eco:"Computer",d:`${tn.full} · Stufe ${b.lvl} (${b.elo}). ${b.d}`,plan:[],lines:[]};
   resetBoard();mode="train";
   if(src&&src.lines[0]){for(const m of src.lines[0].m){const g=new Chess(fens[hist.length]);const mv=findMove(g,m);if(!mv)break;commit(mv,"b")}view=hist.length;shown=new Chess(fens[view])}
   showView("train");buildSquares();startEngine(!src);
@@ -3618,7 +3657,7 @@ function renderAnalyse(){
   const list=ANAH.slice(0,12);
   const row=g=>{const rv=REV[g.id];const acc=rv&&rv.acc?(g.foreign?`${rv.acc.w.toFixed(0)} | ${rv.acc.b.toFixed(0)}`:rv.acc[g.color].toFixed(1)+" %"):"";
     return `<button class="gi" data-ah="${esc(g.id)}"><span class="res ${g.foreign?"draw":g.res}">${g.foreign?"·":g.res==="win"?"S":g.res==="loss"?"N":"½"}</span><span style="min-width:0"><b>${esc(g.white||"Weiß")} – ${esc(g.black||"Schwarz")}</b><small>${esc(g.fam||"")}${g.result?" · "+esc(g.result):""}${g.date?" · "+fmtDate(g.date):""}</small></span><span class="acc">${acc}</span><span class="mini">${rv?"Öffnen":"Review"}</span></button>`};
-  v.innerHTML=pageHead("Partie analysieren","Füg eine Partie ein, Stockfish bewertet jeden Zug.","search")+anaInputHtml()+
+  v.innerHTML=pageHead("Partie analysieren","Füg eine Partie ein, Stockfish bewertet jeden Zug.","search","ana")+anaInputHtml()+
   `<div class="card"><h3>Analysebrett</h3><p class="hint" style="margin:0 0 8px">Untersuche eine beliebige Stellung: Ziehe für beide Seiten, Stockfish zeigt die drei besten Fortsetzungen.</p>
     <input class="txt" id="abFen" placeholder="FEN einfügen (leer = Grundstellung)" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="btnrow" style="margin-top:8px"><button class="btn grn" id="abGo">Analysebrett öffnen</button><span class="hint" id="abMsg"></span></div></div>
   <div class="sec-h"><h3>Zuletzt analysiert</h3>${list.length?`<small>${list.length} Partien</small>`:""}</div>
@@ -3783,7 +3822,8 @@ const crsStyles=c=>c.st.map(k=>STYLES[k]?STYLES[k].n:k).join(" · ");
 /* ---- Kursdesign, Ränge und Trainer (Figuren und Themen in coaches.js) ---- */
 (function(){const wf=id=>{const w=WFONT[id]||WFONT.mila;return `--wf:"${w.f}";--wfs:${w.s};--wls:${w.ls}`};
   const css=Object.keys(COURSE_THEME).map(id=>{const t=COURSE_THEME[id];return `.th-${id}{--c1:${t.c1};--c2:${t.c2};--pat:${crsPat(t.pat)};${wf(t.co)}}`}).join("\n")+"\n"+
-  Object.keys(COACHES).map(id=>`.co-${id}{--k1:${COACHES[id].bg[0]};--k2:${COACHES[id].bg[1]};${wf(id)}}`).join("\n");
+  Object.keys(COACHES).map(id=>`.co-${id}{--k1:${COACHES[id].bg[0]};--k2:${COACHES[id].bg[1]};${wf(id)}}`).join("\n")+"\n"+
+  (typeof SECT!=="undefined"?Object.keys(SECT).map(k=>`.sec-${k}{--c1:${SECT[k].c1};--c2:${SECT[k].c2};--pat:${crsPat(SECT[k].pat)}}`).join("\n"):"");
   const el=document.createElement("style");el.id="crs-themes";el.textContent=css;document.head.appendChild(el)})();
 if(!st.crs||typeof st.crs!=="object"||Array.isArray(st.crs))st.crs={};
 const thOf=c=>COURSE_THEME[c.id]||COURSE_THEME.w_start;
@@ -3928,14 +3968,14 @@ function renderCourses(){
   const SF=[["","Alle Stile"]].concat(Object.keys(STYLES).map(k=>[k,STYLES[k].n]));
   const CF=[["","Beide Farben"],["w","Weiß"],["b","Schwarz"]];
   const list=COURSES.filter(c=>(!crsF.st||c.st.indexOf(crsF.st)>=0)&&(!crsF.side||c.side.indexOf(crsF.side)>=0)&&(!crsF.co||coIdOf(c)===crsF.co));
-  v.innerHTML=pageHead("Kurse","Such dir einen Kurs, der zu deinem Spielstil passt. Jeder Kurs hat seinen eigenen Trainer und eigene Ränge.","learn")+
+  v.innerHTML=pageHead("Kurse","Such dir einen Kurs, der zu deinem Spielstil passt. Jeder Kurs hat seinen eigenen Trainer und eigene Ränge.","learn","crsmap")+
   crsLineup()+
   `<div class="crs-f"><div class="filters" role="group" aria-label="Spielstil">${SF.map(f=>`<button class="chip${crsF.st===f[0]?" on":""}" data-cst="${f[0]}" aria-pressed="${crsF.st===f[0]}">${f[1]}</button>`).join("")}</div>
   <div class="filters" role="group" aria-label="Farbe">${CF.map(f=>`<button class="chip${crsF.side===f[0]?" on":""}" data-csd="${f[0]}" aria-pressed="${crsF.side===f[0]}">${f[1]}</button>`).join("")}</div>
   ${crsF.st?`<p class="hint crs-sd"><b>${esc(STYLES[crsF.st].n)}:</b> ${esc(STYLES[crsF.st].d)}</p>`:""}</div>`+sciHtml()+
   (list.length?`<div class="crs">${list.map(c=>{const th=thOf(c),co=COACHES[coIdOf(c)],r=crsRank(c);
     return `<button class="crc th-${c.id} co-${coIdOf(c)}" data-crs="${c.id}">
-      <span class="crc-band">${sceneSvg(c.id)}<span class="crc-veil" aria-hidden="true"></span><span class="crc-id">${rkB(c,r.i,46,"on")}<span><b class="crc-w">${esc(worldOf(c).name)}</b><small>${esc(r.name)} · Rang ${r.i+1} von 6</small></span></span><span class="crc-tr" aria-hidden="true">${coachSvg(coIdOf(c),r.f>=1?"joy":"happy","bust")}</span></span>
+      <span class="crc-band">${sceneImg(c.id)}<span class="crc-veil" aria-hidden="true"></span><span class="crc-id">${rkB(c,r.i,46,"on")}<span><b class="crc-w">${esc(worldOf(c).name)}</b><small>${esc(r.name)} · Rang ${r.i+1} von 6</small></span></span><span class="crc-tr" aria-hidden="true">${coachImg(coIdOf(c),r.f>=1?"joy":"happy")}</span></span>
       <span class="crc-body"><span class="crc-top"><span class="crc-tags"><span class="crc-tag">${esc(c.lvl)}</span>${c.st.map(k=>`<span class="crc-st">${esc(STYLES[k]?STYLES[k].n:k)}</span>`).join("")}</span><span class="crc-side">${sideTxt(c)}</span></span>
       <b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-co">Trainer: <b>${esc(TRAINER[coIdOf(c)].full)}</b> · ${esc(co.r)}</span>
       <span class="crc-p"><span class="prog"><i style="width:${r.f*100}%"></i></span><small>${r.p.cl}/${r.p.n} Varianten · ${c.ch.length} Kapitel</small></span></span></button>`}).join("")}</div>`
@@ -4224,11 +4264,28 @@ function crsCert(c){
     el.addEventListener("click",e=>{if(e.target===el)crsOvClose()});
     return el});
 }
+/* Grafiken in Listen als Bild statt als SVG-Baum: viel weniger DOM-Knoten, schnelleres Umschalten der Seiten.
+   Große Ansichten (Kopfbereiche, Feiern) bleiben echtes SVG, damit sie sich bewegen können. */
+const _svgUrls=new Map();
+function svgUrl(key,build){let u=_svgUrls.get(key);if(!u){const src=build();try{u=URL.createObjectURL(new Blob([src],{type:"image/svg+xml"}))}catch(e){u="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(src)}_svgUrls.set(key,u)}return u}
+const sceneUrl=id=>svgUrl("s:"+id,()=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice"><style>${SCN_CSS}</style>${(SCENES[id]||SCENES.w_start)()}</svg>`);
+const coachUrl=(id,mood)=>svgUrl("c:"+id+":"+mood,()=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220">${(TR_ART[id]||TR_ART.mila)(mood,true)}</svg>`);
+const sceneImg=id=>`<img class="scn" src="${sceneUrl(id)}" alt="" decoding="async" draggable="false">`;
+const coachImg=(id,mood)=>`<img class="tr" src="${coachUrl(id,mood)}" alt="" decoding="async" draggable="false">`;
+/* In ruhigen Momenten vorbereiten, damit Kursliste und Gegnerwahl sofort stehen */
+function warmArt(){
+  const jobs=COURSES.map(c=>()=>sceneUrl(c.id)).concat(Object.keys(COACHES).flatMap(id=>["neutral","happy"].map(m=>()=>coachUrl(id,m))));
+  const ric=window.requestIdleCallback||(f=>setTimeout(()=>f({timeRemaining:()=>10}),120));
+  const step=d=>{while(jobs.length&&d.timeRemaining()>5){try{const im=new Image();im.src=jobs.shift()();if(im.decode)im.decode().catch(()=>{})}catch(e){}}if(jobs.length)ric(step)};
+  ric(step);
+}
+/* Begrüßung auf der Startseite – im Ton des Trainers */
+const HOME_HI={mila:"Schön, dass du da bist!",bruno:"Servus, auf geht's!",greta:"Willkommen in der Festung.",konrad:"Moin, Matrose!",linus:"Da bist du ja!",rex:"Bereit für Action?",nova:"Systeme online!",ilka:"Heute brodelt's!",rika:"Ahoi!"};
 /* Trainer-Aufstellung über der Kursliste: antippen filtert die Kurse dieses Trainers */
 function crsLineup(){
   const ids=Object.keys(COACHES);
   return `<section class="trl-w"><h3>Deine Trainer</h3><div class="trl" role="group" aria-label="Kurse nach Trainer filtern">${ids.map(id=>{const n=COURSES.filter(c=>coIdOf(c)===id).length,on=crsF.co===id;
-    return `<button class="trl-i co-${id}${on?" on":""}" data-cco="${id}" aria-pressed="${on}" title="${esc(TRAINER[id].full)} – ${esc(COACHES[id].r)}"><span class="trl-art">${coachSvg(id,on?"joy":"neutral","bust")}</span><b>${esc(TRAINER[id].nick)}</b><small>${nV(n,"Kurs","Kurse")}</small></button>`}).join("")}</div></section>`;
+    return `<button class="trl-i co-${id}${on?" on":""}" data-cco="${id}" aria-pressed="${on}" title="${esc(TRAINER[id].full)} – ${esc(COACHES[id].r)}"><span class="trl-art">${coachImg(id,on?"joy":"neutral")}</span><b>${esc(TRAINER[id].nick)}</b><small>${nV(n,"Kurs","Kurse")}</small></button>`}).join("")}</div></section>`;
 }
 /* Steckbrief: der Trainer stellt sich vor – mit Motto, Charakterwerten und Markenzeichen */
 function crsTrainerCard(c,first){
@@ -4271,7 +4328,7 @@ function renderRepEdit(){
         html+=`<li><div class="rt-row"><span class="rt-mv">${esc(label)}</span>${node.end.map(l=>`<span class="rt-end">${esc(l.n)}<button class="rt-del" data-del="${o.side}|${l.ci}" title="Variante löschen" aria-label="Variante ${esc(l.n)} löschen">✕</button></span>`).join("")}<button class="rt-add" data-br="${esc(o.id)}|${esc(p.join(" "))}" title="Hier abzweigen" aria-label="Hier eine neue Variante abzweigen">+</button></div>${Object.keys(node.k).length?`<ul>${walk(node,p)}</ul>`:""}</li>`});
       return html};
     return `<ul class="rtree">${walk(root,[])}</ul>`};
-  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Eigene Varianten","Dein Repertoire als Baum: Mit + zweigst du an jeder Stelle eine neue Variante ab, mit ✕ löschst du eine.","edit")+
+  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Eigene Varianten","Dein Repertoire als Baum: Mit + zweigst du an jeder Stelle eine neue Variante ab, mit ✕ löschst du eine.","edit","open")+
   (groups.length?groups.map(o=>`<section class="card"><div class="rt-h"><div><h3 style="margin:0">${esc(o.grp)}</h3><small class="sub">${o.side==="w"?"Weiß":"Schwarz"} · ${o.lines.length} Varianten</small></div><span class="btnrow"><button class="btn" data-trn="${esc(o.id)}">Trainieren</button><button class="btn" data-br="${esc(o.id)}|">Neue Variante</button></span></div>${tree(o)}</section>`).join(""):emptyState("edit","Noch keine eigenen Varianten","Spiel eine Zugfolge im Editor ein oder importiere eine PGN-Datei.",`<span class="btnrow" style="justify-content:center"><button class="btn grn" id="reNew">Eigene Variante</button><button class="btn" id="reImp">Importieren</button></span>`));
   wireBack(v);
   if($("reNew"))$("reNew").onclick=()=>openEditor();if($("reImp"))$("reImp").onclick=()=>showView("import");
@@ -4286,7 +4343,7 @@ const CO=Object.assign({mode:"find",side:"w",best:{find:0,name:0}},store.get("et
 let coRun=null,coTapFn=null;
 function renderCoords(){
   const v=$("v-coords");if(!v)return;
-  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Koordinaten","Finde Felder blitzschnell – das hilft beim Lesen von Notation und beim Blind-Training.","target")+
+  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Koordinaten","Finde Felder blitzschnell – das hilft beim Lesen von Notation und beim Blind-Training.","target","coord")+
   `<div class="co-wrap"><div class="co-left"><div class="co-board" id="coBoard"></div><div class="co-big" id="coBig" hidden></div></div>
   <div class="card co-side"><div class="setrow"><span><b>Aufgabe</b></span><span class="seg">${[["find","Feld finden"],["name","Feld benennen"]].map(m=>`<button data-com="${m[0]}" aria-pressed="${CO.mode===m[0]}">${m[1]}</button>`).join("")}</span></div>
   <div class="setrow"><span><b>Brett von</b></span><span class="seg">${[["w","Weiß"],["b","Schwarz"]].map(m=>`<button data-cos="${m[0]}" aria-pressed="${CO.side===m[0]}">${m[1]}</button>`).join("")}</span></div>
@@ -4317,7 +4374,7 @@ let guess=null;
 const GUESSB=store.get("et-guess",{});
 function renderGuessPick(){
   const v=$("v-guess");if(!v)return;
-  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Finde den Meisterzug","Spiel eine berühmte Partie aus Sicht einer Seite nach und rate jeden Zug. Der Meisterzug bringt 5 Punkte, ein fast gleich guter Zug laut Stockfish 1–3 Punkte.","games")+
+  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Finde den Meisterzug","Spiel eine berühmte Partie aus Sicht einer Seite nach und rate jeden Zug. Der Meisterzug bringt 5 Punkte, ein fast gleich guter Zug laut Stockfish 1–3 Punkte.","games","games")+
   `<div class="grid3">${GAMES.map(g=>{const pl=g.players.split(" – ");return `<div class="gcard"><h4>${esc(g.title)}</h4><div class="sub">${esc(g.players)} · ${esc(g.year)}</div><p>${esc(g.d)}</p><div class="btnrow">${["w","b"].map(s=>{const bs=GUESSB[g.id+s];return `<button class="btn${s==="w"?" grn":""}" data-gs="${g.id}|${s}">Als ${esc(pl[s==="w"?0:1]||(s==="w"?"Weiß":"Schwarz"))}${bs?` · ${bs} %`:""}</button>`}).join("")}</div></div>`}).join("")}</div>`;
   wireBack(v);
   v.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{const [id,s]=b.dataset.gs.split("|");startGuess(GAMES.find(g=>g.id===id),s)});
@@ -4495,11 +4552,11 @@ function tourStand(t){const S0={};(t.players||[]).forEach(u=>S0[u]={u,p:0,n:0,w:
   return Object.values(S0).sort((a,b)=>b.p-a.p||b.w-a.w)}
 function renderTours(){
   const v=$("v-tours");if(!v)return;
-  if(!ON.user||!ON.profile){v.innerHTML=pageHead("Turniere","Jeder gegen jeden mit deinen Freunden.","swords")+emptyState("online","Melde dich an","Turniere spielst du mit einem Konto und Freunden.",`<button class="btn grn" data-go="online:account">Anmelden</button>`);v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));return}
+  if(!ON.user||!ON.profile){v.innerHTML=pageHead("Turniere","Jeder gegen jeden mit deinen Freunden.","swords","tour")+emptyState("online","Melde dich an","Turniere spielst du mit einem Konto und Freunden.",`<button class="btn grn" data-go="online:account">Anmelden</button>`);v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));return}
   tourWatch();const me=ON.user.uid;
   if(TOUR.open){const t=TOUR.list.find(x=>x.id===TOUR.open);if(t){renderTour(v,t);return}TOUR.open=null}
   const fr=(ON.profile.friends||[]);
-  v.innerHTML=pageHead("Turniere","Jeder gegen jeden mit deinen Freunden – die Partien spielt ihr, wann ihr wollt.","swords")+
+  v.innerHTML=pageHead("Turniere","Jeder gegen jeden mit deinen Freunden – die Partien spielt ihr, wann ihr wollt.","swords","tour")+
   `${TOUR.list.length?`<div class="glist">${TOUR.list.map(t=>{const st2=tourStand(t);const done=(t.pairs||[]).filter(p=>{const g=p.gid&&(TOUR.games[p.gid]||(ON.games||[]).find(x=>x.id===p.gid));return g&&g.status==="over"}).length;
     return `<button class="gi" data-tour="${esc(t.id)}"><span class="res ${done===(t.pairs||[]).length?"win":"draw"}">${(t.players||[]).length}</span><span style="min-width:0"><b>${esc(t.name||"Turnier")}</b><small>${tcTxt(t.tc)} · ${done}/${(t.pairs||[]).length} Partien · vorn: ${esc((t.names&&st2[0]&&t.names[st2[0].u])||"–")}</small></span><span class="acc"></span><span class="mini">Öffnen</span></button>`}).join("")}</div>`:emptyState("swords","Noch kein Turnier","Lade 2 bis 7 Freunde ein. Jeder spielt einmal gegen jeden.")}
   <div class="card"><h3>Neues Turnier</h3>${fr.length<2?`<p class="hint" style="margin:0">Du brauchst mindestens zwei Freunde. Füge sie unter Profil → Freunde hinzu.</p>`:`
@@ -4714,7 +4771,7 @@ function renderLeague(){
       ${n>=4?`<p class="hint" style="margin:8px 0 0"><span class="zone up"></span> Aufstiegszone · <span class="zone down"></span> Abstiegszone</p>`:""}</div>`;
     }
   }else table=`<div class="card"><h3>Gegen andere antreten</h3><p class="hint" style="margin:0 0 10px">Mit einem kostenlosen Konto spielst du in einer echten Liga mit anderen Spielern. Ohne Konto gilt die Solo-Regel: ab 350 XP pro Woche steigst du auf, unter 60 XP ab.</p><button class="btn grn" data-go="online:account">Konto erstellen oder anmelden</button></div>`;
-  v.innerHTML=pageHead("Wochenliga","Sammle XP mit allem, was du trainierst. Jeden Montag wird abgerechnet.","bolt")+
+  v.innerHTML=pageHead("Wochenliga","Sammle XP mit allem, was du trainierst. Jeden Montag wird abgerechnet.","bolt","league")+
   `<div class="lg-hero" style="--lgc:${L[1]}">${SHIELD(L[1],64)}<div><small>Deine Liga</small><h3>${L[0]}</h3><span>${GX.wk.xp} XP diese Woche · noch ${left} ${left===1?"Tag":"Tage"}</span>
     ${!online?`<span class="pbar2" style="margin-top:8px"><i style="width:${Math.min(100,GX.wk.xp/350*100)}%"></i></span><em class="lg-sub">${GX.wk.xp>=350?"Aufstieg sicher":`${350-GX.wk.xp} XP bis zum Aufstieg`}</em>`:""}</div></div>
   ${res?`<div class="card lgres"><b>${res.to>res.from?"Aufgestiegen":res.to<res.from?"Abgestiegen":"Klasse gehalten"}</b> <span class="hint">KW ${weekNo(res.id)}: ${res.xp} XP${res.n>=4?` · Platz ${res.rank} von ${res.n}`:""} · ${LEAGUES[res.from][0]} → ${LEAGUES[res.to][0]}</span></div>`:""}
@@ -5060,14 +5117,14 @@ function tlogChart(L){
 }
 function renderTacHist(){
   const v=$("v-tactics");const all=PZ.log.slice().reverse();
-  if(!all.length){v.innerHTML=tacTabsHtml()+pageHead("Taktik-Verlauf","Jede Aufgabe mit Ergebnis, Zeit und Wertung.","bolt")+emptyState("bolt","Noch keine Aufgaben im Verlauf","Ab jetzt landet jede gelöste und jede verpatzte Aufgabe hier – zum Nachspielen und Lernen.",`<button class="btn grn" data-tac="rated">Erste Aufgabe lösen</button>`);wireTacTabs(v);v.querySelectorAll("[data-tac]").forEach(b=>b.onclick=()=>tacticSession(b.dataset.tac));return}
+  if(!all.length){v.innerHTML=tacTabsHtml()+pageHead("Taktik-Verlauf","Jede Aufgabe mit Ergebnis, Zeit und Wertung.","bolt","tac")+emptyState("bolt","Noch keine Aufgaben im Verlauf","Ab jetzt landet jede gelöste und jede verpatzte Aufgabe hier – zum Nachspielen und Lernen.",`<button class="btn grn" data-tac="rated">Erste Aufgabe lösen</button>`);wireTacTabs(v);v.querySelectorAll("[data-tac]").forEach(b=>b.onclick=()=>tacticSession(b.dataset.tac));return}
   const thList=[...new Set(all.flatMap(e=>e.th||[]))].filter(t=>TTH[t]).sort((a,b)=>TTH[a][0].localeCompare(TTH[b][0],"de"));
   if(THV.th&&thList.indexOf(THV.th)<0)THV.th="";
   const L=all.filter(e=>(THV.res==="all"||(THV.res==="ok"?e.ok:!e.ok))&&(!THV.th||(e.th||[]).indexOf(THV.th)>=0));
   const wk=all.filter(e=>Date.now()-e.t<7*DAY_MS);const okN=L.filter(e=>e.ok).length;const tms=L.filter(e=>e.ms!=null&&e.ok).map(e=>e.ms);
   const rated=wk.filter(e=>e.r!=null);const dW=rated.reduce((a,e)=>a+(e.d||0),0);
   const best=L.filter(e=>e.ok).sort((a,b)=>(b.pr||0)-(a.pr||0))[0];
-  let h=tacTabsHtml()+pageHead("Taktik-Verlauf",`Deine letzten ${all.length} Aufgaben – tippe eine an, um sie nochmal zu spielen.`,"bolt");
+  let h=tacTabsHtml()+pageHead("Taktik-Verlauf",`Deine letzten ${all.length} Aufgaben – tippe eine an, um sie nochmal zu spielen.`,"bolt","tac");
   h+=`<div class="kpis">${[["7 Tage",wk.length,`${wk.filter(e=>e.ok).length} gelöst`],["Trefferquote",L.length?pct(okN/L.length):"–",`${okN} von ${L.length}`],["Ø Lösungszeit",tms.length?fmtDur(tms.reduce((a,b)=>a+b,0)/tms.length):"–","bei gelösten"],["Wertung 7 Tage",rated.length?(dW>0?"+":"")+dW:"–",best?`schwerste gelöst: ${best.pr}`:`aktuell ${PZ.r}`]].map(t=>`<div class="kpi"><small>${t[0]}</small><b>${esc(String(t[1]))}</b><span>${esc(t[2])}</span></div>`).join("")}</div>`;
   h+=tlogChart(all);
   h+=`<div class="th-f"><div class="seg">${[["all","Alle"],["ok","Gelöst"],["no","Nicht gelöst"]].map(r=>`<button data-thr="${r[0]}" aria-pressed="${THV.res===r[0]}">${r[1]}</button>`).join("")}</div>
@@ -5144,11 +5201,11 @@ function lexRow(e,f,showFam){
 }
 function renderLex(){
   const v=$("v-openings");
-  if(!ECO.ready){v.innerHTML=opTabsHtml()+pageHead("Eröffnungslexikon","Alle benannten Eröffnungen und Varianten.","book")+`<div class="card">${SKEL}</div>`;wireOpTabs(v);
+  if(!ECO.ready){v.innerHTML=opTabsHtml()+pageHead("Eröffnungslexikon","Alle benannten Eröffnungen und Varianten.","book","lex")+`<div class="card">${SKEL}</div>`;wireOpTabs(v);
     ecoLoad().then(()=>{if(curView==="openings"&&opTab==="lex")renderLex()}).catch(()=>{if(curView==="openings")v.querySelector(".card").innerHTML='<p class="err">Das Lexikon konnte nicht geladen werden. Prüfe die Internetverbindung.</p>'});return}
   const fams=lexFamilies();let h=opTabsHtml();
   if(LEX.fam){const f=fams.find(x=>x.id===LEX.fam);if(f){renderLexFam(v,f);return}LEX.fam=null}
-  h+=pageHead("Eröffnungslexikon",`${ECO.list.length.toLocaleString("de-DE")} benannte Eröffnungen und Varianten in ${fams.length} Familien – ansehen, im Analysebrett untersuchen oder direkt trainieren.`,"book");
+  h+=pageHead("Eröffnungslexikon",`${ECO.list.length.toLocaleString("de-DE")} benannte Eröffnungen und Varianten in ${fams.length} Familien – ansehen, im Analysebrett untersuchen oder direkt trainieren.`,"book","lex");
   h+=`<input class="txt" id="lxSearch" type="search" placeholder="Name, ECO-Code oder Züge, z. B. Najdorf, B90 oder 1.e4 c5" value="${esc(LEX.q)}" aria-label="Lexikon durchsuchen" autocomplete="off">`;
   const q=LEX.q.trim();
   if(q){const mq=parseMoveQuery(q);let res;
@@ -5242,6 +5299,7 @@ try{
 }catch(err){window.__showErr(String(err&&err.stack||err))}
 renderTabbar();
 {const sp=$("splash");if(sp){setTimeout(()=>{sp.classList.add("out");setTimeout(()=>sp.remove(),400)},300)}}
+setTimeout(warmArt,2500);
 const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
 if(firstRun&&!location.hash)setTimeout(openLanding,300);else if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
