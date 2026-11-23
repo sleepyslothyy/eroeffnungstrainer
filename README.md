@@ -17,6 +17,12 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
   - Lern- und Prüfmodus: Neue Varianten werden zuerst mit Pfeilen und Erklärungen vorgezeigt, danach spielst du sie ohne Hilfe
   - **18 Kurse für sieben Spielstile** (Einstieg, Angriff, Solide, Strategie, Dynamisch, Gambits, Wenig Theorie) mit Kapiteln vom Einsteiger bis stark, Filter nach Stil und Farbe, Varianten-Baum für eigene Varianten (abzweigen, löschen)
   - **Jeder Kurs ist eine eigene Welt** (`worlds.js`): 18 gezeichnete Szenen, z. B. Schachschule, Sternwarte, Vulkan, Piratenbucht und Geisterschiff. Jede Trainerwelt hat ihre eigene Schrift. Dazu kommen Rangabzeichen in sechs Formen bis zum Lorbeerkranz und eine Abenteuerkarte, auf der die Kapitel als Stationen an einem gewundenen Weg liegen. Bei einem neuen Rang erscheint ein Feier-Bildschirm. Nach jeder Lerneinheit gibt es einen Bericht im Stil der Welt („Kaperbericht“, „Messprotokoll“, „Sternenprotokoll“ …). Wer einen Kurs meistert, kann sich eine Urkunde als Bild speichern. Der zuletzt geöffnete Kurs steht als Kachel auf der Startseite.
+  - **Jede Seite hat ein eigenes Bild** (`sections.js`): Training, Eröffnungen, Taktik, Endspiele, Quiz, Musterpartien, Analyse, Online, Turniere, Liga, Statistik, Koordinaten, Lexikon und die Kursübersicht bekommen je eine gezeichnete Szene im Stil der Kurswelten.
+  - **Die Trainer spielen mit:** Unter „Gegen den Computer“ sind die neun Trainer die Gegner, von Mila (ca. 600) bis Rex (volle Stärke). Jeder hat einen eigenen Spielstil und eigene Sprüche und reagiert im Spiel mit seinem Gesicht.
+  - **Begrüßung auf der Startseite:** Der Trainer deines letzten Kurses sagt dir, was heute ansteht.
+  - Leere Seiten zeigen einen Trainer statt eines Symbols.
+  - Seitenwechsel blenden sanft ein.
+  - Damit Listen schnell bleiben, stehen Szenen und Figuren dort als zwischengespeicherte Bilder. Sie werden in ruhigen Momenten vorbereitet.
   - **Die Trainer sind eigene Figuren** (`trainers.js`). Jede Figur ist als Brustbild gezeichnet, mit Outfit, Markenzeichen und sechs Gesichtsausdrücken. Drei haben einen tierischen oder technischen Begleiter:
     - Mila mit Eule Professor Uhu
     - Nova mit Roboter Bit
