@@ -285,7 +285,8 @@ const CRS_IC={
   chest:"M3 10h18v10H3z M3 10a9 5 0 0 1 18 0 M3 14h18 M11 13h2v3h-2z",
   sail:"M4 18h16l-2 3H6z M12 3v15 M12 4l7 11h-7 M12 6l-5 9h5",
   redo:"M3 12a9 9 0 1 0 3-6.7 M3 4v5h5",
-  medal:"M8 3h8l-2 6h-4z M12 21a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 13v4"
+  medal:"M8 3h8l-2 6h-4z M12 21a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 13v4",
+  info:"M4 5h16v14H4z M8 10a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z M5.5 15c.6-2 4.4-2 5 0 M13 9h4 M13 12h4 M13 15h3"
 };
 const crsIcon=(k,s)=>`<svg width="${s||24}" height="${s||24}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${CRS_IC[k]||CRS_IC.cap}"/></svg>`;
 
@@ -302,59 +303,4 @@ const CRS_PAT={
 };
 const crsPat=k=>{const p=CRS_PAT[k]||CRS_PAT.dots;return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${p[0]}' height='${p[1]}'>${p[2]}</svg>`)}")`};
 
-/* Trainer-Gesicht als SVG. mood: neutral, happy, joy, worry */
-function coachSvg(id,mood){
-  const C=COACHES[id]||COACHES.mila,L=C.look,sk=L.skin,hr=L.hair;
-  const dark="#2B2321",lip="#7A3B2E";
-  const brow=mood==="worry"?"M24.5 25.2q2.6-.2 5-1.6 M34.5 23.6q2.4 1.4 5 1.6":mood==="joy"?"M24.5 24.6q2.5-2.2 5-.4 M34.5 24.2q2.5-1.8 5 .4":"M24.5 25.3q2.5-1.5 5 0 M34.5 25.3q2.5-1.5 5 0";
-  const mouth=mood==="joy"?`<path d="M26.5 35.2h11q-.6 5.6-5.5 5.6t-5.5-5.6z" fill="${lip}"/><path d="M28.5 35.2h7v1.4h-7z" fill="#fff" opacity=".9"/>`
-    :mood==="happy"?`<path d="M27 35.6q5 4.4 10 0" stroke="${lip}" stroke-width="1.7" fill="none" stroke-linecap="round"/>`
-    :mood==="worry"?`<path d="M28.5 38q3.5-2.4 7 0" stroke="${lip}" stroke-width="1.7" fill="none" stroke-linecap="round"/>`
-    :`<path d="M28.5 36.6q3.5 1.6 7 0" stroke="${lip}" stroke-width="1.7" fill="none" stroke-linecap="round"/>`;
-  const eyeL=`<ellipse cx="27" cy="30.5" rx="1.7" ry="${mood==="joy"?1.2:2}" fill="${dark}"/>`,eyeR=`<ellipse cx="37" cy="30.5" rx="1.7" ry="${mood==="joy"?1.2:2}" fill="${dark}"/>`;
-  let back="",top="",extra="",beard="",eyes=eyeL+eyeR;
-  const shirt=`<path d="M7 66c1-13 11-20 25-20s24 7 25 20z" fill="${L.shirt}"/>`;
-  switch(L.k){
-    case "mila":
-      back=`<path d="M18.5 34c-2.5-13 4-20 13.5-20s16 7 13.5 20z" fill="${hr}"/>`;
-      top=`<circle cx="32" cy="12.6" r="5.4" fill="${hr}"/><path d="M18.6 29.5c.3-9.4 6-15 13.4-15s13.1 5.6 13.4 15c-3-5.2-7-8.2-12-8.4-2.2 2.6-7 4.6-14.8 8.4z" fill="${hr}"/>`;
-      extra=`<g fill="none" stroke="#3A2F2A" stroke-width="1.3"><circle cx="27" cy="30.4" r="3.7"/><circle cx="37" cy="30.4" r="3.7"/><path d="M30.7 30.2h2.6"/></g>`;
-      break;
-    case "bruno":
-      beard=`<path d="M19.5 31c.2 9.5 5.6 14 12.5 14s12.3-4.5 12.5-14c-2.2 4-5.6 5.6-12.5 5.6S21.7 35 19.5 31z" fill="#6B4A2E"/>`;
-      top=`<path d="M17.5 25c0-9 6.6-14 14.5-14s14.5 5 14.5 14z" fill="#F2B705"/><path d="M32 11.2v13.6" stroke="#D99A00" stroke-width="2.2"/><rect x="14" y="23.6" width="36" height="3.8" rx="1.9" fill="#E0A500"/>`;
-      break;
-    case "greta":
-      back=`<g fill="${hr}"><ellipse cx="18.2" cy="38" rx="3.1" ry="4.2"/><ellipse cx="17.6" cy="45.4" rx="2.7" ry="3.6"/><ellipse cx="45.8" cy="38" rx="3.1" ry="4.2"/><ellipse cx="46.4" cy="45.4" rx="2.7" ry="3.6"/></g>`;
-      top=`<path d="M18.5 31c-1-11.4 5-17.2 13.5-17.2S46.5 19.6 45.5 31c-1.6-6.2-6.2-9.6-13.5-9.6S20.1 24.8 18.5 31z" fill="${hr}"/><path d="M19.6 24.2q12.4-6.4 24.8 0" stroke="#C9CED6" stroke-width="2.2" fill="none"/><circle cx="32" cy="21.1" r="1.8" fill="#5BA4E6" stroke="#C9CED6" stroke-width="1"/>`;
-      break;
-    case "konrad":
-      beard=`<path d="M19.4 30.4c.5 9.6 6 15.2 12.6 15.2s12.1-5.6 12.6-15.2c-2.5 3.6-6 5.1-12.6 5.1s-10.1-1.5-12.6-5.1z" fill="${hr}"/><path d="M27 35q5-2.8 10 0-5 1.2-10 0z" fill="#D6D0C6"/>`;
-      top=`<path d="M17.5 23c0-6.6 6.5-10.4 14.5-10.4S46.5 16.4 46.5 23z" fill="#F4F2EE"/><rect x="17" y="21.2" width="30" height="4.2" rx="1.6" fill="#1F3354"/><circle cx="32" cy="23.3" r="2.1" fill="#E2B33C"/><path d="M19.2 25.4h25.6c-1.6 2.4-4.4 3.2-12.8 3.2s-11.2-.8-12.8-3.2z" fill="#16202E"/>`;
-      break;
-    case "rex":
-      top=`<path d="M18 28l-1.4-9.5 5.2 4 1.8-9.5 5.2 6.2L32 9.6l3.2 9.6 5.2-6.2 1.8 9.5 5.2-4L46 28c-3.2-4.2-8-6.4-14-6.4s-10.8 2.2-14 6.4z" fill="${hr}"/><rect x="18.6" y="22.6" width="26.8" height="4" rx="2" fill="#FFF"/><rect x="18.6" y="24" width="26.8" height="1.2" fill="#C7372B"/>`;
-      break;
-    case "nova":
-      back=`<path d="M14.5 34c-3.5-15 6-24.6 17.5-24.6S53 19 49.5 34l-3.2-6-1 5.2-3.2-8.4-2 4.2-3.2-6.2-3 5.2-3-5.2-2 4.2-3.2-6.2-2.2 7.2z" fill="${hr}"/>`;
-      top=`<path d="M19.6 25.6q6-6.4 12.4-3.2 5.6-4.2 12.4 3.2-6.4-2-12.4-1-6-1-12.4 1z" fill="${hr}"/>`;
-      extra=`<path d="M18.6 35.6l-1.6 3.1h2.2l-1.6 3.1" stroke="#FFD34D" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M45.4 35.6l-1.6 3.1h2.2l-1.6 3.1" stroke="#FFD34D" stroke-width="1.3" fill="none" stroke-linecap="round"/>`;
-      break;
-    case "ilka":
-      top=`<path d="M18 33c-1.2-12.4 5-18.6 14-18.6s15.2 6.2 14 18.6c-.8-3-2-4.4-3-5.4 0-4.2-4.2-7.2-11-7.2s-11 3-11 7.2c-1 1-2.2 2.4-3 5.4z" fill="${hr}"/><rect x="19.4" y="18.8" width="25.2" height="7" rx="3.5" fill="#3A3A3A"/><circle cx="26.8" cy="22.3" r="3.9" fill="#F59E0B" stroke="#3A3A3A" stroke-width="1.6"/><circle cx="37.2" cy="22.3" r="3.9" fill="#F59E0B" stroke="#3A3A3A" stroke-width="1.6"/><circle cx="25.6" cy="21.2" r="1" fill="#FFF" opacity=".7"/><circle cx="36" cy="21.2" r="1" fill="#FFF" opacity=".7"/>`;
-      break;
-    case "rika":
-      back=`<path d="M18.4 30c-2.4 8.4-1.6 16.6 2 21h7.6V38z M45.6 30c2.4 8.4 1.6 16.6-2 21H36V38z" fill="${hr}"/>`;
-      top=`<path d="M11.5 23c6.4 2.4 10.4-1 20.5-1s14.1 3.4 20.5 1c-2-8.4-10.2-12.6-20.5-12.6S13.5 14.6 11.5 23z" fill="#2B2B2B"/><path d="M11.5 23c6.4 2.4 10.4-1 20.5-1s14.1 3.4 20.5 1" stroke="#E2B33C" stroke-width="1.6" fill="none"/>`;
-      extra=`<path d="M21.5 24.5 42.5 31.5" stroke="#1E1E1E" stroke-width="1.2"/><ellipse cx="37" cy="30.6" rx="3.5" ry="3.1" fill="#1E1E1E"/>`;
-      eyes=eyeL;
-      break;
-    case "linus":
-      back=`<path d="M12.5 42c-1.4-18 7-30 19.5-30s20.9 12 19.5 30c-3.2-2.8-6.2-5.4-7.4-9.4 0-8.4-5-12.8-12.1-12.8s-12.1 4.4-12.1 12.8c-1.2 4-4.2 6.6-7.4 9.4z" fill="#2F6B3D"/><path d="M45 15q9-6.4 11-13-6.4 4.4-13 9.6z" fill="#E8D9A8"/>`;
-      top=`<path d="M20.4 25q5.4-6.4 11.6-4.2 6.2-2.2 11.6 4.2-5.6-2.2-11.6-1.2-6-1-11.6 1.2z" fill="${hr}"/>`;
-      break;
-  }
-  const head=`<path d="M27 40h10v8.4c0 2-2.2 3.2-5 3.2s-5-1.2-5-3.2z" fill="${sk}" opacity=".88"/><circle cx="19.2" cy="31.2" r="3" fill="${sk}"/><circle cx="44.8" cy="31.2" r="3" fill="${sk}"/><ellipse cx="32" cy="29.4" rx="13" ry="14.4" fill="${sk}"/>`;
-  const cheeks=`<circle cx="23.6" cy="34.4" r="2.3" fill="#F0846F" opacity=".28"/><circle cx="40.4" cy="34.4" r="2.3" fill="#F0846F" opacity=".28"/>`;
-  return `<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true">${shirt}${back}${head}${cheeks}${eyes}<path d="${brow}" stroke="${dark}" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".8"/>${beard}${mouth}${top}${extra}</svg>`;
-}
+/* Die Trainer selbst (Zeichnungen und Steckbriefe) stehen in trainers.js */

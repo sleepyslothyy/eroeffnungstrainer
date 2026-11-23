@@ -43,10 +43,10 @@ const SCN_CSS=".w0{fill:#fff;opacity:.96}.w1{fill:#fff;opacity:.62}.w2{fill:#fff
 
 /* kleine Helfer für die Szenen */
 const _rng=seed=>{let s=seed>>>0;return ()=>(s=(s*1664525+1013904223)>>>0)/4294967296};
-function _stars(n,seed,ymax,big){const r=_rng(seed);let o="";for(let i=0;i<n;i++){const x=(r()*320).toFixed(1),y=(r()*ymax).toFixed(1),s=(.5+r()*(big||1.4)).toFixed(2);o+=`<circle cx="${x}" cy="${y}" r="${s}" class="${r()<.35?"w0":"w1"}"/>`}return o}
-function _waves(y,amp,len,cls,sw,x0){let d=`M${x0||-10} ${y}`;for(let x=(x0||-10);x<330;x+=len)d+=` q${len/4} ${-amp} ${len/2} 0 t${len/2} 0`;return `<path d="${d}" class="${cls}" fill="none" stroke-width="${sw||2}" stroke-linecap="round"/>`}
+function _stars(n,seed,ymax,big){const r=_rng(seed);let o="";for(let i=0;i<n;i++){const x=(r()*320).toFixed(1),y=(r()*ymax).toFixed(1),s=(.5+r()*(big||1.4)).toFixed(2);o+=`<circle cx="${x}" cy="${y}" r="${s}" class="${r()<.35?"w0":"w1"}${i%3?"":" tw"}"${i%3?"":` style="animation-delay:-${(i*.53%3.2).toFixed(2)}s"`}/>`}return o}
+function _waves(y,amp,len,cls,sw,x0){let d=`M${x0||-10} ${y}`;for(let x=(x0||-10);x<360;x+=len)d+=` q${len/4} ${-amp} ${len/2} 0 t${len/2} 0`;return `<path d="${d}" class="${cls} wv" fill="none" stroke-width="${sw||2}" stroke-linecap="round"/>`}
 function _seaFill(y,amp,len,cls){let d=`M-10 ${y}`;for(let x=-10;x<330;x+=len)d+=` q${len/4} ${-amp} ${len/2} 0 t${len/2} 0`;return `<path d="${d} V210 H-10z" class="${cls}"/>`}
-const _flame=(x,y,w,h,col)=>`<path d="M${x} ${y}c${-w} ${-h*.35} ${-w*.55} ${-h*.75} 0 ${-h}c${w*.12} ${h*.28} ${w*.75} ${h*.42} ${w*.62} ${h*.7}c${-.05*w} ${h*.18} ${-.2*w} ${h*.26} ${-.62*w} ${h*.3}z" fill="${col}"/>`;
+const _flame=(x,y,w,h,col)=>`<path class="fl" d="M${x} ${y}c${-w} ${-h*.35} ${-w*.55} ${-h*.75} 0 ${-h}c${w*.12} ${h*.28} ${w*.75} ${h*.42} ${w*.62} ${h*.7}c${-.05*w} ${h*.18} ${-.2*w} ${h*.26} ${-.62*w} ${h*.3}z" fill="${col}"/>`;
 /* Bauer als Silhouette: cx = Mitte, by = Unterkante, s = Größe (20 = 64 px hoch); cls = Tonklasse oder Farbe (#…); face = "s" Lächeln, "o" Staunen */
 function _pawn(cx,by,s,cls,face){const k=s/20,f=n=>(+n).toFixed(1),X=a=>f(cx+a*k),Y=b=>f(by+b*k);
   const paint=cls&&cls[0]==="#"?`fill="${cls}"`:`class="${cls||"w0"}"`;
@@ -150,7 +150,7 @@ const SCENES={
   /* Leuchtturm auf der Klippe mit Lichtkegel und Kompassrose */
   w_d4:()=>{const L=y=>222+(140-y)*(6/70),Rr=y=>254-(140-y)*(6/70);const band=(a,b)=>`<path d="M${L(b).toFixed(1)} ${b}L${Rr(b).toFixed(1)} ${b}L${Rr(a).toFixed(1)} ${a}L${L(a).toFixed(1)} ${a}z" fill="#F25C54"/>`;
     return `${_stars(18,11,90,1)}
-    <path d="M236 57L-10 6V112z" class="w3"/><path d="M236 57L-10 32V84z" class="w3"/>
+    <path d="M236 57L-10 6V112z" class="w3 beam"/><path d="M236 57L-10 32V84z" class="w3"/>
     <g opacity=".85"><circle cx="72" cy="150" r="30" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.4"/><path d="M72 116l5 29 29 5-29 5-5 29-5-29-29-5 29-5z" class="w2"/><path d="M72 116l5 29-5 5z" class="w0"/><text x="68.5" y="112" class="scn-t sm">N</text></g>
     ${_seaFill(150,3,30,"b1")}${_waves(166,3,26,"sw2",1.6)}${_waves(184,3,30,"sw2",1.6)}
     <path d="M186 210L204 152l24-14 34 2 28 12 40 8V210z" class="b3"/><path d="M204 152l24-14 14 1-10 18z" class="b2"/>
@@ -195,8 +195,8 @@ const SCENES={
     return `<g stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="round">${rain}</g>
     <g class="b1"><circle cx="70" cy="52" r="26"/><circle cx="110" cy="44" r="30"/><circle cx="160" cy="52" r="30"/><circle cx="210" cy="40" r="28"/><circle cx="256" cy="52" r="26"/><circle cx="296" cy="44" r="24"/><rect x="50" y="52" width="270" height="22"/></g>
     <g class="w2"><circle cx="86" cy="36" r="24"/><circle cx="130" cy="26" r="30"/><circle cx="182" cy="34" r="28"/><circle cx="230" cy="24" r="26"/><circle cx="276" cy="34" r="24"/><rect x="70" y="34" width="230" height="22"/></g>
-    <path d="M182 60L160 108h18l-14 44 44-58h-20l14-34z" fill="#FFE066"/><path d="M182 60L160 108h18l-14 44 2-44h-12z" fill="rgba(255,255,255,.35)"/>
-    <path d="M262 62l-12 26h10l-8 24 24-32h-11l8-18z" fill="#FFE066" opacity=".9"/>
+    <path class="bolt" d="M182 60L160 108h18l-14 44 44-58h-20l14-34z" fill="#FFE066"/><path d="M182 60L160 108h18l-14 44 2-44h-12z" fill="rgba(255,255,255,.35)"/>
+    <path class="bolt b2l" d="M262 62l-12 26h10l-8 24 24-32h-11l8-18z" fill="#FFE066" opacity=".9"/>
     <rect y="168" width="320" height="40" class="b2"/>
     <g class="w0"><rect x="62" y="156" width="54" height="11" rx="4"/><path d="M72 156c-2-18 6-30 18-38l-12-4c-6-1-11 5-15 1-4-5 2-11 10-17 9-6 13-16 24-18l4-9 5 10c16 7 23 23 21 44-1 13-6 21-7 31z"/></g>
     <circle cx="88" cy="110" r="2.2" fill="#2B2321"/><path d="M94 100l8-4" stroke="rgba(0,0,0,.2)" stroke-width="2"/>`},
@@ -211,7 +211,7 @@ const SCENES={
   /* Supernova im All, Ringplanet und Komet */
   b_sharp:()=>{let rays="";for(let i=0;i<16;i++){const a=i*Math.PI/8,l=i%2?40:76;rays+=`<path d="M${(226+Math.cos(a)*14).toFixed(1)} ${(92+Math.sin(a)*14).toFixed(1)}L${(226+Math.cos(a)*l).toFixed(1)} ${(92+Math.sin(a)*l).toFixed(1)}"/>`}
     return `${_stars(60,17,200,1.4)}<circle cx="226" cy="92" r="78" class="w3"/><circle cx="226" cy="92" r="52" class="w3"/><circle cx="226" cy="92" r="32" class="w2"/>
-    <g stroke="rgba(255,255,255,.7)" stroke-width="1.8" stroke-linecap="round">${rays}</g>
+    <g class="rays" stroke="rgba(255,255,255,.7)" stroke-width="1.8" stroke-linecap="round">${rays}</g>
     <ellipse cx="226" cy="92" rx="96" ry="3" class="w1"/><ellipse cx="226" cy="92" rx="3" ry="70" class="w1"/><circle cx="226" cy="92" r="15" class="w0"/><circle cx="226" cy="92" r="8" fill="#FFF6D8"/>
     <path d="M14 150a56 12 -12 0 1 108-24" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="3.5"/>
     <circle cx="68" cy="146" r="32" class="b2"/><path d="M68 114a32 32 0 0 1 0 64 26 32 0 0 0 0-64z" class="w3"/><path d="M44 130q24 8 48 0M40 150q28 8 56 0" stroke="rgba(255,255,255,.2)" stroke-width="3" fill="none"/>
@@ -222,7 +222,7 @@ const SCENES={
   b_sicilian:()=>`<g class="w2"><circle cx="196" cy="40" r="18"/><circle cx="222" cy="28" r="22"/><circle cx="250" cy="40" r="18"/><circle cx="236" cy="12" r="16"/><circle cx="206" cy="16" r="13"/></g><g class="b1"><circle cx="186" cy="52" r="12"/><circle cx="262" cy="54" r="12"/></g>
     <path d="M110 172L186 76h52l76 96z" class="b3"/><path d="M186 76h26l14 96H110z" class="b2"/>
     <ellipse cx="212" cy="76" rx="26" ry="5" fill="#FF6B1A"/>
-    <path d="M212 76c-12-18-7-38 0-50 7 12 12 32 0 50z" fill="#FFD166"/><path d="M212 76c-6-10-4-22 0-30 4 8 6 20 0 30z" fill="#FFF3C4"/>
+    <g class="lava"><path d="M212 76c-12-18-7-38 0-50 7 12 12 32 0 50z" fill="#FFD166"/><path d="M212 76c-6-10-4-22 0-30 4 8 6 20 0 30z" fill="#FFF3C4"/></g>
     <path d="M198 78c-4 20-15 30-13 50s-7 24-9 44" fill="none" stroke="#FF8A3D" stroke-width="6" stroke-linecap="round"/><path d="M228 78c6 18 2 34 12 52s4 26 10 42" fill="none" stroke="#FF6B1A" stroke-width="5" stroke-linecap="round"/>
     <path d="M198 78c-4 20-15 30-13 50" fill="none" stroke="#FFD166" stroke-width="2" stroke-linecap="round"/>
     <g fill="#FFB02E"><circle cx="196" cy="34" r="4"/><circle cx="234" cy="22" r="5"/><circle cx="252" cy="44" r="3.4"/><circle cx="214" cy="14" r="3"/><circle cx="182" cy="56" r="2.6"/></g>
@@ -261,7 +261,7 @@ const SCENES={
     <path d="M168 126V40M204 126V52" stroke="rgba(255,255,255,.42)" stroke-width="3"/>
     <path d="M148 50h40v38l-6-5-6 6-6-5-6 6-6-5-6 6-4-4z" class="w2"/><path d="M146 92h44v28l-6-4-6 5-6-4-6 5-6-4-6 5-8-5z" class="w2"/><path d="M190 60h30v28l-5-4-5 5-5-4-5 5-5-4z" class="w3"/>
     <path d="M118 126h114l-14 22h-86z" class="w2"/><path d="M124 132h102" stroke="rgba(255,255,255,.4)" stroke-width="2"/>
-    <g fill="#7CF5E6"><circle cx="140" cy="122" r="3.4"/><circle cx="222" cy="120" r="3.4"/></g><g class="w3"><circle cx="140" cy="122" r="9"/><circle cx="222" cy="120" r="9"/></g>
+    <g fill="#7CF5E6" class="glow"><circle cx="140" cy="122" r="3.4"/><circle cx="222" cy="120" r="3.4"/></g><g class="w3"><circle cx="140" cy="122" r="9"/><circle cx="222" cy="120" r="9"/></g>
     <rect y="146" width="320" height="64" class="b2"/>
     <path d="M-10 132c60-10 120 4 190-2s110-10 150-2v12c-60-6-110 0-160 4s-120-2-180-2z" class="w3"/><path d="M-10 160c80-8 150 6 220 0s80-6 120-2v10c-50-4-90 2-130 6s-130-2-210-4z" class="w3"/>
     <path d="M-10 210V184l30-18 24 10 30-14 40 22 10 26z" class="b3"/><path d="M330 210V180l-26-16-30 18-20-8-24 26z" class="b3"/>`
