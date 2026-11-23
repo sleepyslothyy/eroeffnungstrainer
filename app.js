@@ -964,7 +964,7 @@ function render(anim,extra){
 function renderChrome(){
   const inSess=!!sess;$("sessBar").hidden=!inSess;
   {const cc=crsSess(),vt=$("v-train");vt.className=vt.className.replace(/\bth-\S+/g,"").replace(/\s+/g," ").trim();vt.classList.toggle("crs-on",!!cc);if(cc)vt.classList.add("th-"+cc.id);
-   $("sessIc").hidden=!cc;$("sessRank").hidden=!cc;if(cc){$("sessIc").innerHTML=crsIcon(thOf(cc).ic,16);const r=crsRank(cc);$("sessRank").textContent=r.name;$("sessRank").title=`Rang ${r.i+1} von 6`}}
+   $("sessIc").hidden=!cc;$("sessRank").hidden=!cc;if(cc){const r=crsRank(cc);$("sessIc").innerHTML=rkB(cc,r.i,30,"on");$("sessRank").textContent=r.name;$("sessRank").title=`Rang ${r.i+1} von 6`}}
   if(inSess&&sess.next){$("sessTitle").textContent=sess.title;$("sessCount").textContent=sess.countText();$("sessProg").style.width=(sess.progress()*100)+"%"}
   else if(inSess){$("sessTitle").textContent=sess.title;$("sessCount").textContent=`${Math.min(sess.idx+1,sess.queue.length)}/${sess.queue.length}`;$("sessProg").style.width=(sess.idx/sess.queue.length*100)+"%"}
   if(inSess&&sess.plan){const ro=sess.roles[Math.min(sess.idx,sess.roles.length-1)];$("sessCount").textContent=`${PHASE[ro]?PHASE[ro].t:""} · ${Math.min(sess.idx+1,sess.queue.length)}/${sess.queue.length}`}
@@ -1384,7 +1384,8 @@ function renderLearn(){
   const tot=totalLines(),cl=cleanCount();const tz=pzToday();const ends=Object.keys(st.ends).length;
   const item=(act,ic,t,d,meta,hot)=>`<button class="ci" data-act="${act}"><span class="ci-ic">${NI[ic]}</span><span class="ci-t"><b>${t}</b><small>${d}</small></span>${meta!=null&&meta!==""?`<span class="ci-m${hot?" hot":""}">${meta}</span>`:""}<span class="ci-go" aria-hidden="true">›</span></button>`;
   const coll=(id,ic,t,sub,frac,items)=>`<section class="coll" data-coll="${id}"><div class="coll-h"><span class="coll-ic">${NI[ic]}</span><div><h3>${t}</h3><small>${sub}</small></div>${frac!=null?`<span class="coll-p"><span class="prog"><i style="width:${Math.round(frac*100)}%"></i></span><small>${Math.round(frac*100)} %</small></span>`:""}</div><div class="coll-items">${items}</div></section>`;
-  v.innerHTML=pageHead("Training","Such dir aus, was du heute üben willst.","learn")+
+  const lc=COURSES.find(x=>x.id===st.crsLast);
+  v.innerHTML=pageHead("Training","Such dir aus, was du heute üben willst.","learn")+(lc?crsHomeTile(lc):"")+
   `<div class="colls">`+
   coll("op","book","Eröffnungen",`${cl} von ${tot} Varianten fehlerfrei · ${S.rep.length} im Repertoire`,tot?cl/tot:0,
     item("courses","learn","Kurse",`${COURSES.length} Kurse mit eigenem Trainer – für jeden Spielstil`,`${COURSES.filter(c=>{const p=courseProg(c);return p.n&&p.cl===p.n}).length}/${COURSES.length}`)+
@@ -1412,6 +1413,7 @@ function renderLearn(){
   `</div>`;
   v.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const a=b.dataset.act;
     if(["daily","review","positions","mine","traps","blitz","blind"].indexOf(a)>=0)startSession(a);
+    else if(a.indexOf("course:")===0){courseOpen=a.slice(7);showView("courses")}
     else if(a==="edit")openEditor();else if(a==="share")shareRepertoire();else showView(a)});
 }
 
@@ -2667,12 +2669,12 @@ KEYS.push("tac");S.tac=PZ;
 /* ================= Komfort & Erscheinungsbild ================= */
 /* ---- Konfetti (Canvas, ~2 s, respektiert »Weniger Animationen«) ---- */
 function calmNow(){return !!S.set.calm||!!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches)}
-function confetti(){
+function confetti(colors){
   if(calmNow())return;
   const c=document.createElement("canvas");c.className="confetti";c.setAttribute("aria-hidden","true");document.body.appendChild(c);
   const dpr=Math.min(2,window.devicePixelRatio||1),W=innerWidth,H=innerHeight;c.width=W*dpr;c.height=H*dpr;
   const x=c.getContext("2d");if(!x){c.remove();return}x.scale(dpr,dpr);
-  const cols=["#81B64C","#E9B949","#FA412D","#5A7FB5","#FFFFFF","#C8742E"];
+  const cols=Array.isArray(colors)&&colors.length?colors:["#81B64C","#E9B949","#FA412D","#5A7FB5","#FFFFFF","#C8742E"];
   const P=Array.from({length:110},()=>({x:W/2+(Math.random()-.5)*W*.3,y:H*.38,vx:(Math.random()-.5)*10,vy:-Math.random()*11-4,s:5+Math.random()*5,r:Math.random()*6,vr:(Math.random()-.5)*.3,c:cols[Math.random()*cols.length|0]}));
   const t0=performance.now(),D=2200;
   const f=t=>{const dt=t-t0;x.clearRect(0,0,W,H);x.globalAlpha=Math.max(0,1-dt/D);
@@ -3556,6 +3558,7 @@ function renderHome(){
   const tile=(t,b,s)=>`<div class="kpi"><small>${t}</small><b>${b}</b>${s?`<span>${s}</span>`:""}</div>`;
   v.innerHTML=`<div class="home-h"><div><h2>${greet}${nm?", "+esc(nm):""}!</h2><small>${streakNow()?`${streakNow()} ${streakNow()===1?"Tag":"Tage"} Serie · `:""}${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}</small></div><span class="home-logo">${LOGO(40)}</span></div>
   ${alerts?`<div class="alerts">${alerts}</div>`:""}
+  ${(()=>{const hc=COURSES.find(x=>x.id===st.crsLast);return hc?crsHomeTile(hc):""})()}
   ${lastOp&&lastOp.lines&&lastOp.lines.length?`<button class="cont" data-act="continue"><span class="cont-b" id="contBoard"></span><span class="cont-t"><small>Weitermachen</small><b>${esc(lastOp.name)}</b><span>${cl}/${lastOp.lines.length} Varianten fehlerfrei · Du spielst ${lastOp.side==="w"?"Weiß":"Schwarz"}</span><span class="prog"><i style="width:${cl/lastOp.lines.length*100}%"></i></span></span><span class="cont-go">▶</span></button>`:""}
   <section class="card today"><div class="today-h"><div><h3>Heute</h3><small>${nq} von 3 erledigt</small></div>${ringSvg(nq/3)}</div><div class="quests">${quests}</div>
     <button class="btn grn wide" data-act="daily">${dd>=dq?"Extra-Training starten":"Tagestraining fortsetzen"}</button></section>
@@ -3569,6 +3572,7 @@ function renderHome(){
   v.querySelectorAll("[data-og]").forEach(b=>b.onclick=()=>openOnlineGame(b.dataset.og));
   v.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const a=b.dataset.act;
     if(a==="continue"){selectOpening(lastOp);return}
+    if(a.indexOf("course:")===0){courseOpen=a.slice(7);showView("courses");return}
     if(a==="daily"||a==="review"){if(a==="review"&&!due){showView("learn");return}startSession(a);return}
     if(a==="legal:imp"){legalTab="imp";showView("legal");return}
     showView(a)});
@@ -3712,6 +3716,7 @@ function renderLegal(){
   <li><b>Stockfish 17.1</b> (stockfish.js von Nathan Rugg) – GNU GPL v3, Quelltext und Lizenz unter <code>engine/</code></li>
   <li><b>Firebase JS SDK</b> von Google – Apache License 2.0</li>
   <li>Schrift <b>Rubik</b> von Hubert und Fischer (The Rubik Project Authors) – SIL Open Font License 1.1, liegt unter <code>lib/fonts/</code></li>
+  <li>Schriften der Kurswelten, alle unter <code>lib/fonts/</code> mit Lizenztext: <b>Caveat</b> (The Caveat Project Authors), <b>Bungee</b> (The Bungee Project Authors), <b>Cinzel</b> (The Cinzel Project Authors), <b>IM Fell English SC</b> (Igino Marini), <b>Uncial Antiqua</b> (Astigmatic), <b>Bangers</b> (The Bangers Project Authors), <b>Orbitron</b> (The Orbitron Project Authors), <b>Pirata One</b> (Rodrigo Fuenzalida, Nicolas Massi) – SIL Open Font License 1.1; <b>Special Elite</b> (Astigmatic) – Apache License 2.0</li>
   <li>Figuren „Klassisch“ von Colin M. L. Burnett – GPLv2+; „Staunty“ aus Lichess – CC BY-NC-SA 4.0</li>
   <li>Taktik-Rätsel und Eröffnungsstatistik: Lichess-Datenbank – CC0</li>
   <li>Eröffnungsnamen und Theoriebuch: <b>lichess-org/chess-openings</b> – CC0</li></ul></article>`;
@@ -3776,8 +3781,9 @@ const crsF={st:"",side:""};try{Object.assign(crsF,JSON.parse(localStorage.getIte
 const crsStyles=c=>c.st.map(k=>STYLES[k]?STYLES[k].n:k).join(" · ");
 
 /* ---- Kursdesign, Ränge und Trainer (Figuren und Themen in coaches.js) ---- */
-(function(){const css=Object.keys(COURSE_THEME).map(id=>{const t=COURSE_THEME[id];return `.th-${id}{--c1:${t.c1};--c2:${t.c2};--pat:${crsPat(t.pat)}}`}).join("\n")+"\n"+
-  Object.keys(COACHES).map(id=>`.co-${id}{--k1:${COACHES[id].bg[0]};--k2:${COACHES[id].bg[1]}}`).join("\n");
+(function(){const wf=id=>{const w=WFONT[id]||WFONT.mila;return `--wf:"${w.f}";--wfs:${w.s};--wls:${w.ls}`};
+  const css=Object.keys(COURSE_THEME).map(id=>{const t=COURSE_THEME[id];return `.th-${id}{--c1:${t.c1};--c2:${t.c2};--pat:${crsPat(t.pat)};${wf(t.co)}}`}).join("\n")+"\n"+
+  Object.keys(COACHES).map(id=>`.co-${id}{--k1:${COACHES[id].bg[0]};--k2:${COACHES[id].bg[1]};${wf(id)}}`).join("\n");
   const el=document.createElement("style");el.id="crs-themes";el.textContent=css;document.head.appendChild(el)})();
 if(!st.crs||typeof st.crs!=="object"||Array.isArray(st.crs))st.crs={};
 const thOf=c=>COURSE_THEME[c.id]||COURSE_THEME.w_start;
@@ -3928,10 +3934,10 @@ function renderCourses(){
   ${crsF.st?`<p class="hint crs-sd"><b>${esc(STYLES[crsF.st].n)}:</b> ${esc(STYLES[crsF.st].d)}</p>`:""}</div>`+sciHtml()+
   (list.length?`<div class="crs">${list.map(c=>{const th=thOf(c),co=COACHES[coIdOf(c)],r=crsRank(c);
     return `<button class="crc th-${c.id} co-${coIdOf(c)}" data-crs="${c.id}">
-      <span class="crc-band"><span class="crc-emb">${crsIcon(th.ic,26)}</span><span class="crc-rk">${esc(r.name)}</span><span class="crc-av">${coachSvg(coIdOf(c),r.f>=1?"joy":"happy")}</span></span>
+      <span class="crc-band">${sceneSvg(c.id)}<span class="crc-veil" aria-hidden="true"></span><span class="crc-id">${rkB(c,r.i,46,"on")}<span><b class="crc-w">${esc(worldOf(c).name)}</b><small>${esc(r.name)} · Rang ${r.i+1} von 6</small></span></span><span class="crc-av">${coachSvg(coIdOf(c),r.f>=1?"joy":"happy")}</span></span>
       <span class="crc-body"><span class="crc-top"><span class="crc-tags"><span class="crc-tag">${esc(c.lvl)}</span>${c.st.map(k=>`<span class="crc-st">${esc(STYLES[k]?STYLES[k].n:k)}</span>`).join("")}</span><span class="crc-side">${sideTxt(c)}</span></span>
       <b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-co">Trainer: <b>${esc(co.n)}</b> · ${esc(co.r)}</span>
-      <span class="crc-p"><span class="prog"><i style="width:${r.f*100}%"></i></span><small>${r.p.cl}/${r.p.n} Varianten · Rang ${r.i+1} von 6 · ${c.ch.length} Kapitel</small></span></span></button>`}).join("")}</div>`
+      <span class="crc-p"><span class="prog"><i style="width:${r.f*100}%"></i></span><small>${r.p.cl}/${r.p.n} Varianten · ${c.ch.length} Kapitel</small></span></span></button>`}).join("")}</div>`
    :`<p class="hint">Für diese Auswahl gibt es noch keinen Kurs. <button class="chip" data-creset>Alle Kurse zeigen</button></p>`);
   const save=()=>{try{localStorage.setItem("et-crsf",JSON.stringify(crsF))}catch(e){}renderCourses()};
   v.querySelectorAll("[data-cst]").forEach(b=>b.onclick=()=>{crsF.st=b.dataset.cst;save()});
@@ -3948,35 +3954,37 @@ function renderCourse(v,c){
   const goLbl=p.cl||nToday?"Lerneinheit starten":"Erste Lerneinheit starten";
   const goSub=[u.due?nV(u.due,"Wiederholung","Wiederholungen"):"",u.nw?nV(u.nw,"neue Variante","neue Varianten"):"",u.nw?"Abstandstest":""].filter(Boolean).join(" · ");
   const task=(id,ic,t,s,cls)=>`<button class="crs-task${cls?" "+cls:""}" id="${id}"><span class="crs-task-ic">${ic}</span><span><b>${t}</b><small>${s}</small></span><span class="ci-go">›</span></button>`;
+  if(st.crsLast!==c.id){st.crsLast=c.id;saveStats()}
   v.innerHTML=`<button class="back" data-cback>← Alle Kurse</button>
-  <section class="crs-hero th-${c.id}">
-    <div class="crs-hero-in"><span class="crs-emb">${crsIcon(th.ic,34)}</span>
-      <div class="crs-hero-t"><div class="crs-hero-tags"><span>${esc(c.lvl)}</span><span>${esc(crsStyles(c))}</span><span>${sideTxt(c)}</span></div><h1>${esc(c.t)}</h1><p>${esc(c.d)}</p></div></div>
-    <div class="crs-rank"><div class="crs-rank-h"><div><small>Dein Rang</small><b>${esc(r.name)}</b></div><span class="crs-rank-n">${r.i+1}/6</span></div>
-      <div class="crs-ladder" aria-hidden="true">${th.rk.map((n,j)=>`<span class="${j<r.i?"on":j===r.i?"cur":""}" title="${esc(n)}">${j===r.i?`<i style="width:${r.part*100}%"></i>`:""}</span>`).join("")}</div>
-      <small>${r.next?`Noch ${varV(r.left)} bis „${esc(r.next)}“`:"Höchster Rang erreicht"}</small></div>
-    <div class="crs-stats"><span title="Mindestens einmal fehlerfrei gespielt"><b>${p.cl}/${p.n}</b>Gelernt</span><span title="Nach mindestens einer Woche Abstand noch gewusst"><b>${ret.fest}</b>Gefestigt</span><span title="Nach mindestens drei Wochen Abstand noch gewusst"><b>${ret.lang}</b>Langzeit</span><span><b>${chDone}/${chs.length}</b>Kapitel</span><span><b>${med}</b>${med===1?"Medaille":"Medaillen"}</span></div>
+  <section class="crs-hero ${crsCls(c)}">
+    <div class="crs-hero-top"><div class="crs-hero-scn" aria-hidden="true">${sceneSvg(c.id)}</div>
+      <div class="crs-hero-c"><p class="crs-hero-w">${esc(worldOf(c).name)}</p><h1>${esc(c.t)}</h1><div class="crs-hero-tags"><span>${esc(c.lvl)}</span><span>${esc(crsStyles(c))}</span><span>${sideTxt(c)}</span></div><p>${esc(c.d)}</p></div></div>
+    <div class="crs-hero-bar"><div class="crs-rank"><span class="crs-rank-b">${rkB(c,r.i,72,"on")}</span>
+      <div class="crs-rank-t"><small>Dein Rang · ${r.i+1} von 6</small><b>${esc(r.name)}</b>${crsLadder(c,r,30)}
+      <span class="crs-rank-p">${r.next?`<span class="prog"><i style="width:${r.part*100}%"></i></span><small>Noch ${varV(r.left)} bis „${esc(r.next)}“</small>`:`<small>Höchster Rang erreicht</small>`}</span></div></div>
+    <div class="crs-stats"><span title="Mindestens einmal fehlerfrei gespielt"><b>${p.cl}/${p.n}</b>Gelernt</span><span title="Nach mindestens einer Woche Abstand noch gewusst"><b>${ret.fest}</b>Gefestigt</span><span title="Nach mindestens drei Wochen Abstand noch gewusst"><b>${ret.lang}</b>Langzeit</span><span><b>${chDone}/${chs.length}</b>Kapitel</span><span><b>${med}</b>${med===1?"Medaille":"Medaillen"}</span></div></div>
   </section>
   <section class="crs-coach co-${coId} th-${c.id}">
     <div class="crs-coach-av">${coachSvg(coId,cm.mood)}</div>
-    <div class="crs-coach-b"><div class="crs-coach-n"><b>${esc(co.n)}</b><small>${esc(co.r)}</small></div><p class="crs-say">${esc(cm.t)}</p>${crsTip(c)?`<p class="crs-tip"><b>Tipp:</b> ${esc(crsTip(c))}</p>`:""}</div>
+    <div class="crs-coach-b"><div class="crs-coach-n"><b class="wf">${esc(co.n)}</b><small>${esc(co.r)}</small></div><p class="crs-say">${esc(cm.t)}</p>${crsTip(c)?`<p class="crs-tip"><b>Tipp:</b> ${esc(crsTip(c))}</p>`:""}</div>
   </section>
   <section class="crs-tasks th-${c.id}"><h3>Aufträge von ${esc(co.n)}</h3><div class="crs-task-grid">
     ${u.q.length?task("crsGo",crsIcon(th.ic,20),goLbl,goSub,"main"):fresh?task("crsRest",crsIcon("moon",20),"Für heute geschafft",`Dein Tagesplan ist erfüllt – morgen ${nV(pace,"neue Variante","neue Varianten")}.`,"main rest"):task("crsMix",crsIcon(th.ic,20),"Gemischt üben","Alles gelernt: acht Varianten aus allen Kapiteln durcheinander","main")}
     ${!u.q.length&&fresh?task("crsExtra",crsIcon("redo",20),"Freiwillig weiterlernen",`${nV(Math.min(pace,fresh),"weitere neue Variante","weitere neue Varianten")} – Pausen helfen aber mehr`):""}
     ${weak.length?task("crsWeak",crsIcon("target",20),"Schwächen ausbügeln",`${varV(weak.length)} mit Fehlern gespielt`):""}
     ${chs.some(x=>examKeys(x).length>=3)?task("crsExam",crsIcon("medal",20),"Kapitelprüfung","Fünf Varianten von früheren Tagen ohne Fehler – für eine Medaille"):""}
+    ${r.i>=5?task("crsCert",crsIcon("cap",20),"Deine Urkunde",`Kurs gemeistert – als „${esc(th.rk[5])}“`):""}
   </div></section>
   <section class="crs-plan th-${c.id}"><h3>Dein Lernplan</h3><div class="crs-plan-b">
     <div class="crs-plan-row"><span><b>Neue Varianten pro Tag</b><small>Kleine Portionen behält man besser</small></span><span class="seg">${PACES.map(n=>`<button data-pace="${n}" aria-pressed="${pace===n}">${n}</button>`).join("")}</span></div>
     <div class="crs-plan-row"><span><b>Neues lernen durch</b><small>${meth==="show"?"Erst vorgezeigt, dann selbst gespielt – ideal für Einsteiger":"Erst selbst raten, dann korrigiert – ideal, wenn du schon etwas weißt"}</small></span><span class="seg"><button data-meth="show" aria-pressed="${meth==="show"}">Vorzeigen</button><button data-meth="guess" aria-pressed="${meth==="guess"}">Erst raten</button></span></div>
     <p class="crs-plan-st"><span><b>${nToday}/${pace}</b> neu heute</span><span><b>${crsDue(c).length}</b> fällig</span><span>${fin?`Alles gelernt bis <b>${esc(fin)}</b> bei täglichem Üben`:"Alle Varianten gelernt – Wiederholen hält sie frisch"}</span></p>
   </div>${sciHtml()}</section>
-  <section class="crs-map th-${c.id}"><h3>Deine Route</h3><ol class="crs-route">${chs.map(x=>{const f=x.n?x.cl/x.n:0;const stt=x.done?"done":x.cl?"run":x.ci===curCh?"next":"";
-    return `<li class="crs-stn ${stt}"><span class="crs-node">${x.done?crsIcon(th.ic,18):x.ci+1}</span><div class="crs-stn-b"><b>${esc(th.stop)} ${x.ci+1}: ${esc(x.t)}</b><small>${esc(x.o?x.o.name:x.id)} · ${x.cl}/${x.n} gelernt</small><span class="prog"><i style="width:${f*100}%"></i></span>${x.med||examKeys(x).length>=3?`<div class="crs-stn-a">${x.med?`<span class="medal m${x.med}" title="Medaille aus der Kapitelprüfung">${MEDAL[x.med]}</span>`:""}${examKeys(x).length>=3?`<button class="chip" data-exam="${x.ci}">${x.med?"Prüfung wiederholen":"Kapitelprüfung"}</button>`:""}</div>`:""}</div></li>`}).join("")}</ol></section>
+  <section class="crs-map ${crsCls(c)}"><h3>Deine Route</h3>${crsAdv(c,chs,curCh)}</section>
   ${chs.map(x=>{const o=x.o;if(!o)return "";const more=o.lines.length-x.n;
     return `<details class="coll crs-chd th-${c.id}"${x.ci===(curCh<0?-1:curCh)?" open":""}><summary class="coll-h"><span class="coll-ic chn">${x.ci+1}</span><div><h3>${esc(x.t)}</h3><small>${esc(o.name)} · ${x.cl}/${x.n} gelernt${more>0?` · ${more} weitere im Eröffnungstraining`:""}</small></div></summary><div class="coll-items">${x.ix.map(i=>{const l=o.lines[i];const st2=P(x.id,i);const du=isDue(lk(x.id,i));const pr=lineProb(o,i);return `<button class="ci" data-cl="${x.id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}${pr!=null?` · ≈ ${fmtPct(pr)}`:""}</small></span>${du?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></details>`}).join("")}`;
   v.querySelector("[data-cback]").onclick=()=>{courseOpen=null;renderCourses()};
+  crsAdvWatch();if($("crsCert"))$("crsCert").onclick=()=>crsCert(c);
   const run=(ks,title,extra)=>{ks=[...new Set(ks)];if(!ks.length){toast("Dafür gibt es gerade keine Varianten.");return}startSession("course",ks,title,Object.assign({course:c.id},extra||{}));window.scrollTo(0,0)};
   if($("crsGo"))$("crsGo").onclick=()=>crsStartUnit(c);
   if($("crsExtra"))$("crsExtra").onclick=()=>crsStartUnit(c,true);
@@ -4029,7 +4037,8 @@ function crsOnFinish(clean,learned,k){
   const m=crsMeta(c),r=crsRank(c);const chs=crsChapters(c);const ci=chs.findIndex(x=>x.id===op.id);
   if(sess.plan&&sess.roles[sess.idx]==="new"){if(m.day!==today()){m.day=today();m.nw=0}m.nw=(m.nw||0)+1;saveStats()}
   const ask=()=>{if(sess&&sess.plan&&clean&&k)crsRateAsk(c,k)};
-  if(r.i>m.r){m.r=r.i;saveStats();coachSay(c,"rank",{},"joy");toast(`${COACHES[coIdOf(c)].n}: Neuer Rang „${r.name}“!`);confetti();ask();return}
+  if(r.i>m.r){m.r=r.i;if(r.i>=5&&!m.fin)m.fin=Date.now();saveStats();coachSay(c,"rank",{},"joy");ask();
+    setTimeout(()=>{cancelAuto();crsCelebrate(c,r.i>=5?"done":"rank")},420);return}
   if(ci>=0&&chs[ci].done&&m.ch.indexOf(ci)<0){m.ch.push(ci);saveStats();coachSay(c,"chapter",{ch:chs[ci].t},"joy");ask();return}
   coachSay(c,clean?"clean":"dirty",{},clean?"joy":"worry");ask();
 }
@@ -4037,8 +4046,184 @@ function crsOnEnd(c,s,ok,n){
   if(!c)return;
   if(s.exam!=null){const q=n?ok/n:0;const md=q>=1?3:q>=.8?2:q>=.6?1:0;const m=crsMeta(c);const old=m.med[s.exam]||0;
     if(md>old){m.med[s.exam]=md;saveStats()}
-    coachSay(c,"exam",{medal:MEDAL[md]},md?"joy":"worry",md?0:1);if(md>old)toast(`Medaille: ${MEDAL[md]} für „${c.ch[s.exam][1]}“`);return}
+    coachSay(c,"exam",{medal:MEDAL[md]},md?"joy":"worry",md?0:1);if(md>old)toast(`Medaille: ${MEDAL[md]} für „${c.ch[s.exam][1]}“`);setTimeout(()=>crsReport(c,s,ok,n),700);return}
   coachSay(c,"end",{ok,n},ok===n?"joy":ok/n>=.6?"happy":"worry",ok===n?0:ok/n>=.6?1:2);
+  setTimeout(()=>crsReport(c,s,ok,n),700);
+}
+
+/* ===== Kurswelten: Abenteuerkarte, Rangabzeichen, Feiern, Einheitsbericht und Urkunde (Grafiken in worlds.js) ===== */
+const worldOf=c=>WORLD[c.id]||WORLD.w_start;
+const COACH_FEM=new Set(["mila","greta","nova","ilka","rika"]);
+const crsCls=c=>`th-${c.id} co-${coIdOf(c)}`;
+const rkB=(c,i,s,state)=>rankBadge(thOf(c).ic,i,s,state);
+/* Rangleiter aus sechs Abzeichen: erreichte farbig, kommende blass */
+function crsLadder(c,r,s){
+  return `<div class="crs-ladder" role="img" aria-label="Rang ${r.i+1} von 6: ${esc(r.name)}">${thOf(c).rk.map((n,j)=>`<span class="lad ${j<r.i?"on":j===r.i?"cur":"off"}" title="${esc(n)}">${rkB(c,j,s||30,j<=r.i?"on":"off")}</span>`).join("")}</div>`;
+}
+/* Abenteuerkarte: Start, Kapitel als Stationen auf einem gewundenen Weg, Ziel mit dem höchsten Rang. Der Trainer wartet an der aktuellen Station. */
+function crsAdv(c,chs,curCh){
+  const th=thOf(c),w=worldOf(c),coId=coIdOf(c),co=COACHES[coId],fin=curCh<0,deco=w.deco&&w.deco.length?w.deco:["star"];
+  const started=chs.some(x=>x.cl>0);
+  const ring=f=>`<svg class="adv-ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" pathLength="100" stroke-dasharray="${(f*100).toFixed(1)} 100"/></svg>`;
+  const av=m=>`<span class="adv-av" title="${esc(co.n)}">${coachSvg(coId,m)}</span>`;
+  let h=`<div class="adv-row s0 start"><span class="adv-node">${crsIcon("flag",22)}</span><div class="adv-card"><small>Start</small><b class="wf">${esc(w.name)}</b><small>${started?"Hier hat deine Reise begonnen.":`${esc(co.n)} begleitet dich durch ${nV(chs.length,"Kapitel","Kapitel")}.`}</small></div></div>`;
+  chs.forEach((x,j)=>{const f=x.n?x.cl/x.n:0,cur=x.ci===curCh,stt=x.done?"done":cur?"cur":x.cl?"run":"lock",ex=examKeys(x).length>=3;
+    h+=`<div class="adv-row s${(j+1)%2} ${stt}"${cur?' aria-current="step"':""}>
+      <span class="adv-node">${x.done?crsIcon(th.ic,24):`<b>${x.ci+1}</b>`}${!x.done&&x.cl?ring(f):""}${cur?av("happy"):""}</span>
+      <div class="adv-card"><small>${esc(th.stop)} ${x.ci+1}${x.done?" · geschafft":cur?" · du bist hier":""}</small><b>${esc(x.t)}</b><small>${esc(x.o?x.o.name:x.id)} · ${x.cl}/${x.n} gelernt</small><span class="prog"><i style="width:${f*100}%"></i></span>${x.med||ex?`<div class="crs-stn-a">${x.med?`<span class="medal m${x.med}" title="Medaille aus der Kapitelprüfung">${MEDAL[x.med]}</span>`:""}${ex?`<button class="chip" data-exam="${x.ci}">${x.med?"Prüfung wiederholen":"Kapitelprüfung"}</button>`:""}</div>`:""}</div>
+      <span class="adv-deco" aria-hidden="true">${decoIcon(deco[j%deco.length],36)}</span></div>`});
+  h+=`<div class="adv-row s${(chs.length+1)%2} goal${fin?" done":""}"><span class="adv-node">${rkB(c,5,72,fin?"on":"off")}${fin?av("joy"):""}</span><div class="adv-card"><small>Ziel</small><b class="wf">${esc(w.goal)}</b><small>${fin?`Geschafft – du bist „${esc(th.rk[5])}“!`:`Wer alle Kapitel meistert, wird „${esc(th.rk[5])}“.`}</small></div></div>`;
+  return `<div class="adv" id="crsAdv"><svg class="adv-path" aria-hidden="true"></svg>${h}</div>`;
+}
+/* Den Weg zwischen den Stationen zeichnen – nach dem Layout gemessen, damit er bei jeder Breite passt */
+let advRO=null;
+function crsAdvDraw(){
+  const root=$("crsAdv");if(!root)return;const svg=root.querySelector(".adv-path"),B=root.getBoundingClientRect();if(!svg||!B.width)return;
+  const rows=[...root.querySelectorAll(".adv-row")];
+  const P=rows.map(r=>{const b=r.querySelector(".adv-node").getBoundingClientRect();return [b.left-B.left+b.width/2,b.top-B.top+b.height/2]});
+  let cut=rows.findIndex(r=>r.classList.contains("cur"));if(cut<0)cut=rows[rows.length-1].classList.contains("done")?rows.length-1:0;
+  let walk="",rest="";const f=n=>n.toFixed(1);
+  for(let i=0;i<P.length-1;i++){const [ax,ay]=P[i],[bx,by]=P[i+1],d=(by-ay)*.6;
+    const seg=`M${f(ax)} ${f(ay)}C${f(ax)} ${f(ay+d)} ${f(bx)} ${f(by-d)} ${f(bx)} ${f(by)}`;if(i<cut)walk+=seg;else rest+=seg}
+  svg.setAttribute("viewBox",`0 0 ${Math.round(B.width)} ${Math.round(B.height)}`);
+  svg.innerHTML=`<path class="adv-bed" d="${walk+rest}"/>${rest?`<path class="adv-rest" d="${rest}"/>`:""}${walk?`<path class="adv-walk" d="${walk}"/>`:""}`;
+}
+function crsAdvWatch(){if(advRO){advRO.disconnect();advRO=null}if(!$("crsAdv"))return;crsAdvDraw();if(window.ResizeObserver){advRO=new ResizeObserver(()=>crsAdvDraw());advRO.observe($("crsAdv"))}}
+
+/* Overlays nacheinander zeigen, damit sich Rangaufstieg, Bericht und Urkunde nicht überdecken */
+let crsOv=null,crsOvBack=null;const crsOvQ=[];
+function crsOverlay(build){
+  if(crsOv){crsOvQ.push(build);return}
+  const el=build();if(!el)return;if(!crsOvBack)crsOvBack=document.activeElement;crsOv=el;document.body.appendChild(el);document.body.classList.add("ov-open");
+  el.addEventListener("keydown",e=>{e.stopPropagation();if(e.key==="Escape"){e.preventDefault();crsOvClose()}
+    if(e.key==="Tab"){const fs=[...el.querySelectorAll("button,a[href]")].filter(b=>!b.disabled);if(!fs.length)return;const a=fs[0],z=fs[fs.length-1];
+      if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus()}else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus()}}});
+  const f=el.querySelector("[data-focus]")||el.querySelector("button");if(f)setTimeout(()=>{try{f.focus({preventScroll:true})}catch(e){}},40);
+}
+function crsOvClose(){
+  const el=crsOv;if(!el)return;crsOv=null;el.classList.add("out");
+  setTimeout(()=>{el.remove();if(!crsOv){document.body.classList.remove("ov-open");const n=crsOvQ.shift();if(n)crsOverlay(n);
+    else{const b=crsOvBack;crsOvBack=null;if(b&&b.isConnected&&b.focus)try{b.focus({preventScroll:true})}catch(e){}}}},calmNow()?0:220);
+}
+/* Feier beim Rangaufstieg und beim Abschluss des Kurses */
+function crsCelebrate(c,kind){
+  crsOverlay(()=>{
+    const th=thOf(c),w=worldOf(c),coId=coIdOf(c),co=COACHES[coId],r=crsRank(c),fin=kind==="done";
+    const el=document.createElement("div");el.className=`lvlup ${crsCls(c)}`;el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-labelledby","lvlupT");
+    el.innerHTML=`<div class="lvlup-bg" aria-hidden="true">${sceneSvg(c.id)}</div><div class="lvlup-in">
+      <div class="lvlup-badge"><span class="lvlup-rays" aria-hidden="true"></span>${rkB(c,r.i,152,"on")}</div>
+      <small class="lvlup-k">${fin?"Kurs gemeistert":`Neuer Rang · ${r.i+1} von 6`}</small>
+      <h2 class="wf" id="lvlupT">${esc(r.name)}</h2>
+      <p class="lvlup-s">${fin?`Alle ${varV(r.p.n)} aus „${esc(c.t)}“ gelernt.`:`${esc(w.name)}${r.next?` · als Nächstes: „${esc(r.next)}“`:""}`}</p>
+      <div class="lvlup-co"><span class="lvlup-av">${coachSvg(coId,"joy")}</span><p><b>${esc(co.n)}</b>${esc(coachLine(c,fin?"p5":"rank"))}</p></div>
+      <div class="lvlup-acts">${fin?`<button class="btn" data-lv="cert">Urkunde ansehen</button>`:""}<button class="btn lvlup-go" data-lv="ok" data-focus>Weiter</button></div></div>`;
+    el.querySelector('[data-lv="ok"]').onclick=crsOvClose;
+    const ce=el.querySelector('[data-lv="cert"]');if(ce)ce.onclick=()=>{crsOvClose();crsCert(c)};
+    el.addEventListener("click",e=>{if(e.target===el)crsOvClose()});
+    setTimeout(()=>{confetti([th.c1,th.c2,"#F6C453","#FFFFFF"]);sfx("badge")},260);
+    return el});
+}
+/* Bericht nach einer Lerneinheit – mit dem Namen der Kurswelt (Kaperbericht, Messprotokoll …) */
+const rptRing=f=>{const r=34,C=2*Math.PI*r;return `<svg class="rpt-ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${r}" class="bg"/><circle cx="42" cy="42" r="${r}" class="fg" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-f)).toFixed(1)}" transform="rotate(-90 42 42)"/><text x="42" y="48" text-anchor="middle">${Math.round(f*100)}%</text></svg>`};
+function crsReport(c,s,ok,n){
+  if(!c||!n)return;
+  crsOverlay(()=>{
+    const w=worldOf(c),coId=coIdOf(c),co=COACHES[coId],r=crsRank(c),q=ok/n,exam=s.exam!=null;
+    const md=exam?(q>=1?3:q>=.8?2:q>=.6?1:0):0;
+    const head=exam?(md?`Medaille: ${MEDAL[md]}`:"Diesmal keine Medaille"):q>=1?"Makellos!":q>=.6?"Gut gemacht!":"Dranbleiben!";
+    const ph=s.plan&&s.roles?["warm","new","mix","retest","relearn"].map(ro=>{const rs=s.res.filter(x=>s.roles[x.i]===ro);return rs.length?`<li><span>${esc(PHASE[ro].t)}</span><b>${rs.filter(x=>x.clean).length}/${rs.length}</b></li>`:""}).join(""):"";
+    const line=exam?coachLine(c,"exam",{medal:MEDAL[md]},md?0:1):coachLine(c,"end",{ok,n},ok===n?0:q>=.6?1:2);
+    const date=new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"});
+    const el=document.createElement("div");el.className="rpt-bk";
+    el.innerHTML=`<div class="rpt ${crsCls(c)}" role="dialog" aria-modal="true" aria-labelledby="rptT">
+      <div class="rpt-h">${sceneSvg(c.id)}<div class="rpt-ht"><small>${esc(w.log)} · ${esc(date)}</small><h2 class="wf" id="rptT">${esc(head)}</h2></div>${exam&&md?`<span class="rpt-md m${md}" aria-hidden="true">${crsIcon("medal",26)}</span>`:""}</div>
+      <div class="rpt-b">
+        <div class="rpt-top">${rptRing(q)}<div class="rpt-n"><b>${ok} von ${n}</b><span>${exam?"Prüfungsvarianten":"Varianten"} fehlerfrei</span>${ph?`<ul class="rpt-ph">${ph}</ul>`:""}</div></div>
+        <div class="rpt-rank">${rkB(c,r.i,50,"on")}<div><small>Rang ${r.i+1} von 6</small><b class="wf">${esc(r.name)}</b><span class="prog"><i style="width:${(r.next?r.part:1)*100}%"></i></span><small>${r.next?`Noch ${varV(r.left)} bis „${esc(r.next)}“`:"Höchster Rang erreicht"}</small></div></div>
+        <div class="rpt-co"><span class="rpt-av">${coachSvg(coId,q>=1?"joy":q>=.6?"happy":"worry")}</span><p><b>${esc(co.n)}</b>${esc(line)}</p></div>
+        <div class="rpt-acts"><button class="btn" data-rp="x">Schließen</button><button class="btn grn" data-rp="go" data-focus>Zur Kursseite</button></div>
+      </div></div>`;
+    el.querySelector('[data-rp="x"]').onclick=crsOvClose;
+    el.querySelector('[data-rp="go"]').onclick=()=>{crsOvClose();courseOpen=c.id;showView("courses")};
+    el.addEventListener("click",e=>{if(e.target===el)crsOvClose()});
+    return el});
+}
+/* Urkunde: auf der Seite als SVG, zum Speichern als PNG. Texte stehen als Liste, damit Bildschirm und Export dieselben Angaben nutzen. */
+function crsCertData(c){
+  const th=thOf(c),w=worldOf(c),wf=WFONT[th.co]||WFONT.mila,co=COACHES[coIdOf(c)],r=crsRank(c),chs=crsChapters(c),m=crsMeta(c);
+  const med=chs.reduce((a,x)=>a+(x.med?1:0),0),gold=chs.filter(x=>x.med===3).length;
+  const nm=(ON.profile&&ON.profile.name)||"",when=new Date(m.fin||Date.now());
+  const date=when.toLocaleDateString("de-DE",{day:"numeric",month:"long",year:"numeric"});
+  const ink="#2B2321",soft="#6B6152";
+  const T=[
+    {x:400,y:236,t:"Urkunde",f:wf.f,s:Math.round(56*wf.s),c:th.c1,ls:wf.ls==="0"?0:2},
+    {x:400,y:266,t:"Diese Urkunde erhält",f:"Rubik",s:13,w:700,c:soft,ls:2,up:1},
+    {x:400,y:312,t:nm||"ein echtes Schachtalent",f:"ZZ Caveat",s:nm?46:38,c:ink},
+    {x:400,y:342,t:"für den erfolgreichen Abschluss des Kurses",f:"Rubik",s:15,w:500,c:soft},
+    {x:400,y:372,t:`„${c.t}“`,f:"Rubik",s:c.t.length>40?17:20,w:750,c:ink},
+    {x:400,y:404,t:`Rang: ${th.rk[5]}`,f:wf.f,s:Math.round(24*wf.s),c:th.c1,ls:wf.ls==="0"?0:1},
+    {x:400,y:430,t:`${r.p.n} Varianten · ${chs.length} Kapitel · ${med} ${med===1?"Medaille":"Medaillen"}${gold?` (${gold} × Gold)`:""}`,f:"Rubik",s:13,w:600,c:soft},
+    {x:150,y:468,t:date,f:"Rubik",s:16,w:650,c:ink},
+    {x:150,y:496,t:"Datum",f:"Rubik",s:11,w:700,c:soft,ls:1.5,up:1},
+    {x:650,y:466,t:co.n,f:"ZZ Caveat",s:32,c:ink},
+    {x:650,y:496,t:COACH_FEM.has(coIdOf(c))?"Trainerin":"Trainer",f:"Rubik",s:11,w:700,c:soft,ls:1.5,up:1}
+  ];
+  return {th,w,T};
+}
+function crsCertSvg(c,exp){
+  const {th,T}=crsCertData(c);
+  const corner=(x,y,sx,sy)=>`<path d="M${x} ${y+sy*44}V${y}H${x+sx*44}" fill="none" stroke="${th.c1}" stroke-width="4" stroke-linecap="round"/><path d="M${x+sx*10} ${y+sy*10}l${sx*8} ${sy*-6} ${sx*8} ${sy*6} ${sx*-8} ${sy*6}z" fill="${th.c2}"/>`;
+  const txt=exp?"":T.map(o=>`<text x="${o.x}" y="${o.y}" text-anchor="middle" font-family="${o.f}, Georgia, serif" font-size="${o.s}" ${o.w?`font-weight="${o.w}"`:""} fill="${o.c}"${o.ls?` letter-spacing="${o.ls}"`:""}>${esc(o.up?o.t.toUpperCase():o.t)}</text>`).join("");
+  const badge=rankBadge(th.ic,5,84,"on").replace(/var\(--c1\)/g,th.c1).replace(/var\(--c2\)/g,th.c2).replace(/^<svg class="[^"]*"/,`<svg x="358" y="446"`);
+  const scene=SCENES[c.id]?SCENES[c.id]():"";
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" class="cert-svg" role="img" aria-label="Urkunde für den Kurs ${esc(c.t)}">
+  <defs><style>${exp?exp:""}${SCN_CSS.replace(/(^|\})\./g,"$1.zc .")}</style><clipPath id="zzcClip"><circle cx="400" cy="112" r="70"/></clipPath><linearGradient id="zzcGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${th.c1}"/><stop offset="1" stop-color="${th.c2}"/></linearGradient></defs>
+  <rect width="800" height="560" fill="#FBF6EA"/>
+  <rect x="16" y="16" width="768" height="528" rx="12" fill="none" stroke="${th.c1}" stroke-width="2.5"/>
+  <rect x="28" y="28" width="744" height="504" rx="6" fill="none" stroke="${th.c2}" stroke-width="1.2" stroke-dasharray="1 6" stroke-linecap="round"/>
+  ${corner(40,40,1,1)}${corner(760,40,-1,1)}${corner(40,520,1,-1)}${corner(760,520,-1,-1)}
+  <circle cx="400" cy="112" r="80" fill="none" stroke="${th.c1}" stroke-width="1.5" opacity=".35"/>
+  <g clip-path="url(#zzcClip)"><rect x="330" y="42" width="140" height="140" fill="url(#zzcGrad)"/><svg x="253" y="42" width="224" height="140" viewBox="0 0 320 200" class="zc">${scene}</svg></g>
+  <circle cx="400" cy="112" r="70" fill="none" stroke="#fff" stroke-width="4"/><circle cx="400" cy="112" r="73.5" fill="none" stroke="${th.c1}" stroke-width="2"/>
+  <path d="M232 262h-64M568 262h64" stroke="${th.c2}" stroke-width="1.4" opacity=".75"/>
+  <path d="M70 478H230M570 478H730" stroke="#B9AE9A" stroke-width="1.2"/>
+  ${badge}${txt}</svg>`;
+}
+const crsFontUrl=f=>f==="Rubik"?"lib/fonts/rubik-latin-wght.woff2":"lib/fonts/"+(WFONT_FILE[f]||"caveat-bold")+".woff2";
+async function crsCertPng(c){
+  const {T}=crsCertData(c);const fams=[...new Set(T.map(o=>o.f).concat(["ZZ Caveat"]))];
+  const b64=async u=>{const r=await fetch(u);const a=new Uint8Array(await r.arrayBuffer());let s="";for(let i=0;i<a.length;i+=0x8000)s+=String.fromCharCode.apply(null,a.subarray(i,i+0x8000));return btoa(s)};
+  let ff="";try{ff=(await Promise.all(["ZZ Caveat","ZZ Fell"].map(async f=>`@font-face{font-family:'${f}';src:url(data:font/woff2;base64,${await b64(crsFontUrl(f))}) format('woff2')}`))).join("")}catch(e){}
+  await Promise.all(fams.map(f=>document.fonts&&document.fonts.load(`40px "${f}"`).catch(()=>null)));
+  const url=URL.createObjectURL(new Blob([crsCertSvg(c,ff||" ")],{type:"image/svg+xml"}));
+  const img=new Image();await new Promise((ok,no)=>{img.onload=ok;img.onerror=no;img.src=url});
+  const K=2,cv=document.createElement("canvas");cv.width=800*K;cv.height=560*K;const x=cv.getContext("2d");
+  await new Promise(r=>setTimeout(r,60));x.drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(url);
+  x.scale(K,K);x.textAlign="center";x.textBaseline="alphabetic";
+  T.forEach(o=>{x.font=`${o.w||400} ${o.s}px "${o.f}", Georgia, serif`;x.fillStyle=o.c;const t=o.up?o.t.toUpperCase():o.t;
+    if(o.ls&&"letterSpacing" in x){x.letterSpacing=o.ls+"px";x.fillText(t,o.x+o.ls/2,o.y);x.letterSpacing="0px"}else x.fillText(t,o.x,o.y)});
+  const blob=await new Promise(r=>cv.toBlob(r,"image/png"));if(!blob)throw new Error("png");
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`Urkunde-${c.id}.png`;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
+}
+function crsCert(c){
+  crsOverlay(()=>{
+    const el=document.createElement("div");el.className="rpt-bk";
+    el.innerHTML=`<div class="cert-box ${crsCls(c)}" role="dialog" aria-modal="true" aria-label="Urkunde">${crsCertSvg(c)}
+      <div class="rpt-acts"><button class="btn" data-ce="x">Schließen</button><button class="btn grn" data-ce="png" data-focus>Als Bild speichern</button></div></div>`;
+    el.querySelector('[data-ce="x"]').onclick=crsOvClose;
+    const sb=el.querySelector('[data-ce="png"]');
+    sb.onclick=async()=>{sb.disabled=true;sb.textContent="Wird erstellt …";try{await crsCertPng(c);sb.textContent="Gespeichert"}catch(e){sb.textContent="Als Bild speichern";toast("Das Bild konnte nicht erstellt werden.")}sb.disabled=false};
+    el.addEventListener("click",e=>{if(e.target===el)crsOvClose()});
+    return el});
+}
+/* Kachel auf der Startseite: der zuletzt geöffnete Kurs */
+function crsHomeTile(c){
+  const w=worldOf(c),r=crsRank(c),u=crsUnit(c);
+  const todo=u.q.length?"Heute: "+[u.due?nV(u.due,"Wiederholung","Wiederholungen"):"",u.nw?nV(u.nw,"neue Variante","neue Varianten"):""].filter(Boolean).join(" · "):r.f>=1?"Kurs gemeistert – wiederholen hält ihn frisch":"Für heute geschafft – morgen geht's weiter";
+  return `<button class="hcrs ${crsCls(c)}" data-act="course:${c.id}">${sceneSvg(c.id)}<span class="hcrs-b"><small>Dein Kurs</small><b class="hcrs-w">${esc(w.name)}</b><span class="hcrs-t">${esc(c.t)}</span>
+    <span class="hcrs-r">${rkB(c,r.i,34,"on")}<span><b>${esc(r.name)}</b><small>${r.p.cl}/${r.p.n} Varianten · Rang ${r.i+1} von 6</small></span></span>
+    <span class="hcrs-go">${esc(todo)}<span aria-hidden="true">›</span></span></span></button>`;
 }
 
 /* ---- Repertoire-Baum: eigene Varianten ansehen, abzweigen, löschen ---- */
