@@ -3777,7 +3777,7 @@ const courseKeys=c=>[].concat(...c.ch.map(([id])=>courseLines(c,id).map(i=>lk(id
 const courseProg=c=>{const ks=courseKeys(c);return {n:ks.length,cl:ks.filter(k=>Pk(k)===2).length}};
 let courseOpen=null;
 /* Filter der Kursseite (nur für diesen Browser gemerkt) */
-const crsF={st:"",side:""};try{Object.assign(crsF,JSON.parse(localStorage.getItem("et-crsf")||"{}"))}catch(e){}
+const crsF={st:"",side:"",co:""};try{Object.assign(crsF,JSON.parse(localStorage.getItem("et-crsf")||"{}"))}catch(e){}
 const crsStyles=c=>c.st.map(k=>STYLES[k]?STYLES[k].n:k).join(" · ");
 
 /* ---- Kursdesign, Ränge und Trainer (Figuren und Themen in coaches.js) ---- */
@@ -3924,25 +3924,28 @@ const sideTxt=c=>c.side==="w"?"Weiß":c.side==="b"?"Schwarz":"Weiß & Schwarz";
 function renderCourses(){
   const v=$("v-courses");if(!v)return;
   if(courseOpen){const c=COURSES.find(x=>x.id===courseOpen);if(c){renderCourse(v,c);return}courseOpen=null}
-  if(crsF.st&&!STYLES[crsF.st])crsF.st="";
+  if(crsF.st&&!STYLES[crsF.st])crsF.st="";if(crsF.co&&!COACHES[crsF.co])crsF.co="";
   const SF=[["","Alle Stile"]].concat(Object.keys(STYLES).map(k=>[k,STYLES[k].n]));
   const CF=[["","Beide Farben"],["w","Weiß"],["b","Schwarz"]];
-  const list=COURSES.filter(c=>(!crsF.st||c.st.indexOf(crsF.st)>=0)&&(!crsF.side||c.side.indexOf(crsF.side)>=0));
+  const list=COURSES.filter(c=>(!crsF.st||c.st.indexOf(crsF.st)>=0)&&(!crsF.side||c.side.indexOf(crsF.side)>=0)&&(!crsF.co||coIdOf(c)===crsF.co));
   v.innerHTML=pageHead("Kurse","Such dir einen Kurs, der zu deinem Spielstil passt. Jeder Kurs hat seinen eigenen Trainer und eigene Ränge.","learn")+
+  crsLineup()+
   `<div class="crs-f"><div class="filters" role="group" aria-label="Spielstil">${SF.map(f=>`<button class="chip${crsF.st===f[0]?" on":""}" data-cst="${f[0]}" aria-pressed="${crsF.st===f[0]}">${f[1]}</button>`).join("")}</div>
   <div class="filters" role="group" aria-label="Farbe">${CF.map(f=>`<button class="chip${crsF.side===f[0]?" on":""}" data-csd="${f[0]}" aria-pressed="${crsF.side===f[0]}">${f[1]}</button>`).join("")}</div>
   ${crsF.st?`<p class="hint crs-sd"><b>${esc(STYLES[crsF.st].n)}:</b> ${esc(STYLES[crsF.st].d)}</p>`:""}</div>`+sciHtml()+
   (list.length?`<div class="crs">${list.map(c=>{const th=thOf(c),co=COACHES[coIdOf(c)],r=crsRank(c);
     return `<button class="crc th-${c.id} co-${coIdOf(c)}" data-crs="${c.id}">
-      <span class="crc-band">${sceneSvg(c.id)}<span class="crc-veil" aria-hidden="true"></span><span class="crc-id">${rkB(c,r.i,46,"on")}<span><b class="crc-w">${esc(worldOf(c).name)}</b><small>${esc(r.name)} · Rang ${r.i+1} von 6</small></span></span><span class="crc-av">${coachSvg(coIdOf(c),r.f>=1?"joy":"happy")}</span></span>
+      <span class="crc-band">${sceneSvg(c.id)}<span class="crc-veil" aria-hidden="true"></span><span class="crc-id">${rkB(c,r.i,46,"on")}<span><b class="crc-w">${esc(worldOf(c).name)}</b><small>${esc(r.name)} · Rang ${r.i+1} von 6</small></span></span><span class="crc-tr" aria-hidden="true">${coachSvg(coIdOf(c),r.f>=1?"joy":"happy","bust")}</span></span>
       <span class="crc-body"><span class="crc-top"><span class="crc-tags"><span class="crc-tag">${esc(c.lvl)}</span>${c.st.map(k=>`<span class="crc-st">${esc(STYLES[k]?STYLES[k].n:k)}</span>`).join("")}</span><span class="crc-side">${sideTxt(c)}</span></span>
-      <b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-co">Trainer: <b>${esc(co.n)}</b> · ${esc(co.r)}</span>
+      <b>${esc(c.t)}</b><small>${esc(c.d)}</small><span class="crc-co">Trainer: <b>${esc(TRAINER[coIdOf(c)].full)}</b> · ${esc(co.r)}</span>
       <span class="crc-p"><span class="prog"><i style="width:${r.f*100}%"></i></span><small>${r.p.cl}/${r.p.n} Varianten · ${c.ch.length} Kapitel</small></span></span></button>`}).join("")}</div>`
    :`<p class="hint">Für diese Auswahl gibt es noch keinen Kurs. <button class="chip" data-creset>Alle Kurse zeigen</button></p>`);
   const save=()=>{try{localStorage.setItem("et-crsf",JSON.stringify(crsF))}catch(e){}renderCourses()};
   v.querySelectorAll("[data-cst]").forEach(b=>b.onclick=()=>{crsF.st=b.dataset.cst;save()});
   v.querySelectorAll("[data-csd]").forEach(b=>b.onclick=()=>{crsF.side=b.dataset.csd;save()});
-  const rs=v.querySelector("[data-creset]");if(rs)rs.onclick=()=>{crsF.st="";crsF.side="";save()};
+  v.querySelectorAll("[data-cco]").forEach(b=>b.onclick=()=>{crsF.co=crsF.co===b.dataset.cco?"":b.dataset.cco;save()});
+  const tl=v.querySelector(".trl"),ton=tl&&tl.querySelector(".trl-i.on");if(ton&&tl.scrollWidth>tl.clientWidth)tl.scrollLeft=Math.max(0,ton.offsetLeft-(tl.clientWidth-ton.clientWidth)/2);
+  const rs=v.querySelector("[data-creset]");if(rs)rs.onclick=()=>{crsF.st="";crsF.side="";crsF.co="";save()};
   v.querySelectorAll("[data-crs]").forEach(b=>b.onclick=()=>{courseOpen=b.dataset.crs;renderCourses();window.scrollTo(0,0)});
 }
 function renderCourse(v,c){
@@ -3965,8 +3968,9 @@ function renderCourse(v,c){
     <div class="crs-stats"><span title="Mindestens einmal fehlerfrei gespielt"><b>${p.cl}/${p.n}</b>Gelernt</span><span title="Nach mindestens einer Woche Abstand noch gewusst"><b>${ret.fest}</b>Gefestigt</span><span title="Nach mindestens drei Wochen Abstand noch gewusst"><b>${ret.lang}</b>Langzeit</span><span><b>${chDone}/${chs.length}</b>Kapitel</span><span><b>${med}</b>${med===1?"Medaille":"Medaillen"}</span></div></div>
   </section>
   <section class="crs-coach co-${coId} th-${c.id}">
-    <div class="crs-coach-av">${coachSvg(coId,cm.mood)}</div>
-    <div class="crs-coach-b"><div class="crs-coach-n"><b class="wf">${esc(co.n)}</b><small>${esc(co.r)}</small></div><p class="crs-say">${esc(cm.t)}</p>${crsTip(c)?`<p class="crs-tip"><b>Tipp:</b> ${esc(crsTip(c))}</p>`:""}</div>
+    <button class="crs-coach-art" data-trinfo aria-label="Steckbrief von ${esc(TRAINER[coId].full)} öffnen">${coachSvg(coId,cm.mood,"bust")}</button>
+    <div class="crs-coach-b"><small class="crs-coach-k">Dein Trainer</small><div class="crs-coach-n"><b class="wf">${esc(TRAINER[coId].full)}</b><small>${esc(co.r)}</small></div><p class="crs-say">${esc(cm.t)}</p>${crsTip(c)?`<p class="crs-tip"><b>Tipp:</b> ${esc(crsTip(c))}</p>`:""}
+      <button class="chip crs-coach-more" data-trinfo>${crsIcon("info",15)} Steckbrief</button></div>
   </section>
   <section class="crs-tasks th-${c.id}"><h3>Aufträge von ${esc(co.n)}</h3><div class="crs-task-grid">
     ${u.q.length?task("crsGo",crsIcon(th.ic,20),goLbl,goSub,"main"):fresh?task("crsRest",crsIcon("moon",20),"Für heute geschafft",`Dein Tagesplan ist erfüllt – morgen ${nV(pace,"neue Variante","neue Varianten")}.`,"main rest"):task("crsMix",crsIcon(th.ic,20),"Gemischt üben","Alles gelernt: acht Varianten aus allen Kapiteln durcheinander","main")}
@@ -3985,6 +3989,9 @@ function renderCourse(v,c){
     return `<details class="coll crs-chd th-${c.id}"${x.ci===(curCh<0?-1:curCh)?" open":""}><summary class="coll-h"><span class="coll-ic chn">${x.ci+1}</span><div><h3>${esc(x.t)}</h3><small>${esc(o.name)} · ${x.cl}/${x.n} gelernt${more>0?` · ${more} weitere im Eröffnungstraining`:""}</small></div></summary><div class="coll-items">${x.ix.map(i=>{const l=o.lines[i];const st2=P(x.id,i);const du=isDue(lk(x.id,i));const pr=lineProb(o,i);return `<button class="ci" data-cl="${x.id}#${i}"><span class="ci-ic ${st2===2?"okc":st2===1?"half":""}">${st2===2?ICON.ok.replace('viewBox','width="14" height="14" viewBox'):st2===1?"½":"○"}</span><span class="ci-t"><b>${esc(l.n)}</b><small>${esc(fmtMoves(l.m.slice(0,8)))}${pr!=null?` · ≈ ${fmtPct(pr)}`:""}</small></span>${du?'<span class="ci-m hot">fällig</span>':""}<span class="ci-go">›</span></button>`}).join("")}</div></details>`}).join("")}`;
   v.querySelector("[data-cback]").onclick=()=>{courseOpen=null;renderCourses()};
   crsAdvWatch();if($("crsCert"))$("crsCert").onclick=()=>crsCert(c);
+  v.querySelectorAll("[data-trinfo]").forEach(b=>b.onclick=()=>crsTrainerCard(c,false));
+  if(!st.metCo||typeof st.metCo!=="object")st.metCo={};
+  if(!st.metCo[coId])setTimeout(()=>{if(courseOpen===c.id&&!st.metCo[coId]&&$("v-courses")&&!$("v-courses").hidden){st.metCo[coId]=1;saveStats();crsTrainerCard(c,true)}},380);
   const run=(ks,title,extra)=>{ks=[...new Set(ks)];if(!ks.length){toast("Dafür gibt es gerade keine Varianten.");return}startSession("course",ks,title,Object.assign({course:c.id},extra||{}));window.scrollTo(0,0)};
   if($("crsGo"))$("crsGo").onclick=()=>crsStartUnit(c);
   if($("crsExtra"))$("crsExtra").onclick=()=>crsStartUnit(c,true);
@@ -4010,7 +4017,7 @@ function coachPaint(c,mood){
 function coachSay(c,key,vars,mood,idx){
   if(!c)return;const t=coachLine(c,key,vars,idx);if(!t)return;crsLast=key;
   const el=$("trSay");el.hidden=false;el.innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> ${esc(t)}`;
-  coachPaint(c,mood);
+  coachPaint(c,mood);const fs=$("face").querySelector("svg");if(fs)fs.classList.add("talk");
 }
 function coachClear(){const co=$("coach");if(co.dataset.co){delete co.dataset.co;co.style.removeProperty("--k1");co.style.removeProperty("--k2")}$("trSay").hidden=true;crsLast=""}
 function crsOnItem(){
@@ -4115,7 +4122,7 @@ function crsCelebrate(c,kind){
       <small class="lvlup-k">${fin?"Kurs gemeistert":`Neuer Rang · ${r.i+1} von 6`}</small>
       <h2 class="wf" id="lvlupT">${esc(r.name)}</h2>
       <p class="lvlup-s">${fin?`Alle ${varV(r.p.n)} aus „${esc(c.t)}“ gelernt.`:`${esc(w.name)}${r.next?` · als Nächstes: „${esc(r.next)}“`:""}`}</p>
-      <div class="lvlup-co"><span class="lvlup-av">${coachSvg(coId,"joy")}</span><p><b>${esc(co.n)}</b>${esc(coachLine(c,fin?"p5":"rank"))}</p></div>
+      <div class="lvlup-co"><span class="lvlup-tr">${coachSvg(coId,"joy","bust")}</span><p><b>${esc(co.n)}</b>${esc(coachLine(c,fin?"p5":"rank"))}</p></div>
       <div class="lvlup-acts">${fin?`<button class="btn" data-lv="cert">Urkunde ansehen</button>`:""}<button class="btn lvlup-go" data-lv="ok" data-focus>Weiter</button></div></div>`;
     el.querySelector('[data-lv="ok"]').onclick=crsOvClose;
     const ce=el.querySelector('[data-lv="cert"]');if(ce)ce.onclick=()=>{crsOvClose();crsCert(c)};
@@ -4136,11 +4143,11 @@ function crsReport(c,s,ok,n){
     const date=new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"});
     const el=document.createElement("div");el.className="rpt-bk";
     el.innerHTML=`<div class="rpt ${crsCls(c)}" role="dialog" aria-modal="true" aria-labelledby="rptT">
-      <div class="rpt-h">${sceneSvg(c.id)}<div class="rpt-ht"><small>${esc(w.log)} · ${esc(date)}</small><h2 class="wf" id="rptT">${esc(head)}</h2></div>${exam&&md?`<span class="rpt-md m${md}" aria-hidden="true">${crsIcon("medal",26)}</span>`:""}</div>
+      <div class="rpt-h">${sceneSvg(c.id)}<span class="rpt-tr" aria-hidden="true">${coachSvg(coId,q>=1?"joy":q>=.6?"happy":"worry","bust")}</span><div class="rpt-ht"><small>${esc(w.log)} · ${esc(date)}</small><h2 class="wf" id="rptT">${esc(head)}</h2></div>${exam&&md?`<span class="rpt-md m${md}" aria-hidden="true">${crsIcon("medal",26)}</span>`:""}</div>
       <div class="rpt-b">
         <div class="rpt-top">${rptRing(q)}<div class="rpt-n"><b>${ok} von ${n}</b><span>${exam?"Prüfungsvarianten":"Varianten"} fehlerfrei</span>${ph?`<ul class="rpt-ph">${ph}</ul>`:""}</div></div>
         <div class="rpt-rank">${rkB(c,r.i,50,"on")}<div><small>Rang ${r.i+1} von 6</small><b class="wf">${esc(r.name)}</b><span class="prog"><i style="width:${(r.next?r.part:1)*100}%"></i></span><small>${r.next?`Noch ${varV(r.left)} bis „${esc(r.next)}“`:"Höchster Rang erreicht"}</small></div></div>
-        <div class="rpt-co"><span class="rpt-av">${coachSvg(coId,q>=1?"joy":q>=.6?"happy":"worry")}</span><p><b>${esc(co.n)}</b>${esc(line)}</p></div>
+        <div class="rpt-co"><p><b>${esc(co.n)}</b>${esc(line)}</p></div>
         <div class="rpt-acts"><button class="btn" data-rp="x">Schließen</button><button class="btn grn" data-rp="go" data-focus>Zur Kursseite</button></div>
       </div></div>`;
     el.querySelector('[data-rp="x"]').onclick=crsOvClose;
@@ -4217,11 +4224,38 @@ function crsCert(c){
     el.addEventListener("click",e=>{if(e.target===el)crsOvClose()});
     return el});
 }
+/* Trainer-Aufstellung über der Kursliste: antippen filtert die Kurse dieses Trainers */
+function crsLineup(){
+  const ids=Object.keys(COACHES);
+  return `<section class="trl-w"><h3>Deine Trainer</h3><div class="trl" role="group" aria-label="Kurse nach Trainer filtern">${ids.map(id=>{const n=COURSES.filter(c=>coIdOf(c)===id).length,on=crsF.co===id;
+    return `<button class="trl-i co-${id}${on?" on":""}" data-cco="${id}" aria-pressed="${on}" title="${esc(TRAINER[id].full)} – ${esc(COACHES[id].r)}"><span class="trl-art">${coachSvg(id,on?"joy":"neutral","bust")}</span><b>${esc(TRAINER[id].nick)}</b><small>${nV(n,"Kurs","Kurse")}</small></button>`}).join("")}</div></section>`;
+}
+/* Steckbrief: der Trainer stellt sich vor – mit Motto, Charakterwerten und Markenzeichen */
+function crsTrainerCard(c,first){
+  crsOverlay(()=>{
+    const coId=coIdOf(c),co=COACHES[coId],tr=TRAINER[coId];
+    const el=document.createElement("div");el.className=`lvlup trv ${crsCls(c)}`;el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-labelledby","trvT");
+    el.innerHTML=`<div class="lvlup-bg" aria-hidden="true">${sceneSvg(c.id)}</div><div class="trv-in">
+      <div class="trv-art"><span class="trv-glow" aria-hidden="true"></span>${coachSvg(coId,"happy","bust")}</div>
+      <div class="trv-b">
+        <small class="lvlup-k">${first?"Darf ich vorstellen?":"Steckbrief"}</small>
+        <h2 class="wf" id="trvT">${esc(tr.full)}</h2>
+        <p class="trv-t">${esc(tr.title)} · ${esc(worldOf(c).name)}</p>
+        <p class="trv-m">„${esc(tr.motto)}“</p>
+        <div class="trv-stats">${tr.stats.map((x,i)=>`<div class="trv-s"><span>${esc(x[0])}</span><i style="--v:${x[1]/10};--d:${(.25+i*.12).toFixed(2)}s"><b></b></i><em>${x[1]}</em></div>`).join("")}</div>
+        <dl class="trv-f">${tr.facts.map(f=>`<div><dt>${esc(f[0])}</dt><dd>${esc(f[1])}</dd></div>`).join("")}${tr.buddy?`<div><dt>Begleiter</dt><dd>${esc(tr.buddy)}</dd></div>`:""}</dl>
+        ${first?`<p class="trv-say">${esc(co.say.intro)}</p>`:""}
+        <div class="lvlup-acts"><button class="btn lvlup-go" data-tv="ok" data-focus>${first?"Los geht's!":"Schließen"}</button></div>
+      </div></div>`;
+    el.querySelector('[data-tv="ok"]').onclick=crsOvClose;
+    el.addEventListener("click",e=>{if(e.target===el)crsOvClose()});
+    return el});
+}
 /* Kachel auf der Startseite: der zuletzt geöffnete Kurs */
 function crsHomeTile(c){
   const w=worldOf(c),r=crsRank(c),u=crsUnit(c);
   const todo=u.q.length?"Heute: "+[u.due?nV(u.due,"Wiederholung","Wiederholungen"):"",u.nw?nV(u.nw,"neue Variante","neue Varianten"):""].filter(Boolean).join(" · "):r.f>=1?"Kurs gemeistert – wiederholen hält ihn frisch":"Für heute geschafft – morgen geht's weiter";
-  return `<button class="hcrs ${crsCls(c)}" data-act="course:${c.id}">${sceneSvg(c.id)}<span class="hcrs-b"><small>Dein Kurs</small><b class="hcrs-w">${esc(w.name)}</b><span class="hcrs-t">${esc(c.t)}</span>
+  return `<button class="hcrs ${crsCls(c)}" data-act="course:${c.id}">${sceneSvg(c.id)}<span class="hcrs-tr" aria-hidden="true">${coachSvg(coIdOf(c),"happy","bust")}</span><span class="hcrs-b"><small>Dein Kurs</small><b class="hcrs-w">${esc(w.name)}</b><span class="hcrs-t">${esc(c.t)}</span>
     <span class="hcrs-r">${rkB(c,r.i,34,"on")}<span><b>${esc(r.name)}</b><small>${r.p.cl}/${r.p.n} Varianten · Rang ${r.i+1} von 6</small></span></span>
     <span class="hcrs-go">${esc(todo)}<span aria-hidden="true">›</span></span></span></button>`;
 }
