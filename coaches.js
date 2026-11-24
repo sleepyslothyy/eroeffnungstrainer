@@ -286,6 +286,7 @@ const CRS_IC={
   sail:"M4 18h16l-2 3H6z M12 3v15 M12 4l7 11h-7 M12 6l-5 9h5",
   redo:"M3 12a9 9 0 1 0 3-6.7 M3 4v5h5",
   medal:"M8 3h8l-2 6h-4z M12 21a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 13v4",
+  swords:"M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2",
   info:"M4 5h16v14H4z M8 10a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z M5.5 15c.6-2 4.4-2 5 0 M13 9h4 M13 12h4 M13 15h3"
 };
 const crsIcon=(k,s)=>`<svg width="${s||24}" height="${s||24}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${CRS_IC[k]||CRS_IC.cap}"/></svg>`;

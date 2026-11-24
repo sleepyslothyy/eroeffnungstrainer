@@ -2159,3 +2159,19 @@ html{scrollbar-color:color-mix(in srgb,var(--text) 24%,transparent) transparent}
 .shero-scn{left:auto;width:auto;height:100%;aspect-ratio:8/5;-webkit-mask-image:linear-gradient(90deg,transparent 6%,#000 34%);mask-image:linear-gradient(90deg,transparent 6%,#000 34%)}
 @media (min-width:641px){.hero.shero{min-height:168px}}
 @media (max-width:640px){.shero-scn{-webkit-mask-image:linear-gradient(90deg,transparent 8%,#000 40%);mask-image:linear-gradient(90deg,transparent 8%,#000 40%)}}
+/* „Darum nicht“: Knopf im Hinweisfeld spielt die Widerlegung vor */
+.whyb{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:5px 12px 5px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--k,var(--acc)) 50%,var(--line));background:color-mix(in srgb,var(--k,var(--acc)) 14%,transparent);color:var(--text);font:inherit;font-size:12.5px;font-weight:700;line-height:1.2;cursor:pointer;transition:background .15s}
+.whyb::before{content:"";flex:none;border-left:7px solid currentColor;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent}
+.whyb:hover{background:color-mix(in srgb,var(--k,var(--acc)) 26%,transparent)}
+.whyb:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+/* Weiterspielen: Trainergesicht im Knopf */
+#sfBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:0}
+.btn-av{flex:none;width:24px;height:24px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,var(--k1,#555),var(--k2,#888));box-shadow:0 0 0 1.5px rgba(255,255,255,.55)}
+.btn-av svg{width:100%;height:100%;display:block}
+.btn-l{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Duell im Kurs: Siegel und Knopf an der Station */
+.seal{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 10px 3px 8px;color:#fff;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+.seal.s1{background:none;color:var(--text);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c1) 70%,var(--line))}
+.chip.duel{display:inline-flex;align-items:center;gap:6px}
+#actsDone.acts.two{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+#sfBtn{padding-left:8px;padding-right:10px}
