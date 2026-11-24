@@ -78,10 +78,10 @@ const KEYS=["prog","srs","pos","rep","daily","streak","stats","set","custom","an
 const S={
   prog:store.get("et-prog",{}),srs:store.get("et-srs",{}),pos:store.get("et-pos",{}),rep:store.get("et-rep",[]),daily:store.get("et-daily",null),
   streak:store.get("et-streak",{last:null,n:0,best:0}),stats:store.get("et-stats",{}),
-  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true},store.get("et-set",{})),
+  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true,crsBoard:true},store.get("et-set",{})),
   custom:store.get("et-custom",{w:[],b:[]}),ana:store.get("et-ana",null),puz:store.get("et-puz",[])
 };
-{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
+{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true,crsBoard:true};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
 fixT(S.streak,{last:"",n:0,best:0});if(S.streak.last==="")S.streak.last=null;
 fixT(S.custom,{w:[],b:[]});S.custom.w=S.custom.w.filter(l=>l&&Array.isArray(l.m));S.custom.b=S.custom.b.filter(l=>l&&Array.isArray(l.m));
 S.rep=S.rep.filter(x=>typeof x==="string");S.puz=S.puz.filter(x=>x&&typeof x==="object"&&x.key);
@@ -498,6 +498,25 @@ function whyShow(){
   whyT.push(setTimeout(()=>{if(whyStop())render()},t+1800));
 }
 $("whyBtn").onclick=whyShow;
+/* ---- Schlüsselzüge (keymoves.js): echte Erklärungen zu den wichtigsten Momenten, im Ton des Trainers ---- */
+let KMAP=null;
+function keyWhy(n){
+  if(startFen||n<1||n>hist.length)return null;
+  if(!KMAP){KMAP=new Map();if(typeof KEYMOVES!=="undefined")for(const [q,t] of KEYMOVES)KMAP.set(q.split(" ").map(strip).join(" "),t)}
+  return KMAP.get(hist.slice(0,n).map(strip).join(" "))||null;
+}
+function kmPaint(){
+  const el=$("kmSay");if(!el)return;
+  const on=view>0&&!!op&&!op.endId&&(mode==="train"||(mode==="replay"&&game&&!game.review&&!game.free));
+  /* Am aktuellen Stand: der eigene Zug und die sofortige Antwort des Buchs gemeinsam, sonst nur der gezeigte Zug */
+  const ns=on?(live()&&mode==="train"&&view>1&&flags[view-2]==="u"?[view-1,view]:[view]).filter(n=>keyWhy(n)):[];
+  if(!ns.length){if(!el.hidden){el.hidden=true;el.dataset.k=""}return}
+  const c=mode==="train"?crsSess():null,co=c?coIdOf(c):"mila",k=co+"|"+ns.join(",")+"|"+hist.slice(0,view).join(" ");if(el.dataset.k===k&&!el.hidden)return;el.dataset.k=k;
+  const L=(typeof KM_LEAD!=="undefined"&&KM_LEAD[co])||["Merk dir:"],lead=L[(view+hist[view-1].length)%L.length];
+  el.innerHTML=`<span class="km-h"><span class="km-k" aria-hidden="true">${crsIcon("key",12)}</span>${ns.length>1?"Schlüsselzüge":"Schlüsselzug"} · ${esc(TRAINER[co].nick)}</span>`+
+    ns.map((n,i)=>`<span class="km-i"><b class="km-m">${esc(numSan(fens[n-1],hist[n-1]))}</b> ${i===0?`<em>${esc(lead)}</em> `:""}${esc(keyWhy(n))}</span>`).join("");
+  el.hidden=false;
+}
 let xpl=null,pickWait=false;
 function finish(){
   if(learn){done=true;stopBlitz();const i=target;learn=false;if(badge&&badge.ply===hist.length)badge.type="ok";
@@ -835,7 +854,7 @@ function renderExplain(){
     if(rvc)html+=rvc;else
     html+=`<div class="excard"><div class="exh"><span>Zug ${view} von ${hist.length} · ${who}</span></div>
       <div class="exmove">${esc(num+" "+de(mv.san))}<span class="who">${mv.color==="w"?"Weiß":"Schwarz"}</span></div>${rev}
-      <p>${esc(explain(fens[view-1],mv,view>1?mvs[view-2]:null).text)}</p>${note?`<p class="note">${esc(note)}</p>`:""}
+      <p>${esc(explain(fens[view-1],mv,view>1?mvs[view-2]:null).text)}</p>${(()=>{const kw=mode==="train"||mode==="replay"?keyWhy(view):null;return kw?`<p class="kmx"><b>Warum?</b> ${esc(kw)}</p>`:""})()}${note?`<p class="note">${esc(note)}</p>`:""}
       ${names.length?`<p class="leads">${names.length===1?"Variante":"Mögliche Varianten"}: ${esc(names.slice(0,4).join(" · "))}${names.length>4?" · +"+(names.length-4)+" weitere":""}</p>`:""}</div>`;
   }else{
     const txt=mode==="replay"?"Spiel die Partie mit → nach. Zu jedem Zug erscheint hier eine Erklärung.":mode==="edit"?"Spiel eine Zugfolge für beide Seiten ein.":mode==="puzzle"?"Finde den besten Zug.":(op.side==="w"?"Du spielst Weiß.":"Du spielst Schwarz.")+" Zu jedem Zug erscheint hier eine Erklärung.";
@@ -1009,7 +1028,7 @@ function render(anim,extra){
     if(bdg.type.indexOf("rv-")===0){const c=CLS[bdg.type.slice(3)];b.className="badge cls "+c[1];b.textContent=c[2];b.style.fontSize="calc(var(--s)*.2)"}else{b.className="badge "+bdg.type;b.innerHTML=ICON[bdg.type]}
     b.style.left=((p.x+1)*12.5)+"%";b.style.top=(p.y*12.5)+"%";badgesEl.appendChild(b)}
   drawGhosts();
-  renderMoves();renderVars();renderBars();renderExplain();updateEvalBar();if(tab==="db")renderDb();applyBlind();
+  renderMoves();renderVars();renderBars();renderExplain();updateEvalBar();if(tab==="db")renderDb();applyBlind();kmPaint();
   const canAct=(mode==="train"||mode==="puzzle")&&!done&&!busy&&!lock&&userTurnShown()&&!op.endId&&!(mode==="train"&&(xpl||(pickWait&&live())));
   $("hintBtn").disabled=$("showBtn").disabled=!canAct;$("backBtn").disabled=!(mode==="train"&&!drill&&!lock&&!op.endId&&flags.indexOf("u")>=0);renderMaterial();$("restartBtn").disabled=mode==="puzzle"&&!done;
   $("navFirst").disabled=$("navPrev").disabled=view===0;
@@ -1701,7 +1720,7 @@ function applySettings(){
   document.body.classList.remove("bt-green","bt-brown","bt-blue","bt-gray","ps-cburnett","ps-staunty","theme-light");
   document.body.classList.add("bt-"+S.set.theme,"ps-"+S.set.pieces);if(S.set.design==="light")document.body.classList.add("theme-light");
   document.body.classList.remove("acc-violet","acc-red","acc-green");document.body.classList.add("acc-"+(S.set.accent||"violet"));
-  document.body.classList.toggle("nocoords",!S.set.coords);document.body.classList.toggle("calm",!!S.set.calm);
+  document.body.classList.toggle("nocoords",!S.set.coords);document.body.classList.toggle("cbrd",S.set.crsBoard!==false);document.body.classList.toggle("calm",!!S.set.calm);
   document.documentElement.style.setProperty("--fz",String((S.set.font||100)/100));
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=S.set.design==="light"?"#F4F3F0":"#1B1A18";
 }
@@ -1716,6 +1735,7 @@ function renderSettings(v){
     ${sw("swIdeas",S.set.ideas,"Ideen-Pfeile","Blaue Pfeile zeigen, was der letzte Zug angreift oder fesselt")}
     ${sw("swWhy",S.set.why!==false,"Falsche Züge erklären","Stockfish prüft Nicht-Buchzüge: spielbar, ungenau oder ein Fehler – mit Widerlegung")}
     ${sw("swCoords",S.set.coords,"Koordinaten","Buchstaben und Zahlen am Brettrand")}
+    ${sw("swCb",S.set.crsBoard!==false,"Kursbretter","Im Kurs nimmt das Brett die Farben der Kurswelt an")}
     ${sw("swEval",S.set.evalbar,"Bewertungsbalken","Stockfish bewertet jede Stellung neben dem Brett")}
     ${sw("swReal",S.set.realistic,"Realistische Gegnerzüge","Das Buch spielt häufige Antworten öfter – nach Lichess-Statistik")}
     <div class="setrow"><span><b>Blitz-Drill: <span id="blLbl">${S.set.blitzSec}</span> s pro Zug</b><small>Zeit pro Zug im Blitz-Drill</small></span><input type="range" id="blRange" min="2" max="15" value="${S.set.blitzSec}" aria-label="Sekunden pro Zug"></div>
@@ -1740,7 +1760,7 @@ function renderSettings(v){
   v.querySelectorAll("[data-theme]").forEach(b=>b.onclick=()=>{S.set.theme=b.dataset.theme;save("set");applySettings();renderProfile()});
   v.querySelectorAll("[data-pset]").forEach(b=>b.onclick=()=>{S.set.pieces=b.dataset.pset;save("set");applySettings();renderProfile()});
   const tg=(id,key)=>$(id).onclick=()=>{S.set[key]=!S.set[key];save("set");applySettings();$(id).setAttribute("aria-pressed",String(S.set[key]));if(op&&curView==="train")render()};
-  tg("swSound","sound");tg("swIdeas","ideas");tg("swWhy","why");tg("swCoords","coords");tg("swEval","evalbar");tg("swReal","realistic");
+  tg("swSound","sound");tg("swIdeas","ideas");tg("swWhy","why");tg("swCb","crsBoard");tg("swCoords","coords");tg("swEval","evalbar");tg("swReal","realistic");
   tg("swLearn","learnFirst");tg("swAuto","autoNext");tg("swQueen","autoQueen");tg("swSwipe","swipe");tg("swSync","autoSync");tg("swCalm","calm");
   v.querySelectorAll("[data-fz]").forEach(b=>b.onclick=()=>{S.set.font=+b.dataset.fz;save("set");applySettings();v.querySelectorAll("[data-fz]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
   $("onbAgain").onclick=()=>openOnboarding();
@@ -3917,10 +3937,14 @@ const crsF={st:"",side:"",co:""};try{Object.assign(crsF,JSON.parse(localStorage.
 const crsStyles=c=>c.st.map(k=>STYLES[k]?STYLES[k].n:k).join(" · ");
 
 /* ---- Kursdesign, Ränge und Trainer (Figuren und Themen in coaches.js) ---- */
+function hexMix(a,b,t){const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));const A=p(a),B=p(b);return "#"+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,"0")).join("").toUpperCase()}
 (function(){const wf=id=>{const w=WFONT[id]||WFONT.mila;return `--wf:"${w.f}";--wfs:${w.s};--wls:${w.ls}`};
   const css=Object.keys(COURSE_THEME).map(id=>{const t=COURSE_THEME[id];return `.th-${id}{--c1:${t.c1};--c2:${t.c2};--pat:${crsPat(t.pat)};${wf(t.co)}}`}).join("\n")+"\n"+
   Object.keys(COACHES).map(id=>`.co-${id}{--k1:${COACHES[id].bg[0]};--k2:${COACHES[id].bg[1]};${wf(id)}}`).join("\n")+"\n"+
-  (typeof SECT!=="undefined"?Object.keys(SECT).map(k=>`.sec-${k}{--c1:${SECT[k].c1};--c2:${SECT[k].c2};--pat:${crsPat(SECT[k].pat)}}`).join("\n"):"");
+  (typeof SECT!=="undefined"?Object.keys(SECT).map(k=>`.sec-${k}{--c1:${SECT[k].c1};--c2:${SECT[k].c2};--pat:${crsPat(SECT[k].pat)}}`).join("\n"):"")+"\n"+
+  /* Kursbretter: Feldfarben, Markierung des letzten Zugs (mit Gelb gemischt) und eine leise Struktur je Welt */
+  (typeof WBOARD!=="undefined"?Object.keys(WBOARD).map(id=>{const [l,d,tx]=WBOARD[id],T=tx&&WBOARD_TX[tx];
+    return `.cbrd #v-train.crs-on.th-${id}{--sq-l:${l};--sq-d:${d};--hl-l:${hexMix(l,"#F7E25E",.6)};--hl-d:${hexMix(d,"#E6CF3A",.55)}${T?`;--tx-l:${T[0]};--tx-d:${T[1]}`:""}}`}).join("\n"):"");
   const el=document.createElement("style");el.id="crs-themes";el.textContent=css;document.head.appendChild(el)})();
 if(!st.crs||typeof st.crs!=="object"||Array.isArray(st.crs))st.crs={};
 const thOf=c=>COURSE_THEME[c.id]||COURSE_THEME.w_start;

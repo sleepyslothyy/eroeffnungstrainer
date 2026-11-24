@@ -287,6 +287,7 @@ const CRS_IC={
   redo:"M3 12a9 9 0 1 0 3-6.7 M3 4v5h5",
   medal:"M8 3h8l-2 6h-4z M12 21a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 13v4",
   swords:"M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2",
+  key:"M16 3.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z M12.8 11.2L4 20 M7.2 16.8l2.6 2.6 M4.9 19.1l1.8 1.8",
   info:"M4 5h16v14H4z M8 10a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z M5.5 15c.6-2 4.4-2 5 0 M13 9h4 M13 12h4 M13 15h3"
 };
 const crsIcon=(k,s)=>`<svg width="${s||24}" height="${s||24}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${CRS_IC[k]||CRS_IC.cap}"/></svg>`;

@@ -2175,3 +2175,15 @@ html{scrollbar-color:color-mix(in srgb,var(--text) 24%,transparent) transparent}
 .chip.duel{display:inline-flex;align-items:center;gap:6px}
 #actsDone.acts.two{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
 #sfBtn{padding-left:8px;padding-right:10px}
+/* Kursbretter: leise Struktur je Welt (Planken, Sterne, Glut) – nie auf markierten Feldern */
+.cbrd #v-train.crs-on .sq.l:not(.hl):not(.bad):not(.check){background-image:var(--tx-l,none)}
+.cbrd #v-train.crs-on .sq.d:not(.hl):not(.bad):not(.check){background-image:var(--tx-d,none)}
+/* Schlüsselzüge: Erklärung im Ton des Trainers im Hinweisfeld */
+.kmsay{display:block;margin-top:8px;padding:8px 10px 9px;border-radius:10px;background:color-mix(in srgb,var(--k1,var(--acc)) 14%,transparent);border:1px solid color-mix(in srgb,var(--k1,var(--acc)) 34%,transparent)}
+.km-h{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;letter-spacing:.01em;color:var(--text-2)}
+.km-k{display:inline-flex;flex:none;width:18px;height:18px;border-radius:50%;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--k1,var(--acc)),var(--k2,var(--acc-hi)));color:#fff}
+.km-i{display:block;margin-top:4px;font-size:13px;line-height:1.45;color:var(--text)}
+.bub .km-i b.km-m{display:inline;font-size:inherit;font-weight:800;color:var(--acc-txt);margin-right:2px}
+.km-i em{font-style:normal;font-weight:700}
+.kmx{margin-top:8px!important;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--acc) 11%,transparent);font-size:13.5px;line-height:1.45}
+.kmx b{color:var(--acc-txt);margin-right:4px}
