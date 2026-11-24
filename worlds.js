@@ -316,3 +316,32 @@ function rankBadge(icon,i,size,state){
   const pips=k>0&&k<5?`<g fill="${ink}">${Array.from({length:k},(_,j)=>`<circle cx="${(32-(k-1)*3.6+j*7.2).toFixed(1)}" cy="${k===2?47.5:k===1?47:48}" r="1.9"/>`).join("")}</g>`:"";
   return `<svg class="rbadge${state?" "+state:""}" width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true">${body}<g transform="translate(${32-10.8} ${(cy-10.8+dy).toFixed(1)}) scale(.9)" fill="none" stroke="${ink}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${em}"/></g>${pips}</svg>`;
 }
+
+/* ---- Kursbretter: im Kurs nimmt das Brett die Farben der Kurswelt an ----
+   [helles Feld, dunkles Feld, Struktur]. Helle Felder bleiben sehr hell, dunkle mittelhell,
+   damit weiße und schwarze Figuren auf beiden gut lesbar sind. */
+const WBOARD={
+  w_start:["#E6EFE6","#5F9E90"],
+  b_start:["#E1E4F4","#5F6DB8","stars"],
+  w_system:["#F2E3CB","#C98C4C"],
+  b_system:["#E2E8EE","#7B97AE"],
+  w_quiet_e4:["#E7EDD8","#7E9F69"],
+  b_solid:["#E4E5E8","#8B93A3"],
+  b_classic:["#E1E8F0","#5D82AB"],
+  w_d4:["#DFECEF","#4F93A6"],
+  w_flank:["#E4EDDA","#6C9C70"],
+  w_e4:["#F1E6CB","#B48C55"],
+  w_attack:["#F5E2D2","#C6654B","ember"],
+  b_counter:["#EAE2F1","#8E6FB0"],
+  b_hyper:["#DDEFE9","#5AA392"],
+  b_sharp:["#E8E2F6","#8470CB","stars"],
+  b_sicilian:["#EBDDD2","#86706A","ember"],
+  gambits:["#E9D3AD","#A97A4F","planks"],
+  w_gambit:["#F4E7CC","#C98450"],
+  b_gambit:["#DCEBE8","#5A8A88","planks"]
+};
+const WBOARD_TX={
+  planks:["repeating-linear-gradient(180deg,rgba(90,55,25,.13) 0 1px,transparent 1px 25%)","repeating-linear-gradient(180deg,rgba(30,15,5,.2) 0 1px,transparent 1px 25%)"],
+  stars:["none","radial-gradient(circle at 22% 28%,rgba(255,255,255,.75) 0 .7px,transparent 1.3px),radial-gradient(circle at 74% 62%,rgba(255,255,255,.55) 0 .6px,transparent 1.2px),radial-gradient(circle at 46% 86%,rgba(255,255,255,.4) 0 .5px,transparent 1.1px)"],
+  ember:["none","radial-gradient(ellipse at 50% 118%,rgba(255,112,32,.34),transparent 62%)"]
+};
