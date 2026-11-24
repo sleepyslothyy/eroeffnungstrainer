@@ -15,6 +15,10 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
   - **Gegnerzug »Ich wähle«**: Statt des Zufalls tippst du den Gegnerzug auf dem Brett an und suchst dann deine Antwort
   - **Eröffnungslexikon** mit allen 3.865 benannten Eröffnungen und Varianten der Lichess-Datenbank in 141 Familien (deutsche Namen), Suche nach Name, ECO-Code oder Zügen, Variantenbaum, jede Variante oder ganze Familie als Weiß oder Schwarz trainierbar
   - Lern- und Prüfmodus: Neue Varianten werden zuerst mit Pfeilen und Erklärungen vorgezeigt, danach spielst du sie ohne Hilfe
+  - **Schlüsselzüge** (`keymoves.js`): 279 handgeschriebene Erklärungen zu den wichtigsten Momenten aller Eröffnungen. Der Trainer erklärt sie im Hinweisfeld in seinem Ton; eigener Zug und sofortige Buchantwort stehen zusammen
+  - **Darum nicht:** Nicht-Buchzüge ordnet Stockfish ein – spielbar, ungenau oder ein Fehler. Bei Fehlern zeigt der Trainer die Widerlegung („Auf 2.La6 folgt 2…Sxa6 – du verlierst einen Läufer“) und spielt sie auf Wunsch vor
+  - **Weiterspielen gegen den Trainer:** Nach jeder Variante spielst du genau diese Stellung gegen einen Trainer aus. Im Kurs gibt es dazu **Duelle**: ein Sieg bringt ein Siegel für das Kapitel
+  - **Kursbretter:** Im Kurs nimmt das Brett die Farben der Welt an (Planken in der Piratenbucht, Sterne in der Sternwarte, Glut im Vulkan)
   - **18 Kurse für sieben Spielstile** (Einstieg, Angriff, Solide, Strategie, Dynamisch, Gambits, Wenig Theorie) mit Kapiteln vom Einsteiger bis stark, Filter nach Stil und Farbe, Varianten-Baum für eigene Varianten (abzweigen, löschen)
   - **Jeder Kurs ist eine eigene Welt** (`worlds.js`): 18 gezeichnete Szenen, z. B. Schachschule, Sternwarte, Vulkan, Piratenbucht und Geisterschiff. Jede Trainerwelt hat ihre eigene Schrift. Dazu kommen Rangabzeichen in sechs Formen bis zum Lorbeerkranz und eine Abenteuerkarte, auf der die Kapitel als Stationen an einem gewundenen Weg liegen. Bei einem neuen Rang erscheint ein Feier-Bildschirm. Nach jeder Lerneinheit gibt es einen Bericht im Stil der Welt („Kaperbericht“, „Messprotokoll“, „Sternenprotokoll“ …). Wer einen Kurs meistert, kann sich eine Urkunde als Bild speichern. Der zuletzt geöffnete Kurs steht als Kachel auf der Startseite.
   - **Jede Seite hat ein eigenes Bild** (`sections.js`): Training, Eröffnungen, Taktik, Endspiele, Quiz, Musterpartien, Analyse, Online, Turniere, Liga, Statistik, Koordinaten, Lexikon und die Kursübersicht bekommen je eine gezeichnete Szene im Stil der Kurswelten.
@@ -35,12 +39,13 @@ Schach-Eröffnungen lernen, Taktik trainieren, online spielen und Partien analys
   - Millionen echter Lichess-Rätsel (CC0) mit Wertung, Levels, Themen-Pfaden und Taktik-Rush (3 Min, 5 Min, Überleben)
   - Koordinaten-Trainer (Feld finden, Feld benennen), „Finde den Meisterzug“ mit berühmten Partien, Endspiel-Kapitel (Grundmatts, Bauern-, Turm- und Damenendspiele)
 - **Spielen** – Schnellsuche nach gleich starken Gegnern, online gegen Freunde (Einladungslink oder Herausforderung, Uhren, Fernschach mit 1 oder 3 Tagen pro Zug, Remis, Zurücknahme, Vorzüge, Schnellnachrichten, Revanche), Turniere jeder gegen jeden unter Freunden, gegen den Computer in sechs Stufen und drei Spielstilen (auch ab einer Eröffnung) und Live-Partien zum Zuschauen
+  - **Gegner-Check:** Lichess- oder Chess.com-Namen eingeben, dann siehst du, was dieser Spieler gegen dein Repertoire spielt, wo dir eine Antwort fehlt, und übst genau diese Varianten
 - **Analyse** – Game Review per Link oder PGN, Analysebrett mit FEN, zuletzt analysierte Partien und die Chess.com-/Lichess-Zentrale
 - **Profil** – Statistik, Abzeichen, Bestenliste, Freunde, Spielerprofile mit Avatar, Einstellungen (Akzentfarbe Lila/Rot/Grün, Hell/Dunkel, Brett, Figuren, Komfort), Konto, Daten und Rechtliches
 
 ## Statistik und Motivation
 - **Statistik** (Profil): Level, Serie, Trefferquote und Partien auf einen Blick, Wertungsverlauf (Taktik, Online, Chess.com/Lichess) mit Zeitraumwahl, Trainingskalender, Stärken-und-Schwächen-Diagramm, Erfolgsquote nach Farbe, Bedenkzeit und Eröffnung, Fehlermuster mit passender Übung, Lernkurve und Vorschau der Wiederholungen
-- **Wochenbericht** jeden Montag auf der Startseite mit Vorschlag für die neue Woche
+- **Wochenbericht** jeden Montag auf der Startseite mit Vorschlag für die neue Woche, dazu der **Wochenrückblick** als Karte im Stil deines Trainers (geübte Varianten, Trefferquote, Höhepunkt, Ziel) – zum Teilen als Bild
 - **Level und XP** für alles, was du trainierst und spielst; **Tagesaufgaben** (drei pro Tag, mit Bonus)
 - **Wochenliga** von Bronze bis Diamant mit Auf- und Abstieg (mit Konto gegen andere Spieler, ohne Konto nach Solo-Regel)
 - **Taktik-Verlauf** (Training → Taktik → Verlauf): die letzten 300 Aufgaben mit Mini-Brett, Ergebnis, Lösungszeit, Wertungsänderung und Motiven, Filter nach Ergebnis und Motiv, 14-Tage-Übersicht, jede Aufgabe nachspielbar, falsche gesammelt wiederholen, Link zu Lichess

@@ -22,3 +22,17 @@ jobs:
         run: sleep 1 && node tests/smoke.mjs
       - name: Online-Test (zwei Spieler, Uhrversatz, Verbindungsabbruch)
         run: node tests/online.mjs
+  safari:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright mit WebKit installieren
+        run: npm install --no-save playwright@1.56.0 && npx playwright install --with-deps webkit
+      - name: Server starten
+        run: python3 -m http.server 8765 >/dev/null 2>&1 &
+      - name: Rauchtest in WebKit (Safari-Engine)
+        run: sleep 1 && BROWSER=webkit node tests/smoke.mjs

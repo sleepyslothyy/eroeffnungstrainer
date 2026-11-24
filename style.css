@@ -2187,3 +2187,47 @@ html{scrollbar-color:color-mix(in srgb,var(--text) 24%,transparent) transparent}
 .km-i em{font-style:normal;font-weight:700}
 .kmx{margin-top:8px!important;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--acc) 11%,transparent);font-size:13.5px;line-height:1.45}
 .kmx b{color:var(--acc-txt);margin-right:4px}
+/* Gegner-Check */
+.sc-form{display:flex;gap:8px;margin-top:10px}
+.sc-form .txt{flex:1;min-width:0}
+.sc-form .btn{flex:none;padding-left:18px;padding-right:18px}
+.sc-recent{margin-top:10px}
+.sc-recent .chip{display:inline-flex;align-items:baseline;gap:6px}
+.sc-recent .chip small{font-weight:600;opacity:.7;font-size:11px}
+#scMsg{margin:10px 0 0;min-height:1.2em}
+#scMsg:empty{display:none}
+.sc-err{color:var(--red,#E5484D)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:12px}
+.sc-prof .card h3{margin-bottom:8px}
+.sc-on{margin:10px 0 2px;font-size:13px;font-weight:700;color:var(--text-2)}
+.sc-on:first-of-type{margin-top:0}
+.sc-r{display:grid;grid-template-columns:62px minmax(0,1fr) auto;align-items:center;gap:10px;padding:5px 0}
+.sc-r b{font-variant-numeric:tabular-nums}
+.sc-r small{color:var(--text-2);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sc-bar{display:block;height:8px;border-radius:99px;background:var(--hover);overflow:hidden}
+.sc-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#3B3D9E,#1FA39C)}
+.sc-paths{display:flex;flex-direction:column;gap:2px}
+.sc-path{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.sc-pt{min-width:0;display:flex;flex-direction:column;gap:2px}
+.sc-pt small{color:var(--text-2);font-size:12.5px;overflow-wrap:anywhere}
+.sc-meta{font-size:11.5px;color:var(--muted)}
+.sc-pp{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--acc-txt)}
+.sc-all{margin-top:12px;align-self:flex-start}
+.sc-gaps{margin-top:12px}
+.sc-gaps h4{margin:0 0 6px;font-size:14px}
+.sc-gap{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px;line-height:1.4}
+.sc-gap:first-of-type{border-top:0}
+.sc-gap small{color:var(--text-2)}
+.sc-gap .chip{flex:none}
+/* Wochenrückblick: Karte als Bild, zum Teilen */
+.rcp{width:min(440px,100%);display:flex;flex-direction:column;gap:12px;animation:celebpop .35s ease-out}
+.rcp-card{position:relative;aspect-ratio:4/5;width:100%;border-radius:22px;overflow:hidden;background:linear-gradient(160deg,var(--k1),var(--k2));box-shadow:0 24px 60px rgba(0,0,0,.45)}
+@media (max-height:760px){.rcp{width:min(440px,100%,calc((100dvh - 120px)*.8))}}
+.rcp-img{display:block;width:100%;height:100%;object-fit:cover;background:#F6F1E7}
+.rcp-sk{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;text-align:center;padding:20px}
+.rcp-sk span{width:104px;height:104px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.18);box-shadow:0 0 0 4px rgba(255,255,255,.35);animation:rcpPulse 1.2s ease-in-out infinite}
+.rcp-sk small{font-weight:700;font-size:14px;opacity:.92}
+@keyframes rcpPulse{50%{transform:scale(1.06)}}
+@media (prefers-reduced-motion:reduce){.rcp-sk span{animation:none}}
+.rcp-alt{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.wrep-a{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
