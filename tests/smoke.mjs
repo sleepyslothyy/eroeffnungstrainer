@@ -33,6 +33,17 @@ for (const vp of [{ width: 390, height: 844, isMobile: true, hasTouch: true }, {
   if (!/geschafft/.test(done)) errs.push("Variante wurde nicht abgeschlossen: " + done);
   const xp = await page.evaluate(() => window.__ET.GX.xp);
   if (!(xp > 0)) errs.push("Keine XP für eine gelernte Variante");
+  const po = await page.evaluate(() => document.getElementById("sfBtn").textContent.trim());
+  if (!/^Gegen \S+ weiterspielen$/.test(po)) errs.push("Weiterspielen-Knopf zeigt keinen Trainer: " + po);
+  // „Darum nicht“: Stockfish ordnet einen Nicht-Buchzug ein (nur am Computer, damit der Test kurz bleibt)
+  if (!vp.isMobile) {
+    await page.evaluate(() => window.__ET.select("italienisch", 0)); await W(800);
+    await page.evaluate(() => window.__ET.tryMove("a2", "a4"));
+    let why = "";
+    for (let k = 0; k < 60 && !/Stockfish|Darum nicht/.test(why); k++) { await W(500); why = await page.evaluate(() => document.getElementById("stText").textContent) }
+    if (!/Stockfish|Darum nicht/.test(why)) errs.push("Nicht-Buchzug wurde nicht eingeordnet: " + why);
+    else console.log("Darum nicht: " + why);
+  }
   await page.evaluate(() => window.__ET.showView("profile:stats")); await W(400);
   console.log(`${vp.width}px: ${VIEWS.length} Bereiche, Variante: ${done}, XP ${xp}`);
   if (errs.length) { failed = true; console.error(errs.join("\n")) }
