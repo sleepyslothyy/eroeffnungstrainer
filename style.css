@@ -2108,3 +2108,54 @@ img.tr{display:block;object-fit:contain;-webkit-user-drag:none;user-select:none}
 .view:not([hidden]):not(#v-train){animation:viewIn .28s cubic-bezier(.2,.8,.3,1)}
 @keyframes viewIn{from{opacity:0;transform:translateY(8px)}}
 @media (prefers-reduced-motion:reduce){.view:not([hidden]){animation:none}}
+
+/* ================= Feinschliff ================= */
+::selection{background:color-mix(in srgb,var(--acc) 34%,transparent)}
+html{scrollbar-color:color-mix(in srgb,var(--text) 24%,transparent) transparent}
+/* Kompakte Knopfreihen: nie umbrechen */
+.acts .btn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Medaillen der Abzeichen: metallisch, gesperrte Stufen gestrichelt */
+.bmed svg{width:28px;height:28px;padding:10px;background:transparent;color:color-mix(in srgb,var(--text) 32%,var(--panel));box-shadow:none;outline:2px dashed color-mix(in srgb,var(--text) 20%,transparent);outline-offset:-2px}
+.bmed.got svg{outline:0;box-shadow:inset 0 2px 0 rgba(255,255,255,.55),inset 0 -3px 0 rgba(0,0,0,.2),0 5px 12px -4px rgba(0,0,0,.4)}
+.bmed.got.t1 svg{background:radial-gradient(circle at 34% 28%,#F8D3AA,#C17C46 58%,#8A5026);color:#3A2410}
+.bmed.got.t2 svg{background:radial-gradient(circle at 34% 28%,#FFFFFF,#C2CAD3 58%,#8B95A2);color:#2E343B}
+.bmed.got.t3 svg{background:radial-gradient(circle at 34% 28%,#FFF3B8,#EBBB3F 58%,#B5841A);color:#3A2E0B}
+.bdg.got .md{background:radial-gradient(circle at 34% 28%,#FFF3B8,#EBBB3F 58%,#B5841A);box-shadow:inset 0 2px 0 rgba(255,255,255,.55),0 5px 12px -4px rgba(0,0,0,.4)}
+.bdg:not(.got) .md{background:transparent;outline:2px dashed color-mix(in srgb,var(--text) 20%,transparent);outline-offset:-2px;color:color-mix(in srgb,var(--text) 32%,var(--panel))}
+/* Bereichsköpfe auf dem Handy: Text bleibt lesbar */
+@media (max-width:640px){
+  .hero.shero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,color-mix(in srgb,var(--c1) 70%,transparent) 0%,color-mix(in srgb,var(--c1) 25%,transparent) 55%,transparent 80%);pointer-events:none}
+  .shero-c{z-index:1}
+  .shero-scn{opacity:.62}
+}
+/* Zahlen in Kacheln gleich breit */
+.crs-stats b,.rpt-n b,.stat b,.st-n,.hstat b{font-variant-numeric:tabular-nums}
+/* Begrüßungsseite: die Trainer-Crew */
+.land-crew{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin:4px 0 2px;padding-left:10px}
+.land-crew .lc{width:44px;height:44px;margin-left:-10px;border-radius:50%;overflow:hidden;background:linear-gradient(150deg,var(--k1),var(--k2));box-shadow:0 0 0 3px var(--bg,#1C1B19);animation:lcIn .5s calc(var(--i) * 60ms + .2s) cubic-bezier(.3,1.5,.5,1) both}
+.land-crew .lc img.tr{width:150%;height:auto;margin:-2% 0 0 -25%}
+.land-crew small{flex-basis:100%;text-align:center;margin-top:8px;font-size:12.5px;color:var(--text-2);font-weight:650}
+@keyframes lcIn{from{transform:translateY(10px) scale(.6);opacity:0}}
+@media (prefers-reduced-motion:reduce){.land-crew .lc{animation:none}}
+/* Lesbarkeit: kräftigere Akzente für weiße Schrift, dunklere Grautöne im hellen Design */
+:root{--acc:#815FD4;--acc-hi:#8F71D9;--acc-sh:#5A41A3;--muted:#A69C8E}
+.acc-red{--acc:#D43C38;--acc-hi:#DE5450;--acc-sh:#932825}
+.acc-green{--acc:#5B7E36;--acc-hi:#6A8F42;--acc-sh:#3E5A22}
+.theme-light{--muted:#66625C}
+.theme-light .tile.gold b{color:#A97A0F}
+.ci-m.hot{background:#C8403B;color:#fff}
+.hero:not(.shero) p{color:var(--text-2)}
+/* Uhren und „Am Zug" im hellen Design: aktive Seite dunkel hervorgehoben */
+.theme-light .pclock{background:var(--panel);color:var(--text-2);box-shadow:inset 0 0 0 1px var(--line)}
+.theme-light .pclock.on{background:#2A2622;color:#fff;box-shadow:none}
+.theme-light .pclock.low{background:#FBE3DF;color:#A3352C;box-shadow:inset 0 0 0 1px #F0C4BD}
+.theme-light .pclock.low.on{background:#D9463A;color:#fff;box-shadow:none}
+/* Taktik-Kopf: vier gleich große Kennzahlen */
+.tac-mini{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tac-mini span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 2px;white-space:nowrap;border-radius:10px;background:color-mix(in srgb,var(--text) 5%,transparent);font-size:11.5px;line-height:1.2;text-align:center}
+.tac-mini b{font-size:17px;font-weight:800;line-height:1.1}
+@media (max-width:400px){.tac-mini span{font-size:11px}}
+/* Bereichsköpfe: die Szene immer vollständig zeigen, nie oben und unten abgeschnitten */
+.shero-scn{left:auto;width:auto;height:100%;aspect-ratio:8/5;-webkit-mask-image:linear-gradient(90deg,transparent 6%,#000 34%);mask-image:linear-gradient(90deg,transparent 6%,#000 34%)}
+@media (min-width:641px){.hero.shero{min-height:168px}}
+@media (max-width:640px){.shero-scn{-webkit-mask-image:linear-gradient(90deg,transparent 8%,#000 40%);mask-image:linear-gradient(90deg,transparent 8%,#000 40%)}}

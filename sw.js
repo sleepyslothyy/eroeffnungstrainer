@@ -1,5 +1,5 @@
 /* Service Worker: Seite offline verfügbar machen. Eigene Dateien: erst Netz, dann Cache. Stockfish: erst Cache. */
-const CACHE="et-v33";
+const CACHE="et-v34";
 const CORE=["./","index.html","eco.js","style.css","pieces.css","app.js","data.js","trees.js","coaches.js","trainers.js","worlds.js","sections.js","lib/chess.js","manifest.webmanifest","icons/icon-192.png","icons/apple-touch-icon.png","lib/fonts/rubik-latin-wght.woff2",
   "lib/fonts/caveat-bold.woff2","lib/fonts/bungee.woff2","lib/fonts/cinzel-bold.woff2","lib/fonts/im-fell-english-sc.woff2","lib/fonts/uncial-antiqua.woff2","lib/fonts/bangers.woff2","lib/fonts/orbitron-bold.woff2","lib/fonts/special-elite.woff2","lib/fonts/pirata-one.woff2"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
