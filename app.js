@@ -850,8 +850,9 @@ function setStatus(k,t,s,noStore){
   curStatus=[k,t,s];if(!noStore&&live())liveStatus=null;
   $("coach").style.removeProperty("--k");$("face").style.background="";
   $("coach").dataset.k=k;$("stTitle").textContent=t;$("stText").textContent=s||"";
-  $("face").innerHTML=k==="done"||k==="good"?ICON.ok.replace('viewBox','width="20" height="20" viewBox'):k==="bad"?ICON.no.replace('viewBox','width="18" height="18" viewBox'):k==="sf"?ICON.cpu:ICON.face;
-  const cc=mode==="train"?crsSess():null;if(cc)coachPaint(cc,k==="bad"?"worry":k==="done"?"joy":k==="good"?"happy":"neutral");else coachClear();
+  const cc=mode==="train"?crsSess():null,mood=k==="bad"?"worry":k==="done"?"joy":k==="good"?"happy":k==="view"?"think":"neutral";
+  if(cc)coachPaint(cc,mood);
+  else{coachClear();const bot=mode==="engine"&&op&&op.botCo;facePaint(bot?op.botCo:"mila",bot?botMood:mood)}
   const ev=$("evalTag");if(mode==="engine"&&sfEval){ev.hidden=false;ev.textContent="Bewertung: "+sfEval}else ev.hidden=true;
 }
 function xy(sq){const f=fi(sq),r=ri(sq);return orient()==="b"?{x:7-f,y:r}:{x:f,y:7-r}}
@@ -1002,7 +1003,7 @@ function renderBars(){
   if(mode==="replay"){const t=game&&game.free?"Analyse":game&&game.review?"Review":"Partie";$("youClock").textContent=t;$("oppClock").textContent=t;return}
   if(mode==="edit"){$("youClock").textContent=(tm==="w"?"Weiß":"Schwarz")+" zieht";$("oppClock").textContent="Editor";return}
   $("youClock").textContent=done?"Fertig":yourTurn?"Am Zug":live()?"Wartet":"Ansicht";
-  $("oppClock").textContent=mode==="guess"?"Meister":mode==="engine"?(busy?"Denkt …":"Stockfish"):oppTurn?"Denkt …":mode==="puzzle"?"Rätsel":sfEnd||op.endId?"Stockfish":"Buch";
+  $("oppClock").textContent=mode==="guess"?"Meister":mode==="engine"?(busy?"Denkt …":op&&op.botCo?(done?"Fertig":"Wartet"):"Stockfish"):oppTurn?"Denkt …":mode==="puzzle"?"Rätsel":sfEnd||op.endId?"Stockfish":"Buch";
 }
 function renderMoves(){
   const m=$("moves");m.innerHTML="";const R=game&&game.review;
@@ -2641,7 +2642,7 @@ function renderTactics(){
   const repOps=S.rep.map(byId).filter(o=>o&&OPENING_ANGLE[o.id]);
   const weakT=Object.entries(PZ.themes).filter(([k,t])=>t.n>=4&&TTH[k]).sort((x,y)=>x[1].ok/x[1].n-y[1].ok/y[1].n).slice(0,5);
   v.innerHTML=`${pageHead("Taktik","Löse Aufgaben, steig im Level auf und schärfe dein Gespür für Muster.","bolt","tac")}<div class="tac-hero">
-    <div class="tac-r"><small>Taktik-Wertung</small><b>${PZ.r}</b><span>${PZ.n} Aufgaben · ${PZ.n?pct(PZ.ok/PZ.n):"–"} gelöst</span></div>
+    <div class="tac-r"><small>Taktik-Wertung</small><b>${PZ.r}</b><span>${PZ.n?`${PZ.n} Aufgaben · ${pct(PZ.ok/PZ.n)} gelöst`:"Noch keine Aufgabe gelöst"}</span></div>
     <div class="tac-lv"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Level ${lv} · ${rankOf(lv)}</b><small>${PZ.xp-a}/${b-a} XP</small></div><div class="xpbar"><i style="width:${(PZ.xp-a)/(b-a)*100}%"></i></div>
       <div class="tac-mini"><span><b>${d.n}/${PZ.goal}</b> heute</span><span><b>${PZ.streak.last===today()||PZ.streak.last===yesterday()?PZ.streak.n:0}</b> Tage Serie</span><span><b>${stars}</b> ★ Sterne</span><span><b>${Math.max(PZ.sprintBest,PZ.rushBest.s5||0,PZ.rushBest.surv||0)}</b> Rush-Rekord</span></div></div>
   </div>
@@ -3712,6 +3713,7 @@ function openLanding(){
   const f=(ic,t,d)=>`<div class="lf"><span class="lf-ic">${NI[ic]}</span><b>${t}</b><small>${d}</small></div>`;
   el.innerHTML=`<div class="land-in">
     <div class="land-top"><div class="land-brand">${LOGO(34)}<span>${BRAND}</span></div><div class="land-board">${thumbHtml("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3","Bc4",false)}</div><h1 id="lnH">Lerne die Eröffnungen, die du wirklich spielst.</h1><p>Dazu Taktik, Partien gegen Freunde und Analyse mit Stockfish. Kostenlos, ohne Werbung, auch offline.</p></div>
+    <div class="land-crew" aria-label="Neun Trainer begleiten dich">${Object.keys(COACHES).map((id,i)=>`<span class="lc co-${id}" style="--i:${i}" title="${esc(TRAINER[id].full)}">${coachImg(id,"happy")}</span>`).join("")}<small>Neun Trainer begleiten dich – von Mila bis Rex</small></div>
     <div class="land-act"><button class="big" id="lnGo">Loslegen</button><button class="btn" id="lnLogin">Ich habe schon ein Konto</button></div>
     <div class="lfs">${f("book","Eröffnungen",`${ALL.filter(o=>o.g!=="c").length} Eröffnungen mit Wiederholung nach Lernkurve`)}${f("bolt","Taktik","Echte Lichess-Rätsel mit Wertung und Levels")}${f("swords","Online","Gegen Freunde spielen, Bestenliste, Zuschauen")}${f("search","Analyse","Game Review mit Stockfish 17")}</div>
     <p class="land-legal"><button class="linkb" data-lg="priv">Datenschutz</button> · <button class="linkb" data-lg="imp">Impressum</button></p></div>`;
@@ -4059,6 +4061,9 @@ function coachSay(c,key,vars,mood,idx){
   const el=$("trSay");el.hidden=false;el.innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> ${esc(t)}`;
   coachPaint(c,mood);const fs=$("face").querySelector("svg");if(fs)fs.classList.add("talk");
 }
+/* Gesicht im Hinweisfeld außerhalb der Kurse: gegen den Computer der Gegner, sonst Mila als Lehrerin */
+function facePaint(id,mood){const co=$("coach"),f=$("face");if(!COACHES[id])return;co.dataset.co=id;co.style.setProperty("--k1",COACHES[id].bg[0]);co.style.setProperty("--k2",COACHES[id].bg[1]);
+  f.innerHTML=coachSvg(id,mood||"neutral");f.style.background="";const sv=f.querySelector("svg");if(sv&&!calmNow())sv.classList.add("talk")}
 function coachClear(){const co=$("coach");if(co.dataset.co){delete co.dataset.co;co.style.removeProperty("--k1");co.style.removeProperty("--k2")}$("trSay").hidden=true;crsLast=""}
 function crsOnItem(){
   const c=crsSess();if(!c||mode!=="train"||!op||target==null)return;const l=op.lines[target];
@@ -5013,7 +5018,7 @@ renderStats=function(v){
   const hard=Object.entries(st.hard).filter(([k,H])=>byId(H.id)).sort((x,y)=>y[1].n-x[1].n).slice(0,8);
   const G=allGames();const gw=G.filter(g=>g.res==="win").length;
   const k=(t,bv,s,cls)=>`<div class="kpi${cls?" "+cls:""}"><small>${t}</small><b>${bv}</b>${s?`<span>${s}</span>`:""}</div>`;
-  v.innerHTML=`<div class="kpis k6">${k("Level",lv,`${GX.xp-a}/${b-a} XP · ${LEAGUES[GX.lg][0]}-Liga`)}${k("Serie",streakNow(),`Rekord ${S.streak.best||0} · Schutz ${GX.freeze}/2`)}${k("Varianten",cl,`von ${tot} fehlerfrei`)}${k("Trefferquote",mv+er?pctS(mv/(mv+er)):"–",`${mv} richtig · ${er} falsch`)}${k("Taktik",PZ.r,`${PZ.n} Aufgaben · ${PZ.n?pctS(PZ.ok/PZ.n):"–"} gelöst`)}${k("Partien",G.length,G.length?`${gw} gewonnen · ${pctS(gw/G.length)}`:"noch keine")}</div>
+  v.innerHTML=`<div class="kpis k6">${k("Level",lv,`${GX.xp-a}/${b-a} XP · ${LEAGUES[GX.lg][0]}-Liga`)}${k("Serie",streakNow(),`Rekord ${S.streak.best||0} · Schutz ${GX.freeze}/2`)}${k("Varianten",cl,`von ${tot} fehlerfrei`)}${k("Trefferquote",mv+er?pctS(mv/(mv+er)):"–",mv+er?`${mv} richtig · ${er} falsch`:"noch keine Züge")}${k("Taktik",PZ.r,PZ.n?`${PZ.n} Aufgaben · ${pctS(PZ.ok/PZ.n)} gelöst`:"noch keine Aufgaben")}${k("Partien",G.length,G.length?`${gw} gewonnen · ${pctS(gw/G.length)}`:"noch keine")}</div>
   ${reportHtml(weekReport(),false)}
   ${ratingChartHtml()}
   ${heatHtml()}
