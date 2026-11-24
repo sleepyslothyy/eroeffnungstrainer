@@ -1,12 +1,15 @@
-// Rauchtest: öffnet die App in Chromium (Handy und Computer), besucht alle Bereiche,
+// Rauchtest: öffnet die App in Chromium oder WebKit (Handy und Computer), besucht alle Bereiche,
 // spielt eine Variante und eine kurze Computer-Partie und schlägt fehl, sobald ein JavaScript-Fehler auftritt.
 // Start: node tests/smoke.mjs  (erwartet einen Server auf http://localhost:8765)
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
+// BROWSER=webkit prüft dieselben Abläufe mit der Safari-Engine
+const ENGINE = process.env.BROWSER === "webkit" ? webkit : chromium;
 const BASE = process.env.BASE || "http://localhost:8765/";
 const W = ms => new Promise(r => setTimeout(r, ms));
-const VIEWS = ["home","learn","courses","openings","openings:lex","tactics","tactics:hist","end","quiz","games","coords","guess","bots","tours","online:play","online:live","analyse","chess","profile:stats","league","profile:badges","profile:settings","profile:sync","online:account","legal"];
+const VIEWS = ["home","learn","courses","openings","openings:lex","tactics","tactics:hist","end","quiz","games","coords","guess","bots","tours","scout","online:play","online:live","analyse","chess","profile:stats","league","profile:badges","profile:settings","profile:sync","online:account","legal"];
 let failed = false;
-const browser = await chromium.launch();
+const browser = await ENGINE.launch();
+console.log("Browser: " + (process.env.BROWSER === "webkit" ? "WebKit (Safari)" : "Chromium"));
 for (const vp of [{ width: 390, height: 844, isMobile: true, hasTouch: true }, { width: 1280, height: 860 }]) {
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: !!vp.isMobile, hasTouch: !!vp.hasTouch });
   const page = await ctx.newPage();

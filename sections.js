@@ -16,7 +16,8 @@ const SECT={
   prof:{c1:"#5F3DC4",c2:"#E64980",pat:"dots"},
   coord:{c1:"#2B8A3E",c2:"#A9D63B",pat:"grid"},
   lex:{c1:"#7B2D96",c2:"#D16BE8",pat:"diag"},
-  crsmap:{c1:"#1460A8",c2:"#4FB0F5",pat:"waves"}
+  crsmap:{c1:"#1460A8",c2:"#4FB0F5",pat:"waves"},
+  scout:{c1:"#3B3D9E",c2:"#1FA39C",pat:"stars"}
 };
 
 const _star4=(x,y,r,f)=>`<path d="M${x} ${y-r}l${r*.28} ${r*.72} ${r*.72} ${r*.28}-${r*.72} ${r*.28}-${r*.28} ${r*.72}-${r*.28}-${r*.72}-${r*.72}-${r*.28} ${r*.72}-${r*.28}z" fill="${f}"/>`;
@@ -26,6 +27,17 @@ const _king=(x,y,s,cls)=>`<g transform="translate(${x} ${y}) scale(${s})" class=
 const _queen=(x,y,s,cls)=>`<g transform="translate(${x} ${y}) scale(${s})" class="${cls}"><circle cx="0" cy="-44" r="5"/><path d="M-22-30l7 22h30l7-22-12 10-8-16-8 16z"/><rect x="-18" y="-10" width="36" height="7" rx="3"/><path d="M-14-3l-6 37h40l-6-37z"/><rect x="-26" y="32" width="52" height="10" rx="4"/></g>`;
 
 const SECT_SCN={
+  /* Gegner-Check: das Fernrohr nimmt den gegnerischen König ins Visier */
+  scout:()=>`${_star4(150,38,5,"rgba(255,255,255,.8)")}${_star4(214,26,4,"rgba(255,255,255,.6)")}${_star4(236,58,3,"rgba(255,255,255,.5)")}${_star4(306,30,6,"#FFE066")}
+    <path d="M128 200V176Q190 150 250 160T320 152V200z" class="b2"/>
+    <path d="M244 166Q276 144 320 148V200H244z" class="b1"/>
+    ${_king(284,124,.6,"w1")}
+    <circle cx="284" cy="118" r="31" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2.5" stroke-dasharray="6 6" class="tw"/>
+    <path d="M284 78V90M284 146V158M241 118H253" stroke="rgba(255,255,255,.85)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M226 112L250 117" stroke="#FFD166" stroke-width="2.5" stroke-dasharray="3 5" stroke-linecap="round"/>
+    <g stroke="rgba(255,255,255,.92)" stroke-width="4" stroke-linecap="round"><path d="M178 140L160 172M178 140L196 162M178 140V170"/></g>
+    <g transform="rotate(-18 186 126)"><rect x="140" y="116" width="76" height="18" rx="5" class="w0"/><rect x="211" y="112" width="14" height="26" rx="4" fill="#FFD166"/><rect x="131" y="119" width="12" height="12" rx="3" fill="#FFD166"/><rect x="168" y="114" width="6" height="22" rx="2" fill="#FFD166" opacity=".9"/></g>
+    <circle cx="178" cy="140" r="5" fill="#FFD166"/>`,
   /* Training: eine Treppe hinauf zur Krone, der Bauer ist schon unterwegs */
   train:()=>{let st="";for(let i=0;i<5;i++){const x=128+i*36,y=172-(i+1)*24;st+=`<rect x="${x}" y="${y}" width="36" height="${200-y}" class="${i%2?"w1":"w2"}"/><rect x="${x}" y="${y}" width="36" height="5" class="w0"/>`}
     return `<circle cx="290" cy="58" r="54" class="w3"/><circle cx="290" cy="58" r="34" class="w3"/>${_stars(20,41,120,1.1)}
