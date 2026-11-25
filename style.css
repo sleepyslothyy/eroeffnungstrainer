@@ -2331,3 +2331,9 @@ html{scrollbar-color:color-mix(in srgb,var(--text) 24%,transparent) transparent}
 .pt-card.ok{border-color:color-mix(in srgb,#2F9E44 45%,var(--line))}
 .pt-card .btn{padding:8px 14px;font-size:13px}
 @media (max-width:420px){.pt-card{gap:12px}.pt-bd{width:96px}.pt-t{font-size:15px}.pt-d{font-size:13px}}
+
+/* ---- Erinnerungen (Einstellungen) ---- */
+.push-h{width:auto;min-width:118px;margin:0}
+.push-b{display:flex;gap:6px;flex:none}
+.push-b .btn{padding:8px 12px;font-size:13px}
+@media (max-width:420px){#pushCard .setrow{flex-wrap:wrap}.push-b{width:100%}.push-b .btn{flex:1}}

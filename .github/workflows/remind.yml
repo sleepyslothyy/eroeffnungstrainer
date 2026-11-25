@@ -1,0 +1,45 @@
+name: Erinnerungen
+# Stündlich: schickt fällige Trainings-Erinnerungen über Firebase Cloud Messaging (tools/remind).
+# Braucht das Secret FIREBASE_SERVICE_ACCOUNT (Dienstkonto-Schlüssel aus der Firebase-Konsole). Ohne Secret passiert nichts.
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Nur anzeigen, nichts senden"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: erinnerungen
+  cancel-in-progress: false
+jobs:
+  remind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Eingerichtet?
+        id: cfg
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "Erinnerungen sind noch nicht eingerichtet: Secret FIREBASE_SERVICE_ACCOUNT fehlt."; echo "ok=0" >> "$GITHUB_OUTPUT"; else echo "ok=1" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.ok == '1'
+      - uses: actions/setup-node@v4
+        if: steps.cfg.outputs.ok == '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/remind/package-lock.json
+      - name: Erinnerungen senden
+        if: steps.cfg.outputs.ok == '1'
+        working-directory: tools/remind
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: |
+          npm ci --omit=dev --no-audit --no-fund
+          node remind.mjs
