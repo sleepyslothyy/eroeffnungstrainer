@@ -6,7 +6,7 @@ import { chromium, webkit } from "playwright";
 const ENGINE = process.env.BROWSER === "webkit" ? webkit : chromium;
 const BASE = process.env.BASE || "http://localhost:8765/";
 const W = ms => new Promise(r => setTimeout(r, ms));
-const VIEWS = ["home","learn","courses","openings","openings:lex","tactics","tactics:hist","end","quiz","games","coords","guess","bots","tours","scout","online:play","online:live","analyse","chess","profile:stats","league","profile:badges","profile:settings","profile:sync","online:account","legal"];
+const VIEWS = ["home","learn","courses","openings","openings:lex","tactics","tactics:hist","end","quiz","games","coords","guess","bots","tours","scout","memos","online:play","online:live","analyse","chess","profile:stats","league","profile:badges","profile:settings","profile:sync","online:account","legal"];
 let failed = false;
 const browser = await ENGINE.launch();
 console.log("Browser: " + (process.env.BROWSER === "webkit" ? "WebKit (Safari)" : "Chromium"));
@@ -46,6 +46,24 @@ for (const vp of [{ width: 390, height: 844, isMobile: true, hasTouch: true }, {
     for (let k = 0; k < 60 && !/Stockfish|Darum nicht/.test(why); k++) { await W(500); why = await page.evaluate(() => document.getElementById("stText").textContent) }
     if (!/Stockfish|Darum nicht/.test(why)) errs.push("Nicht-Buchzug wurde nicht eingeordnet: " + why);
     else console.log("Darum nicht: " + why);
+  }
+  // Zugumstellung: 4.d3 statt 4.c3 im Giuoco Pianissimo führt nach 4…Sf6 5.c3 in die Buchstellung
+  if (!vp.isMobile) {
+    await page.evaluate(() => { const o = window.__ET.ALL().find(x => x.id === "italienisch"); window.__ET.select("italienisch", o.lines.findIndex(l => l.n === "Giuoco Pianissimo")) }); await W(800);
+    for (const [a, b] of [["e2", "e4"], ["g1", "f3"], ["f1", "c4"]]) { await page.evaluate(([a, b]) => window.__ET.tryMove(a, b), [a, b]); await W(900) }
+    await page.evaluate(() => window.__ET.tryMove("d2", "d3"));
+    let ok = false;
+    for (let k = 0; k < 40 && !ok; k++) { await W(400); ok = await page.evaluate(() => !!window.__ET.tp && window.__ET.hist().length === 8) }
+    if (!ok) errs.push("Zugumstellung wurde nicht erkannt: " + await page.evaluate(() => document.getElementById("stText").textContent));
+    else {
+      await page.evaluate(() => window.__ET.tryMove("c2", "c3")); await W(1200);
+      const h = await page.evaluate(() => window.__ET.hist().slice(0, 9).join(" "));
+      if (h !== "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3") errs.push("Nach der Zugumstellung nicht zurück im Buch: " + h);
+      else console.log("Zugumstellung: zurück im Buch");
+    }
+    // Spickzettel: ein PDF mit Italienisch erzeugen
+    const pdf = await page.evaluate(async () => { try { const R = await window.__ET.cheatPdf(["italienisch"]); return R.pages + " Seiten, " + R.blob.size + " Bytes" } catch (e) { return "Fehler: " + e.message } });
+    if (!/Seiten/.test(pdf)) errs.push("Spickzettel-PDF: " + pdf); else console.log("Spickzettel: " + pdf);
   }
   await page.evaluate(() => window.__ET.showView("profile:stats")); await W(400);
   console.log(`${vp.width}px: ${VIEWS.length} Bereiche, Variante: ${done}, XP ${xp}`);

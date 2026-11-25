@@ -17,7 +17,8 @@ const SECT={
   coord:{c1:"#2B8A3E",c2:"#A9D63B",pat:"grid"},
   lex:{c1:"#7B2D96",c2:"#D16BE8",pat:"diag"},
   crsmap:{c1:"#1460A8",c2:"#4FB0F5",pat:"waves"},
-  scout:{c1:"#3B3D9E",c2:"#1FA39C",pat:"stars"}
+  scout:{c1:"#3B3D9E",c2:"#1FA39C",pat:"stars"},
+  memo:{c1:"#8E4F12",c2:"#CF9128",pat:"dots"}
 };
 
 const _star4=(x,y,r,f)=>`<path d="M${x} ${y-r}l${r*.28} ${r*.72} ${r*.72} ${r*.28}-${r*.72} ${r*.28}-${r*.28} ${r*.72}-${r*.28}-${r*.72}-${r*.72}-${r*.28} ${r*.72}-${r*.28}z" fill="${f}"/>`;
@@ -27,6 +28,17 @@ const _king=(x,y,s,cls)=>`<g transform="translate(${x} ${y}) scale(${s})" class=
 const _queen=(x,y,s,cls)=>`<g transform="translate(${x} ${y}) scale(${s})" class="${cls}"><circle cx="0" cy="-44" r="5"/><path d="M-22-30l7 22h30l7-22-12 10-8-16-8 16z"/><rect x="-18" y="-10" width="36" height="7" rx="3"/><path d="M-14-3l-6 37h40l-6-37z"/><rect x="-26" y="32" width="52" height="10" rx="4"/></g>`;
 
 const SECT_SCN={
+  /* Notizen: eine Pinnwand mit drei Zetteln – einer zeigt eine kleine Stellung mit Pfeil */
+  memo:()=>`<rect x="136" y="30" width="176" height="142" rx="10" class="b2"/>
+    <rect x="136" y="30" width="176" height="142" rx="10" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="3"/>
+    <g transform="rotate(-7 182 78)"><rect x="150" y="48" width="64" height="60" rx="3" class="w1"/><path d="M158 66h46M158 76h40M158 86h44M158 96h28" stroke="rgba(0,0,0,.26)" stroke-width="3" stroke-linecap="round"/></g>
+    <g transform="rotate(6 262 80)"><rect x="228" y="46" width="68" height="64" rx="3" class="w0"/>
+      <g transform="translate(240 58)"><rect width="44" height="44" fill="rgba(0,0,0,.1)"/><path d="M0 0h11v11H0zM22 0h11v11H22zM11 11h11v11H11zM33 11h11v11H33zM0 22h11v11H0zM22 22h11v11H22zM11 33h11v11H11zM33 33h11v11H33z" fill="rgba(0,0,0,.3)"/><circle cx="27.5" cy="16.5" r="4.2" fill="rgba(0,0,0,.78)"/><path d="M8 38L25 20" stroke="#F25C54" stroke-width="3" stroke-linecap="round"/><path d="M26 19l-7 1.5 5.5 5.5z" fill="#F25C54"/></g></g>
+    <g transform="rotate(-3 214 138)"><rect x="176" y="112" width="78" height="50" rx="3" class="w1"/><path d="M186 128h54M186 138h44M186 148h50" stroke="rgba(0,0,0,.26)" stroke-width="3" stroke-linecap="round"/></g>
+    <circle cx="181" cy="51" r="5.5" fill="#F25C54"/><circle cx="179.5" cy="49.5" r="1.8" fill="rgba(255,255,255,.75)"/>
+    <circle cx="262" cy="49" r="5.5" fill="#4DABF7"/><circle cx="260.5" cy="47.5" r="1.8" fill="rgba(255,255,255,.75)"/>
+    <circle cx="215" cy="115" r="5.5" fill="#FFD166"/><circle cx="213.5" cy="113.5" r="1.8" fill="rgba(255,255,255,.75)"/>
+    <g transform="rotate(-38 290 156)"><rect x="262" y="150" width="54" height="9" rx="2" class="w2"/><path d="M316 150l10 4.5-10 4.5z" fill="#FFD166"/><rect x="258" y="150" width="7" height="9" rx="2" fill="#F25C54"/></g>`,
   /* Gegner-Check: das Fernrohr nimmt den gegnerischen König ins Visier */
   scout:()=>`${_star4(150,38,5,"rgba(255,255,255,.8)")}${_star4(214,26,4,"rgba(255,255,255,.6)")}${_star4(236,58,3,"rgba(255,255,255,.5)")}${_star4(306,30,6,"#FFE066")}
     <path d="M128 200V176Q190 150 250 160T320 152V200z" class="b2"/>

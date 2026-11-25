@@ -33,6 +33,8 @@ const ICON={
   star:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>'
 };
 const NI={
+  pin:SV('<path d="M14.5 2.5 21.5 9.5 19.4 10.9 16.6 13.7 17 18.5 15.6 19.9 11.4 15.7 5.4 21.7 4.3 21.7 4.3 20.6 10.3 14.6 6.1 10.4 7.5 9 12.3 9.4 15.1 6.6Z"/>'),
+  print:SV('<path d="M7 3h10v4H7zM5 8h14a3 3 0 0 1 3 3v6h-4v4H6v-4H2v-6a3 3 0 0 1 3-3zm3 7v4h8v-4zm10-4.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>'),
   board:SV('<path d="M3 3h18v18H3zm2 2v4h4V5zm4 4v4h4V9zm4-4v4h4V5zm-8 8v4h4v-4zm8 0v4h4v-4z"/>'),
   online:SV('<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-3a15.7 15.7 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8zM12 4c.8 1.2 1.5 2.5 1.9 4h-3.8c.4-1.5 1.1-2.8 1.9-4zM4.3 14a8.2 8.2 0 0 1 0-4h3.4a16.5 16.5 0 0 0 0 4zm.8 2h3a15.7 15.7 0 0 0 1.4 3.6A8 8 0 0 1 5.1 16zm3-8h-3a8 8 0 0 1 4.4-3.6C8 5.6 7.5 6.8 8.1 8zM12 20c-.8-1.2-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.8-1.9 4zm2.3-6H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4zm.3 5.6c.6-1.1 1.1-2.3 1.4-3.6h3a8 8 0 0 1-4.4 3.6zM16.3 14a16.5 16.5 0 0 0 0-4h3.4a8.2 8.2 0 0 1 0 4z"/>'),
   learn:SV('<path d="M12 3 1 9l11 6 9-4.9V17h2V9zM5 13.2v4L12 21l7-3.8v-4L12 17z"/>'),
@@ -74,12 +76,12 @@ const SKEL='<div class="skel"></div><div class="skel w80"></div><div class="skel
 const sameType=(v,d)=>v!==null&&typeof v===typeof d&&Array.isArray(v)===Array.isArray(d);
 function fixT(o,def){for(const k in def){if(def[k]!==null&&def[k]!==undefined&&!sameType(o[k],def[k]))o[k]=def[k]}return o}
 const store={get(k,d){try{const s=localStorage.getItem(k);if(s==null)return d;const v=JSON.parse(s);return d!=null&&!sameType(v,d)?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const KEYS=["prog","srs","pos","rep","daily","streak","stats","set","custom","ana","puz"];
+const KEYS=["prog","srs","pos","rep","daily","streak","stats","set","custom","ana","puz","memo"];
 const S={
   prog:store.get("et-prog",{}),srs:store.get("et-srs",{}),pos:store.get("et-pos",{}),rep:store.get("et-rep",[]),daily:store.get("et-daily",null),
   streak:store.get("et-streak",{last:null,n:0,best:0}),stats:store.get("et-stats",{}),
   set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true,crsBoard:true},store.get("et-set",{})),
-  custom:store.get("et-custom",{w:[],b:[]}),ana:store.get("et-ana",null),puz:store.get("et-puz",[])
+  custom:store.get("et-custom",{w:[],b:[]}),ana:store.get("et-ana",null),puz:store.get("et-puz",[]),memo:store.get("et-memo",{})
 };
 {const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true,crsBoard:true};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
 fixT(S.streak,{last:"",n:0,best:0});if(S.streak.last==="")S.streak.last=null;
@@ -87,6 +89,7 @@ fixT(S.custom,{w:[],b:[]});S.custom.w=S.custom.w.filter(l=>l&&Array.isArray(l.m)
 S.rep=S.rep.filter(x=>typeof x==="string");S.puz=S.puz.filter(x=>x&&typeof x==="object"&&x.key);
 if(S.daily&&(typeof S.daily!=="object"||!Array.isArray(S.daily.queue)||!Array.isArray(S.daily.done)))S.daily=null;
 if(S.ana&&(typeof S.ana!=="object"||Array.isArray(S.ana)))S.ana=null;
+for(const k in S.memo){const m=S.memo[k];if(!m||typeof m!=="object"||typeof m.t!=="string"||!m.t.trim())delete S.memo[k]}
 let savedAt=store.get("et-savedAt",0);
 const save=k=>{store.set("et-"+k,S[k]);savedAt=Date.now();store.set("et-savedAt",savedAt);cloudDirty()};
 const st=S.stats;
@@ -337,7 +340,7 @@ const findMove=(g,san)=>g.moves({verbose:true}).find(x=>strip(x.san)===strip(san
 const userTurnShown=()=>shown&&shown.turn()===op.side;
 function baseOrient(){if(mode==="online")return ON.color||"w";if(mode==="replay")return game&&game.orient||"w";if(mode==="edit")return $("edSide").value;return op.side}
 const orient=()=>flipped?(baseOrient()==="w"?"b":"w"):baseOrient();
-function expected(){if(mode==="puzzle"){const k=hist.length-(puz&&puz.base||0);return puz&&puz.sol[k]?[strip(puz.sol[k])]:[]}return bookMoves(hist.slice(0,view))}
+function expected(){if(mode==="puzzle"){const k=hist.length-(puz&&puz.base||0);return puz&&puz.sol[k]?[strip(puz.sol[k])]:[]}if(tp&&mode==="train"&&view>tp.p)return view===hist.length?tpOptions(tp,fens[view]):[];return bookMoves(hist.slice(0,view))}
 
 function pickTarget(){
   const c=consistent(hist);if(!c.length)return null;
@@ -348,12 +351,12 @@ function pickTarget(){
 }
 function resetBoard(fen){
   clearTimeout(learnNext);learnNext=null;learn=false;
-  sfEnd=null;clearTimeout(timer);stopBlitz();cancelAuto();if(wrongT){clearTimeout(wrongT);wrongT=null;wrongRevert=null}whyStop();whyTok++;whyCur=null;const g=new Chess(fen||undefined);startFen=fen||null;
+  sfEnd=null;clearTimeout(timer);stopBlitz();cancelAuto();if(wrongT){clearTimeout(wrongT);wrongT=null;wrongRevert=null}whyStop();whyTok++;whyCur=null;tp=null;tpNote=null;const g=new Chess(fen||undefined);startFen=fen||null;
   hist=[];fens=[g.fen()];mvs=[];flags=[];view=0;shown=g;target=null;done=false;mistakes=0;usedHelp=false;hintLvl=0;sel=null;busy=false;lock=false;badge=null;sfEval=null;tried=new Set();peeked=false;evalCp=null;
-  marks.a.clear();marks.c.clear();xpl=null;pickWait=false;
+  marks.a.clear();marks.c.clear();xpl=null;pickWait=false;memoOpen.clear();
 }
 function commit(mv,flag){const g=new Chess(fens[hist.length]);const r=g.move(mv.san||mv);hist.push(r.san);mvs.push(r);fens.push(g.fen());flags.push(flag);return r}
-function truncate(n){hist.length=n;mvs.length=n;fens.length=n+1;flags.length=n}
+function truncate(n){hist.length=n;mvs.length=n;fens.length=n+1;flags.length=n;if(tp){if(n<=tp.p)tp=null;else tpSync(n)}}
 
 /* ================= Training ================= */
 function selectOpening(o,line,keepSess){
@@ -409,11 +412,15 @@ function playBook(){
   const n=consistent(hist).length;
   const lastW=twOf(op,hist.slice(0,-1),hist[hist.length-1]);
   const s=["turn","Du bist am Zug",(lastW!=null&&lastW<.995?`${op.side==="w"?"Schwarz":"Weiß"} wählte ${de(r.san)} (≈ ${fmtPct(lastW)} der Partien). `:"")+(n>1?`${n} Varianten sind noch möglich. Welcher Buchzug folgt?`:`Variante: ${op.lines[target].n}`)];
+  if(tpNote){s[2]=tpNote+" "+s[2];tpNote=null}
   if(wasLive){setStatus(...s);startBlitz()}else liveStatus=s;
 }
 function trainMove(mv,animate,help){
   pickWait=false;const h=hist.slice(0,view);
+  if(tp&&view>tp.p){tpMove(mv,animate,help,h);return}
+  if(tp)tp=null;
   const ok=bookMoves(h).indexOf(strip(mv.san))>=0;
+  if(!ok&&!help){const T=tpFind(h,mv.san);if(T){if(T.direct)tpGo(T,mv,animate,h);else tpCheck(T,mv,animate,h);return}}
   if(!tried.has(view)&&!help&&!learn){tried.add(view);posReview(op.id,h,ok&&hintLvl===0?5:1)}
   if(!ok){wrongMove(mv,animate,h);return}
   stopBlitz();
@@ -428,7 +435,7 @@ function trainMove(mv,animate,help){
 }
 function wrongMove(mv,animate,h){
   mistakes++;lock=true;sel=null;
-  if(mode==="train"&&!learn){const s=opStat(op.id);s.err++;dqAdd(0,1);const key=op.id+"|"+h.join(" ");const H=st.hard[key]||(st.hard[key]={id:op.id,pre:h.slice(),n:0});H.n++;H.last=Date.now();saveStats()}
+  if(mode==="train"&&!learn){const s=opStat(op.id);s.err++;dqAdd(0,1);if(!tp){const key=op.id+"|"+h.join(" ");const H=st.hard[key]||(st.hard[key]={id:op.id,pre:h.slice(),n:0});H.n++;H.last=Date.now()}saveStats()}
   const tmp=new Chess(shown.fen());const r=tmp.move(mv.san);
   const keep=shown;shown=tmp;badge={ply:-1,sq:r.to,type:"no"};
   render(animate?{fwd:r}:null,{bad:[r.from,r.to]});sfx("wrong");
@@ -442,6 +449,131 @@ function wrongMove(mv,animate,h){
   wrongT=setTimeout(wrongRevert,750);
 }
 let wrongT=null,wrongRevert=null;
+/* ---- Zugumstellungen: eine andere Reihenfolge, die in dieselbe Buchstellung führt, gilt als richtig.
+   tp hält das Fenster zwischen Abweichung und Rückkehr ins Buch: feste Gegnerzüge (opp), noch offene eigene Züge (rest), Zielstellung (goal).
+   Kommt die Stellung wieder ins Buch, zeigt die Zugliste die Buchreihenfolge, damit Wiederholung, Schlüsselzüge und Erklärungen weiter passen. */
+let tp=null,tpNote=null,tpTok=0;const tpMemo=new Map();
+const pk3=fen=>fen.split(" ").slice(0,3).join(" ");
+function fenAfter(fen,sans){const g=new Chess(fen);for(const s of sans){const m=findMove(g,s);if(!m)return null;g.move(m.san)}return g.fen()}
+function tpCanFinish(T,fen,rest,oi){
+  if(oi>=T.opp.length)return !rest.length&&pk3(fen)===T.goal;
+  const f1=fenAfter(fen,[T.opp[oi]]);if(!f1||!rest.length)return false;
+  return rest.some((x,k)=>{const f2=fenAfter(f1,[x]);return !!f2&&tpCanFinish(T,f2,rest.filter((_,j)=>j!==k),oi+1)});
+}
+/* Eigene Züge, mit denen das Fenster noch aufgeht (am Zug, nach dem festen Gegnerzug) */
+function tpOptions(T,fen){return T.rest.filter((x,k)=>{const f=fenAfter(fen,[x]);return !!f&&tpCanFinish(T,f,T.rest.filter((_,j)=>j!==k),T.oi)}).map(strip)}
+/* Stellung nach `ply` Halbzügen jeder Variante – gemeinsame Anfänge werden nur einmal berechnet */
+function tpIndex(ply){
+  const ix=new Map();
+  op.lines.forEach((l,i)=>{if(l.m.length<ply)return;let fen=new Chess().fen();
+    for(let k=1;k<=ply;k++){const key=op.id+"|"+l.m.slice(0,k).map(strip).join(" ");let f=tpMemo.get(key);if(!f){f=fenAfter(fen,[l.m[k-1]]);if(!f)return;tpMemo.set(key,f)}fen=f}
+    const pk=pk3(fen);if(!ix.has(pk))ix.set(pk,i)});
+  if(tpMemo.size>6000)tpMemo.clear();return ix;
+}
+function tpFind(h,san){
+  if(mode!=="train"||!op||!op.lines||!op.lines.length||op.endId||learn||drill||startFen||(sess&&sess.blitz))return null;
+  const p=h.length,s=strip(san),f0=fens[p];if(!f0)return null;
+  const c=consistentIn(op,h);const pref=(forced!==null?[forced]:[target].concat(c)).filter((x,k,a)=>x!==null&&c.indexOf(x)>=0&&a.indexOf(x)===k);
+  const fU=fenAfter(f0,[san]);if(!fU)return null;
+  /* 1) Vertauschte eigene Züge innerhalb der nächsten drei eigenen Züge derselben Variante */
+  for(const i of pref){const L=op.lines[i].m;
+    for(let j=1;j<=2;j++){const e=p+2*j;if(e>=L.length)break;
+      const us=[],os=[];for(let k=p;k<=e;k++)((k-p)%2?os:us).push(L[k]);
+      for(let x=1;x<=j;x++){if(strip(us[x])!==s)continue;
+        const goalF=fenAfter(f0,L.slice(p,e+1));if(!goalF)continue;
+        const T={i,p,end:e+1,goal:pk3(goalF),opp:os,users:us.slice(),rest:us.filter((_,k)=>k!==x),oi:0,book:L.slice(p,e+1),first:san,warn:null,tok:++tpTok};
+        if(tpCanFinish(T,fU,T.rest,0))return T;
+      }
+    }
+  }
+  /* 2) Dieselbe Stellung steht in einer anderen Variante derselben Eröffnung (gleiche Zugzahl) */
+  if(forced===null){const i=tpIndex(p+1).get(pk3(fU));if(i!=null&&c.indexOf(i)<0)return {direct:true,i,p,end:p+1,goal:pk3(fU),book:op.lines[i].m.slice(0,p+1),first:san,tok:++tpTok}}
+  return null;
+}
+/* Fenster nach Zurücknehmen oder Zurückblättern neu berechnen */
+function tpSync(n){const T=tp;const played=hist.slice(T.p,n);let rest=T.users.slice(),oi=0;
+  played.forEach((m,k)=>{if(k%2){oi++;return}const j=rest.findIndex(x=>strip(x)===strip(m));if(j>=0)rest.splice(j,1)});T.rest=rest;T.oi=oi}
+/* Vor dem Annehmen prüft Stockfish die Zwischenstellung: Eine Reihenfolge, die Material kostet, ist keine Zugumstellung, sondern ein Fehler */
+let tpChk=0;
+function tpCheck(T,mv,animate,h){
+  const op0=op,v0=view,len0=hist.length,tok=++tpChk,f0=fens[v0],sg=new Chess(f0).turn()==="w"?1:-1;
+  const tmp=new Chess(f0);const r=tmp.move(mv.san);if(!r)return;const fU=tmp.fen(),fB=fenAfter(f0,[T.book[0]]);
+  const keep=shown;shown=tmp;lock=true;sel=null;badge={ply:-1,sq:r.to,type:"book"};stopBlitz();render(animate?{fwd:r}:null);playSound(r);
+  setStatus("turn","Zugumstellung?","Stockfish prüft kurz, ob diese Reihenfolge hält …");
+  const go=(eU,eB)=>{
+    if(tok!==tpChk||mode!=="train"||op!==op0||hist.length!==len0)return;
+    shown=keep;lock=false;badge=null;if(view!==v0){render();return}
+    const d=eU&&eB?(eB.cp-eU.cp)*sg:null;
+    if(d!=null&&d>=150){wrongMove(mv,false,h);return}
+    T.warns=[];
+    if(d!=null&&d>=60&&eU.pv&&eU.pv[0]&&S.set.why!==false){const g=new Chess(fU);const m=uciPlay(g,eU.pv[0]);
+      if(m&&strip(m.san)!==strip(T.opp[0]))T.warns[0]=`Vorsicht: Diese Reihenfolge erlaubt ${sg>0?"Schwarz":"Weiß"} ${numSan(fU,m.san)} (Stockfish ${fmtEv(eU.cp)} statt ${fmtEv(eB.cp)} mit der Buchreihenfolge).`}
+    T.warn=T.warns.filter(Boolean).join(" ");
+    tpGo(T,mv,false,h,true);
+  };
+  const late=new Promise(res=>setTimeout(()=>res(null),4000));
+  Promise.race([Promise.all([whyEval(fU),fB?whyEval(fB):null]),late]).then(v=>v?go(v[0],v[1]):go(null,null)).catch(()=>go(null,null));
+}
+function tpGo(T,mv,animate,h,quiet){
+  if(!live()){clearTimeout(timer);busy=false;truncate(view);done=false;target=null;mistakes++;if(sfEnd){sfEnd=null;renderChrome()}}
+  stopBlitz();if(!tried.has(view)){tried.add(view);posReview(op.id,h,3)}
+  const r=commit(mv,"u");view=hist.length;shown=new Chess(fens[view]);sel=null;hintLvl=0;badge={ply:view,sq:r.to,type:"book"};
+  opStat(op.id).mv++;dqAdd(1,0);render(animate?{fwd:r}:null);if(!quiet)playSound(r);crsOnMove(true);
+  if(T.direct){tpRejoin(T);return}
+  tp=T;target=T.i;
+  const plan=[];T.opp.forEach((o,k)=>{plan.push(o);if(T.rest[k])plan.push(T.rest[k])});
+  setStatus("good","Zugumstellung erkannt",`${numSan(fens[view-1],r.san)} führt nach ${fmtMoves(plan,T.p+1)} in dieselbe Stellung wie das Buch: ${fmtMoves(T.book,T.p)}.`+(T.warn?" "+T.warn:""));
+  busy=true;timer=setTimeout(tpOpp,window.__FAST?1:1300);tpWarn(T,r.san);
+}
+function tpTxt(T){const fen=fens[hist.length];const o=tpOptions(T,fen);
+  const how=T.rest.length===1&&o.length?`Mit ${numSan(fen,o[0])} kommst du in die Buchstellung`:`Mit ${T.rest.map(de).join(" und ")} in beliebiger Reihenfolge kommst du in die Buchstellung`;
+  return `Zugumstellung: ${how} (im Buch ${fmtMoves(T.book,T.p)}).`+(T.warn?" "+T.warn:"")}
+function tpOpp(){
+  busy=false;const T=tp;if(!T||mode!=="train")return;
+  const mv=findMove(new Chess(fens[hist.length]),T.opp[T.oi]);if(!mv){tp=null;return}
+  const wasLive=live();const r=commit(mv,"b");T.oi++;
+  if(wasLive){view=hist.length;shown=new Chess(fens[view]);hintLvl=0;render({fwd:r});playSound(r)}else render();
+  const s=["turn","Du bist am Zug",tpTxt(T)];if(wasLive){setStatus(...s);startBlitz()}else liveStatus=s;
+}
+function tpMove(mv,animate,help,h){
+  const T=tp;
+  if(!live()){clearTimeout(timer);busy=false;truncate(view);done=false;mistakes++;if(sfEnd){sfEnd=null;renderChrome()}if(!tp){trainMove(mv,animate,help);return}}
+  if(tpOptions(T,fens[view]).indexOf(strip(mv.san))<0){wrongMove(mv,animate,h);return}
+  stopBlitz();const r=commit(mv,"u");view=hist.length;shown=new Chess(fens[view]);sel=null;hintLvl=0;badge={ply:view,sq:r.to,type:"book"};
+  const j=T.rest.findIndex(x=>strip(x)===strip(r.san));if(j>=0)T.rest.splice(j,1);
+  if(help){opStat(op.id).err++;dqAdd(0,1)}else{opStat(op.id).mv++;dqAdd(1,0)}
+  render(animate?{fwd:r}:null);playSound(r);crsOnMove(true);
+  if(hist.length>=T.end){tpRejoin(T);return}
+  setStatus("good",de(r.san)+" passt","Das Buch antwortet …");busy=true;timer=setTimeout(tpOpp,window.__FAST?1:600);
+}
+/* Zurück ins Buch: gleiche Stellung, Zugliste in Buchreihenfolge, dann geht die Variante normal weiter */
+function tpRejoin(T){
+  tp=null;const last=mvs[mvs.length-1];
+  if(pk3(fens[hist.length])!==T.goal){target=pickTarget();return}
+  const from=T.direct?0:T.p;truncate(from);
+  for(const s of T.book){const g=new Chess(fens[hist.length]);const m=findMove(g,s);if(!m)break;commit(m,g.turn()===op.side?"u":"b")}
+  view=hist.length;shown=new Chess(fens[view]);badge=last?{ply:view,sq:last.to,type:"book"}:null;
+  const c=consistent(hist);target=c.indexOf(T.i)>=0?T.i:pickTarget();
+  const line=op.lines[T.i];
+  tpNote=T.direct?`Zugumstellung: Diese Stellung kennt das Buch aus der Variante „${line.n}“ (${fmtMoves(T.book,0)}). Die Zugliste zeigt jetzt diese Reihenfolge.`
+    :`Zugumstellung geschafft – du stehst in der Buchstellung nach ${fmtMoves(T.book,T.p)}. Die Zugliste zeigt jetzt die Buchreihenfolge.${T.warn?" "+T.warn:""}`;
+  render();renderChrome();
+  if(target!==null&&hist.length===op.lines[target].m.length){tpNote=null;finish();return}
+  setStatus("good",T.direct?"Zugumstellung":"Zurück im Buch",tpNote);engineSoon();
+}
+/* Die Lichess-Statistik: Spielt der Gegner nach der eigenen Reihenfolge überhaupt den Zug, der in die Buchstellung führt?
+   (Die Stockfish-Warnung entsteht schon in tpCheck, bevor die Reihenfolge angenommen wird.) */
+function tpWarn(T,san){
+  if(S.set.why===false)return;const f0=fens[T.p];if(!f0)return;const me=new Chess(f0).turn(),opp=me==="w"?"Schwarz":"Weiß";
+  const fU=fenAfter(f0,[san]);if(!fU)return;const h=hist.slice(0,T.p);T.warns=T.warns||[];
+  const add=(k,txt)=>{T.warns[k]=txt;T.warn=T.warns.filter(Boolean).join(" ");
+    if(tp===T&&curStatus&&live()&&String(curStatus[2]).indexOf("Zugumstellung")>=0&&String(curStatus[2]).indexOf(txt)<0)setStatus(curStatus[0],curStatus[1],curStatus[2]+" "+txt)};
+  explorer("lichess",h.concat([san]),2500).then(d=>{
+    if(!d||!d.moves||!d.moves.length)return;const n=m=>m.white+m.draws+m.black,tot=d.white+d.draws+d.black;if(tot<300)return;
+    const om=d.moves.find(m=>strip(m.san)===strip(T.opp[0])),share=om?n(om)/tot:0,top=d.moves[0];
+    if(share>=.15||!top||strip(top.san)===strip(T.opp[0]))return;
+    add(1,`Achtung: Nach ${numSan(f0,san)} antwortet ${opp} nur in ${fmtPct(share)} der Partien mit ${numSan(fU,T.opp[0])}, meist kommt ${numSan(fU,top.san)} (${fmtPct(n(top)/tot)}). Die Buchreihenfolge führt sicherer in diese Stellung.`)}).catch(()=>{});
+}
 /* ---- „Darum nicht“: Stockfish ordnet einen Nicht-Buchzug ein – spielbar, ungenau oder ein Fehler mit Widerlegung ---- */
 let whyTok=0,whyCur=null,whyT=[],whyKeep=null;const whyMemo=new Map();
 const numSan=(fen,san)=>{const p=fen.split(" ");return p[5]+(p[1]==="w"?".":"…")+de(san)};
@@ -516,6 +648,49 @@ function kmPaint(){
   el.innerHTML=`<span class="km-h"><span class="km-k" aria-hidden="true">${crsIcon("key",12)}</span>${ns.length>1?"Schlüsselzüge":"Schlüsselzug"} · ${esc(TRAINER[co].nick)}</span>`+
     ns.map((n,i)=>`<span class="km-i"><b class="km-m">${esc(numSan(fens[n-1],hist[n-1]))}</b> ${i===0?`<em>${esc(lead)}</em> `:""}${esc(keyWhy(n))}</span>`).join("");
   el.hidden=false;
+}
+/* ================= Eigene Notizen an Stellungen =================
+   Eine Notiz hängt an der Stellung (Brett, Zugrecht, Rochaderechte), nicht an der Zugfolge – sie erscheint also auch nach einer Zugumstellung.
+   Im Training ist sie verdeckt, solange du in dieser Stellung selbst am Zug bist: Antippen deckt sie auf, sonst bliebe vom Abrufen nichts übrig. */
+const memoKey=fen=>fen.split(" ").slice(0,3).join(" ");
+const memoAt=fen=>fen?S.memo[memoKey(fen)]||null:null;
+const memoOpen=new Set();
+function memoAllowed(){if(!shown||!op)return false;if(mode==="online")return !!(ON.g&&ON.g.status==="over");return ["train","replay","edit","engine"].indexOf(mode)>=0}
+const PIN_IC='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.5 2.5 21.5 9.5 19.4 10.9 16.6 13.7 17 18.5 15.6 19.9 11.4 15.7 5.4 21.7 4.3 21.7 4.3 20.6 10.3 14.6 6.1 10.4 7.5 9 12.3 9.4 15.1 6.6Z"/></svg>';
+function memoPaint(){
+  const el=$("memoBox");if(!el)return;
+  const fen=memoAllowed()?shown.fen():null,m=memoAt(fen);
+  if(!m){if(!el.hidden){el.hidden=true;el.innerHTML="";el.dataset.k=""}return}
+  const key=memoKey(fen),cover=mode==="train"&&!done&&!learn&&!xpl&&live()&&userTurnShown()&&!memoOpen.has(key);
+  const k=key+"|"+cover+"|"+m.d+"|"+m.t.length;if(el.dataset.k===k&&!el.hidden)return;el.dataset.k=k;
+  el.className="memo"+(cover?" cover":"");
+  el.innerHTML=cover?`<button class="memo-rev" type="button"><span class="memo-pin">${PIN_IC}</span><span><b>Deine Notiz zu dieser Stellung</b><small>Antippen zum Aufdecken – erst überlegen, dann lesen.</small></span></button>`
+    :`<span class="memo-pin">${PIN_IC}</span><div class="memo-c"><b class="memo-h">Deine Notiz</b><p>${esc(m.t)}</p></div><button class="memo-ed" type="button" aria-label="Notiz bearbeiten">${NI.edit||"✎"}</button>`;
+  const rv=el.querySelector(".memo-rev");if(rv)rv.onclick=()=>{memoOpen.add(key);el.dataset.k="";memoPaint()};
+  const ed=el.querySelector(".memo-ed");if(ed)ed.onclick=()=>memoEdit();
+  el.hidden=false;
+}
+function memoEdit(){
+  if(!memoAllowed()){toast(mode==="online"?"Während einer laufenden Online-Partie sind Notizen aus – fair bleiben!":"Notizen gibt es in Training, Analyse und Partien gegen den Computer.");return}
+  const fen=shown.fen(),key=memoKey(fen),m=S.memo[key];
+  const seq=!startFen&&view<=hist.length?hist.slice(0,view):null,last=view>0&&live()?mvs[view-1]:null;
+  const ov=document.createElement("div");ov.className="onb";
+  ov.innerHTML=`<div class="onb-box memo-dlg" role="dialog" aria-modal="true" aria-label="Notiz zu dieser Stellung"><h2>Notiz zu dieser Stellung</h2>
+    <p class="hint">${seq&&seq.length?esc(fmtMoves(seq,0)):"Ausgangsstellung"}${op&&op.name&&!/^__/.test(op.id||"")?" · "+esc(op.name):""}</p>
+    <div class="memo-bd"></div>
+    <label class="fld">Was willst du dir hier merken?<textarea id="memoTxt" maxlength="280" rows="3" placeholder="z. B. Max spielt hier immer Lb4 – dann erst h6.">${esc(m?m.t:"")}</textarea></label>
+    <small class="memo-cnt" id="memoCnt"></small>
+    <div class="btnrow onb-act">${m?'<button class="btn red" data-del>Löschen</button>':""}<button class="btn" data-x>Abbrechen</button><button class="btn grn" data-ok>Speichern</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector(".memo-bd").appendChild(staticBoard(fen,orient(),last));
+  const ta=ov.querySelector("#memoTxt"),cnt=ov.querySelector("#memoCnt");const upd=()=>{cnt.textContent=ta.value.length+" / 280"};upd();ta.oninput=upd;setTimeout(()=>ta.focus(),60);
+  const close=()=>{ov.remove();document.removeEventListener("keydown",esc_)};const esc_=e=>{if(e.key==="Escape")close()};document.addEventListener("keydown",esc_);
+  ov.onclick=e=>{if(e.target===ov)close()};ov.querySelector("[data-x]").onclick=close;
+  ov.querySelector("[data-ok]").onclick=()=>{const t=ta.value.trim().slice(0,280);
+    if(!t){if(m){delete S.memo[key];save("memo");toast("Notiz gelöscht")}close();memoPaint();return}
+    S.memo[key]={t,d:Date.now(),h:seq?seq.join(" "):"",f:fen,o:op&&!/^__/.test(op.id||"")?op.id:"",n:op&&!/^__/.test(op.id||"")?op.name:"",s:orient()};
+    memoOpen.add(key);save("memo");close();memoPaint();toast(m?"Notiz geändert":"Notiz gespeichert – sie erscheint, sobald diese Stellung wieder auftaucht.")};
+  const del=ov.querySelector("[data-del]");if(del)del.onclick=()=>{delete S.memo[key];save("memo");close();memoPaint();toast("Notiz gelöscht")};
 }
 let xpl=null,pickWait=false;
 function finish(){
@@ -1028,7 +1203,7 @@ function render(anim,extra){
     if(bdg.type.indexOf("rv-")===0){const c=CLS[bdg.type.slice(3)];b.className="badge cls "+c[1];b.textContent=c[2];b.style.fontSize="calc(var(--s)*.2)"}else{b.className="badge "+bdg.type;b.innerHTML=ICON[bdg.type]}
     b.style.left=((p.x+1)*12.5)+"%";b.style.top=(p.y*12.5)+"%";badgesEl.appendChild(b)}
   drawGhosts();
-  renderMoves();renderVars();renderBars();renderExplain();updateEvalBar();if(tab==="db")renderDb();applyBlind();kmPaint();
+  renderMoves();renderVars();renderBars();renderExplain();updateEvalBar();if(tab==="db")renderDb();applyBlind();kmPaint();memoPaint();
   const canAct=(mode==="train"||mode==="puzzle")&&!done&&!busy&&!lock&&userTurnShown()&&!op.endId&&!(mode==="train"&&(xpl||(pickWait&&live())));
   $("hintBtn").disabled=$("showBtn").disabled=!canAct;$("backBtn").disabled=!(mode==="train"&&!drill&&!lock&&!op.endId&&flags.indexOf("u")>=0);renderMaterial();$("restartBtn").disabled=mode==="puzzle"&&!done;
   $("navFirst").disabled=$("navPrev").disabled=view===0;
@@ -1207,6 +1382,7 @@ $("xBack").onclick=()=>{if(xpl&&view>0)setView(view-1)};
 $("xTrain").onclick=()=>{if(!xpl)return;const i=bestLineAt(hist.slice(0,view));if(i===null)return;xpl=null;sess=null;forced=i;target=i;startTrain()};
 $("xEnd").onclick=()=>{xpl=null;forced=null;startTrain()};
 $("xplBtn").onclick=()=>startExplore([]);
+$("memoMi").onclick=()=>{$("bMenu").hidden=true;$("moreBtn").setAttribute("aria-expanded","false");memoEdit()};
 $("xplMi").onclick=()=>{$("bMenu").hidden=true;$("moreBtn").setAttribute("aria-expanded","false");if(op&&op.lines&&op.lines.length&&!op.endId)startExplore(hist.slice(0,view).length&&consistentIn(op,hist.slice(0,view)).length?hist.slice(0,view):[]);else toast("Erkunden geht in einer Eröffnung mit Varianten.")};
 function renderPickSeg(){$("poAuto").setAttribute("aria-pressed",String(!S.set.pickOpp));$("poPick").setAttribute("aria-pressed",String(!!S.set.pickOpp))}
 $("poAuto").onclick=()=>{S.set.pickOpp=false;save("set");renderPickSeg();if(pickWait&&live()&&mode==="train"){pickWait=false;engineSoon()}};
@@ -1225,7 +1401,7 @@ $("backBtn").onclick=()=>{if(!$("backBtn").disabled)takeBack()};
 function takeBack(){
   if(mode!=="train"||drill||lock)return;let k=-1;for(let i=hist.length-1;i>=0;i--)if(flags[i]==="u"){k=i;break}if(k<0)return;
   clearTimeout(timer);busy=false;stopBlitz();cancelAuto();
-  truncate(k);view=hist.length;shown=new Chess(fens[view]);done=false;sel=null;hintLvl=0;badge=null;liveStatus=null;target=pickTarget();
+  truncate(k);view=hist.length;shown=new Chess(fens[view]);done=false;sel=null;hintLvl=0;badge=null;liveStatus=null;target=tp?tp.i:pickTarget();
   render();renderChrome();sfx("move");setStatus("turn","Zug zurückgenommen","Du bist wieder am Zug. Probier einen anderen Buchzug.");startBlitz();
 }
 /* ---- Automatisch weiter ---- */
@@ -1352,7 +1528,7 @@ function showView(v){
   const prev=curView;curView=base;
   document.querySelectorAll(".view").forEach(el=>{const on=el.id==="v-"+base;el.hidden=!on;if(on&&prev!==base&&!calmNow()){el.classList.remove("enter");void el.offsetWidth;el.classList.add("enter")}});
   if(base!=="train"){stopEngine();stopBlitz()}
-  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,scout:renderScout,analyse:renderAnalyse,legal:renderLegal,courses:renderCourses,repedit:renderRepEdit,coords:renderCoords,guess:renderGuessPick,player:renderPlayer,tours:renderTours,league:renderLeague}[base]||(()=>{}))();
+  ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,scout:renderScout,memos:renderMemos,analyse:renderAnalyse,legal:renderLegal,courses:renderCourses,repedit:renderRepEdit,coords:renderCoords,guess:renderGuessPick,player:renderPlayer,tours:renderTours,league:renderLeague}[base]||(()=>{}))();
   if(base!=="train"){const sec=sectionOf();secLast[sec]=routeKey();store.set("et-seclast",secLast)}
   renderTabbar();applyBlind();if(base!=="train")window.scrollTo(0,0);else sizeVar();
 }
@@ -1498,12 +1674,14 @@ function renderLearn(){
     item("edit","edit","Eigene Variante","Zugfolge einspielen und trainieren")+
     item("repedit","list","Varianten-Baum","Eigene Varianten ansehen, abzweigen und löschen",ALL.filter(o=>o.g==="c").reduce((a,o)=>a+o.lines.length,0)||null)+
     item("import","import","Repertoire importieren","PGN-Datei oder Lichess-Studie")+
-    item("share","share","Repertoire teilen","Link für Freunde erzeugen"))+
+    item("share","share","Repertoire teilen","Link für Freunde erzeugen")+
+    item("memos","pin","Deine Notizen","Merkzettel zu Stellungen aus Training und Analyse",Object.keys(S.memo).length||null)+
+    item("cheat","print","Spickzettel als PDF","Dein Repertoire zum Ausdrucken oder Mitnehmen"))+
   `</div>`;
   v.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const a=b.dataset.act;
     if(["daily","review","positions","mine","traps","blitz","blind"].indexOf(a)>=0)startSession(a);
     else if(a.indexOf("course:")===0){courseOpen=a.slice(7);showView("courses")}
-    else if(a==="edit")openEditor();else if(a==="share")shareRepertoire();else showView(a)});
+    else if(a==="edit")openEditor();else if(a==="share")shareRepertoire();else if(a==="cheat")cheatDialog();else showView(a)});
 }
 
 /* ---------------- Statisches Mini-Brett ---------------- */
@@ -3968,6 +4146,7 @@ function renderLegal(){
   <p>${BRAND} verwendet folgende freie Software und Inhalte:</p><ul>
   <li><b>chess.js</b> von Jeff Hlywa – BSD-2-Clause</li>
   <li><b>Stockfish 17.1</b> (stockfish.js von Nathan Rugg) – GNU GPL v3, Quelltext und Lizenz unter <code>engine/</code></li>
+  <li><b>jsPDF 4.2.1</b> (James Hall und Mitwirkende) – MIT-Lizenz, unter <code>lib/jspdf/</code>; wird nur für den Spickzettel geladen</li>
   <li><b>Firebase JS SDK</b> von Google – Apache License 2.0</li>
   <li>Schrift <b>Rubik</b> von Hubert und Fischer (The Rubik Project Authors) – SIL Open Font License 1.1, liegt unter <code>lib/fonts/</code></li>
   <li>Schriften der Kurswelten, alle unter <code>lib/fonts/</code> mit Lizenztext: <b>Caveat</b> (The Caveat Project Authors), <b>Bungee</b> (The Bungee Project Authors), <b>Cinzel</b> (The Cinzel Project Authors), <b>IM Fell English SC</b> (Igino Marini), <b>Uncial Antiqua</b> (Astigmatic), <b>Bangers</b> (The Bangers Project Authors), <b>Orbitron</b> (The Orbitron Project Authors), <b>Pirata One</b> (Rodrigo Fuenzalida, Nicolas Massi) – SIL Open Font License 1.1; <b>Special Elite</b> (Astigmatic) – Apache License 2.0</li>
@@ -4544,6 +4723,36 @@ function crsHomeTile(c){
 }
 
 /* ---- Repertoire-Baum: eigene Varianten ansehen, abzweigen, löschen ---- */
+/* Deine Notizen: alle Merkzettel mit Stellung, Zugfolge und Sprung aufs Brett */
+function renderMemos(){
+  const v=$("v-memos");if(!v)return;
+  const list=Object.entries(S.memo).map(([k,m])=>Object.assign({k},m)).sort((a,b)=>(b.d||0)-(a.d||0));
+  v.innerHTML=`<button class="back" data-back>← Training</button>`+pageHead("Deine Notizen","Merkzettel zu Stellungen – sie tauchen im Training und in der Analyse wieder auf.","pin","memo")+
+    (list.length?`<div class="memo-list">${list.map(m=>{const seq=m.h?m.h.split(" "):[];const o=m.o?byId(m.o):null;const trainable=o&&seq.length&&consistentIn(o,seq).length&&new Chess(m.f).turn()===o.side;
+      return `<article class="card memo-card" data-k="${esc(m.k)}"><div class="memo-mb" data-bd></div><div class="memo-cc"><div class="memo-meta">${o?`<b>${esc(o.name)}</b>`:m.n?`<b>${esc(m.n)}</b>`:""}<small>${seq.length?esc(fmtMoves(seq,0)):"Ausgangsstellung"}</small></div>
+        <p class="memo-t">${esc(m.t)}</p><small class="sub">${m.d?new Date(m.d).toLocaleDateString("de-DE",{day:"numeric",month:"long",year:"numeric"}):""}</small>
+        <div class="btnrow">${trainable?`<button class="btn grn" data-mtr>Hier üben</button>`:""}<button class="btn" data-mana>Am Brett öffnen</button><button class="btn" data-med>Bearbeiten</button></div></div></article>`}).join("")}</div>`
+    :emptyState("edit","Noch keine Notizen","Im Training oder auf dem Analysebrett: Menü ⋯ unter dem Brett → „Notiz zu dieser Stellung“. Die Notiz erscheint, sobald die Stellung wieder auftaucht."));
+  wireBack(v);
+  v.querySelectorAll(".memo-card").forEach(c=>{const m=S.memo[c.dataset.k];if(!m)return;const seq=m.h?m.h.split(" "):[];
+    let last=null;if(seq.length){const g=new Chess();seq.forEach(x=>{const r=findMove(g,x);if(r)last=g.move(r.san)})}
+    c.querySelector("[data-bd]").appendChild(staticBoard(m.f,m.s||"w",last));
+    c.querySelector("[data-mana]").onclick=()=>{if(seq.length)openAnaBoard(null,seq,seq.length);else openAnaBoard(m.f,[],0)};
+    c.querySelector("[data-med]").onclick=()=>memoEditStored(c.dataset.k);
+    const tr=c.querySelector("[data-mtr]");if(tr)tr.onclick=()=>startPosition(byId(m.o),seq,{title:"Deine Notiz",sub:m.t})});
+}
+function memoEditStored(key){
+  const m=S.memo[key];if(!m)return;
+  const ov=document.createElement("div");ov.className="onb";
+  ov.innerHTML=`<div class="onb-box memo-dlg" role="dialog" aria-modal="true" aria-label="Notiz bearbeiten"><h2>Notiz bearbeiten</h2><p class="hint">${m.h?esc(fmtMoves(m.h.split(" "),0)):"Ausgangsstellung"}</p>
+    <label class="fld">Notiz<textarea id="memoTxt" maxlength="280" rows="3">${esc(m.t)}</textarea></label><small class="memo-cnt" id="memoCnt"></small>
+    <div class="btnrow onb-act"><button class="btn red" data-del>Löschen</button><button class="btn" data-x>Abbrechen</button><button class="btn grn" data-ok>Speichern</button></div></div>`;
+  document.body.appendChild(ov);const ta=ov.querySelector("#memoTxt"),cnt=ov.querySelector("#memoCnt");const upd=()=>{cnt.textContent=ta.value.length+" / 280"};upd();ta.oninput=upd;setTimeout(()=>ta.focus(),60);
+  const close=()=>{ov.remove();document.removeEventListener("keydown",k_)};const k_=e=>{if(e.key==="Escape")close()};document.addEventListener("keydown",k_);
+  ov.onclick=e=>{if(e.target===ov)close()};ov.querySelector("[data-x]").onclick=close;
+  ov.querySelector("[data-ok]").onclick=()=>{const t=ta.value.trim().slice(0,280);if(t){m.t=t;m.d=Date.now()}else delete S.memo[key];save("memo");close();renderMemos();toast(t?"Notiz geändert":"Notiz gelöscht")};
+  ov.querySelector("[data-del]").onclick=()=>{delete S.memo[key];save("memo");close();renderMemos();toast("Notiz gelöscht")};
+}
 function renderRepEdit(){
   const v=$("v-repedit");if(!v)return;const groups=ALL.filter(o=>o.g==="c");
   const tree=o=>{const root={k:{},end:[]};o.lines.forEach(l=>{let n=root;l.m.forEach(m=>{n=n.k[m]||(n.k[m]={k:{},end:[]})});n.end.push(l)});
@@ -5582,6 +5791,184 @@ renderHome=function(){
   v.querySelectorAll("[data-hc]").forEach(b=>b.onclick=()=>showView(b.dataset.hc));
 };
 
+/* ================= Spickzettel als PDF =================
+   Pro Eröffnung: Kopfband, bis zu drei Schlüsselstellungen als Diagramm mit Erklärung, der Zugbaum,
+   Ideen und Pläne, Fallen und deine Notizen. jsPDF und die Schrift werden erst beim Erstellen geladen. */
+let jsPdfP=null,pcImgs=null;
+function loadJsPdf(){
+  if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve(window.jspdf);
+  if(!jsPdfP)jsPdfP=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="lib/jspdf/jspdf.umd.min.js";sc.async=true;
+    sc.onload=()=>window.jspdf&&window.jspdf.jsPDF?res(window.jspdf):rej(new Error("jspdf"));sc.onerror=()=>{jsPdfP=null;sc.remove();rej(new Error("jspdf"))};document.head.appendChild(sc)});
+  return jsPdfP;
+}
+async function fontB64(url){const r=await fetch(url);if(!r.ok)throw new Error("font");const b=new Uint8Array(await r.arrayBuffer());let s="";for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s)}
+/* Figurenbilder aus pieces.css (klassischer Satz, auch wenn in der App Staunty eingestellt ist) */
+async function pieceImgs(){
+  if(pcImgs)return pcImgs;const host=document.createElement("div");host.style.cssText="position:absolute;left:-9999px;top:0;width:10px;height:10px";document.documentElement.appendChild(host);
+  const urls={};for(const c of "wb")for(const t of "pnbrqk"){const d=document.createElement("div");d.className="pc "+c+t;host.appendChild(d);const m=getComputedStyle(d).backgroundImage.match(/url\(["']?(.*?)["']?\)$/);if(m)urls[c+t]=m[1]}
+  host.remove();const imgs={};
+  await Promise.all(Object.entries(urls).map(([k,u])=>new Promise(res=>{const im=new Image();im.onload=()=>{imgs[k]=im;res()};im.onerror=()=>res();im.src=u})));
+  return pcImgs=imgs;
+}
+function diagramPng(fen,or,last,px,imgs){
+  const cv=document.createElement("canvas");cv.width=cv.height=px;const x=cv.getContext("2d"),q=px/8,b=new Chess(fen).board();
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){const f=or==="b"?7-c:c,rk=or==="b"?r:7-r,n="abcdefgh"[f]+(rk+1);
+    x.fillStyle=(f+rk)%2?"#F1EADB":"#B9A486";x.fillRect(c*q,r*q,q,q);
+    if(last&&(last.from===n||last.to===n)){x.fillStyle="rgba(247,200,40,.42)";x.fillRect(c*q,r*q,q,q)}
+    const p=b[7-rk][f];if(p&&imgs[p.color+p.type])x.drawImage(imgs[p.color+p.type],c*q,r*q,q,q)}
+  x.font=`700 ${Math.round(q*.2)}px Rubik, sans-serif`;x.textBaseline="alphabetic";
+  for(let i=0;i<8;i++){
+    {const f=or==="b"?7-i:i,rk=or==="b"?7:0;x.fillStyle=(f+rk)%2?"#7E6A4E":"#F6F0E4";x.textAlign="right";x.fillText("abcdefgh"[f],i*q+q*.94,px-q*.07)}
+    {const f=or==="b"?7:0,rk=or==="b"?i:7-i;x.fillStyle=(f+rk)%2?"#7E6A4E":"#F6F0E4";x.textAlign="left";x.fillText(String(rk+1),q*.06,i*q+q*.24)}}
+  x.strokeStyle="#6E5C43";x.lineWidth=Math.max(2,px*.006);x.strokeRect(x.lineWidth/2,x.lineWidth/2,px-x.lineWidth,px-x.lineWidth);
+  return cv.toDataURL("image/png");
+}
+function kmInit(){if(!KMAP){KMAP=new Map();if(typeof KEYMOVES!=="undefined")for(const [q,t] of KEYMOVES)KMAP.set(q.split(" ").map(strip).join(" "),t)}return KMAP}
+/* Zugbaum als Zeilen: einfache Ketten werden zusammengefasst, Abzweigungen eingerückt */
+function cheatTree(o){
+  const root={k:new Map(),end:[]};
+  o.lines.forEach(l=>{let n=root;l.m.forEach(m=>{if(!n.k.has(m))n.k.set(m,{k:new Map(),end:[]});n=n.k.get(m)});n.end.push(l.n)});
+  const rows=[];
+  const walk=(n,path,d)=>{for(const [m,ch] of n.k){let node=ch;const seq=[m];let p=path.concat(m);
+    while(node.k.size===1&&!node.end.length){const [nm,nx]=[...node.k][0];seq.push(nm);p=p.concat(nm);node=nx}
+    rows.push({d,txt:fmtMoves(seq,p.length-seq.length),names:node.end.slice()});walk(node,p,node.k.size>1||n.k.size>1?d+1:d)}};
+  walk(root,[],0);return rows;
+}
+function cheatKeys(o){
+  const K=kmInit(),out=[],seen=new Set();
+  o.lines.forEach(l=>{for(let n=1;n<=l.m.length;n++){const key=l.m.slice(0,n).map(strip).join(" ");if(seen.has(key))continue;const t=K.get(key);if(t){seen.add(key);out.push({seq:l.m.slice(0,n),t})}}});
+  if(!out.length)o.lines.slice(0,3).forEach(l=>out.push({seq:l.m.slice(),t:l.n+(l.p?": "+l.p:""),line:true}));
+  return out.slice(0,3);
+}
+function cheatMemos(o){const L=o.lines.map(l=>l.m.map(strip));
+  return Object.values(S.memo).filter(m=>{if(m.o===o.id)return true;if(!m.h)return false;const h=m.h.split(" ").map(strip);return L.some(l=>l.length>=h.length&&h.every((x,i)=>l[i]===x))}).sort((a,b)=>(a.h||"").split(" ").length-(b.h||"").split(" ").length)}
+const CHEAT_COL={w:[106,72,238],b:[22,129,104],x:[212,60,56],c:[143,95,53]};
+async function cheatPdf(ids,prog){
+  const [{jsPDF},reg,bold,imgs]=await Promise.all([loadJsPdf(),fontB64("lib/fonts/rubik-regular.ttf"),fontB64("lib/fonts/rubik-bold.ttf"),pieceImgs()]);
+  const doc=new jsPDF({unit:"mm",format:"a4",compress:true});
+  doc.addFileToVFS("Rubik-Regular.ttf",reg);doc.addFont("Rubik-Regular.ttf","Rubik","normal");doc.addFileToVFS("Rubik-Bold.ttf",bold);doc.addFont("Rubik-Bold.ttf","Rubik","bold");
+  const W=210,H=297,M=14,CW=W-2*M,BOT=H-16,ink=[42,38,34],soft=[110,102,92],lh=pt=>pt*.3528*1.38;
+  let y=M,first=true,cur=null;const toc=[];
+  const font=(st,pt,col)=>{doc.setFont("Rubik",st);doc.setFontSize(pt);doc.setTextColor(...(col||ink))};
+  const page=()=>{doc.addPage();y=M;if(cur){font("bold",8.5,cur.col);doc.text(cur.o.name+" (Fortsetzung)",M,y+3);y+=8}};
+  const need=h=>{if(y+h>BOT)page()};
+  const para=(txt,x,w,st,pt,col,gap)=>{font(st,pt,col);const ls=doc.splitTextToSize(String(txt),w);ls.forEach(l=>{need(lh(pt));doc.text(l,x,y+lh(pt)*.78);y+=lh(pt)});y+=gap||0};
+  const head=(t,col)=>{need(12);y+=2;font("bold",10.5,col);doc.text(t,M,y+4);doc.setDrawColor(...col);doc.setLineWidth(.35);doc.line(M,y+6,M+CW,y+6);y+=9};
+  for(let k=0;k<ids.length;k++){
+    const o=byId(ids[k]);if(!o||!o.lines||!o.lines.length)continue;if(prog)prog(k+1,ids.length,o.name);await new Promise(r=>setTimeout(r,0));
+    if(first)first=false;else{doc.addPage();y=M}
+    const col=CHEAT_COL[o.g]||CHEAT_COL[o.side]||CHEAT_COL.w;cur=null;toc.push({o,page:doc.getNumberOfPages()});
+    /* Kopfband */
+    doc.setFillColor(...col);doc.roundedRect(M,y,CW,17,3,3,"F");
+    font("bold",15,[255,255,255]);doc.text(o.name,M+5,y+8.2,{maxWidth:CW-60});
+    font("normal",8.5,[255,255,255]);doc.text(`${o.side==="w"?"Du spielst Weiß":"Du spielst Schwarz"} · ${o.lines.length} ${o.lines.length===1?"Variante":"Varianten"}`,M+5,y+13.6);
+    if(o.eco){font("bold",9,[255,255,255]);doc.text(String(o.eco),M+CW-5,y+8.2,{align:"right"})}
+    y+=21;cur={o,col};
+    if(o.d)para(o.d,M,CW,"normal",9,soft,2);
+    /* Schlüsselstellungen */
+    const keys=cheatKeys(o);
+    if(keys.length){head(keys[0].line?"Endstellungen":"Schlüsselstellungen",col);
+      const dw=55,gap=(CW-3*dw)/2;need(dw+24);const top=y;let maxY=top+dw;
+      keys.forEach((K,i)=>{const g=new Chess();let last=null;for(const m of K.seq){const mv=findMove(g,m);if(!mv)break;last=g.move(mv.san)}
+        const x0=M+i*(dw+gap);doc.addImage(diagramPng(g.fen(),o.side,last,440,imgs),"PNG",x0,top,dw,dw);
+        let yy=top+dw+4;const mvTxt=last?numSan(fens0(K.seq),last.san):"";
+        font("bold",8.5,col);if(mvTxt){doc.text(mvTxt,x0,yy);yy+=lh(8.5)}
+        font("normal",7.6,ink);doc.splitTextToSize(K.t,dw).slice(0,8).forEach(l=>{doc.text(l,x0,yy);yy+=lh(7.6)});maxY=Math.max(maxY,yy)});
+      y=maxY+3}
+    /* Zugbaum */
+    head("Zugbaum",col);
+    cheatTree(o).forEach(r=>{const ind=Math.min(r.d,7)*4.2,w=CW-ind,L=lh(8.6);
+      font("normal",8.6,ink);const ls=doc.splitTextToSize(r.txt,w);need(L*ls.length);
+      if(r.d>0){doc.setDrawColor(...col);doc.setLineWidth(.3);doc.line(M+ind-2.6,y+.8,M+ind-2.6,y+L*ls.length-.4)}
+      ls.forEach(l=>{font("normal",8.6,ink);doc.text(l,M+ind,y+L*.78);y+=L});
+      if(r.names.length){font("normal",8.6,ink);const lastW=doc.getTextWidth(ls[ls.length-1]);const nm=r.names.join(" · ");font("bold",7.6,col);
+        if(lastW+3+doc.getTextWidth(nm)<=w)doc.text(nm,M+ind+lastW+2.4,y-L+L*.78);
+        else doc.splitTextToSize(nm,w-3).forEach(t=>{need(lh(7.6));font("bold",7.6,col);doc.text(t,M+ind+3,y+lh(7.6)*.78);y+=lh(7.6)})}});
+    y+=1;
+    /* Ideen und Pläne */
+    const plans=[];(o.plan||[]).forEach(t=>{if(t)plans.push({t})});
+    const seenP=new Set();o.lines.forEach(l=>{if(l.p&&!seenP.has(l.p)){seenP.add(l.p);plans.push({n:l.n,t:l.p})}});
+    if(plans.length){head("Ideen und Pläne",col);
+      plans.slice(0,10).forEach(P=>{need(lh(8.5)*2);font("bold",8.5,col);doc.text("•",M+1,y+lh(8.5)*.78);
+        if(P.n){font("bold",8.5,ink);const lab=P.n+": ";doc.text(lab,M+4.5,y+lh(8.5)*.78);const tw=doc.getTextWidth(lab);font("normal",8.5,ink);const ls=doc.splitTextToSize(P.t,CW-4.5-tw);doc.text(ls[0],M+4.5+tw,y+lh(8.5)*.78);y+=lh(8.5);if(ls.length>1)para(ls.slice(1).join(" "),M+4.5,CW-4.5,"normal",8.5,ink)}
+        else para(P.t,M+4.5,CW-4.5,"normal",8.5,ink);y+=.8});
+      if(plans.length>10)para(`und ${plans.length-10} weitere Pläne in der App`,M+4.5,CW-4.5,"normal",7.6,soft)}
+    /* Fallen und Hinweise aus den Varianten */
+    const tips=[];o.lines.forEach(l=>{const nt=l.notes||{};Object.keys(nt).sort((a,b)=>a-b).forEach(pl=>{const g=new Chess();for(let i=0;i<+pl;i++){const mv=findMove(g,l.m[i]);if(!mv)return;g.move(mv.san)}if(l.m[+pl])tips.push({n:l.n,mv:numSan(g.fen(),l.m[+pl]),t:nt[pl]})})});
+    if(tips.length){head(o.g==="x"?"Fallen und Hinweise":"Hinweise",col);tips.slice(0,8).forEach(T=>{need(lh(8.5)*2);font("bold",8.5,ink);const lab=`${T.mv} (${T.n}): `;doc.text(lab,M,y+lh(8.5)*.78);const tw=doc.getTextWidth(lab);font("normal",8.5,ink);const ls=doc.splitTextToSize(T.t,CW-tw);doc.text(ls[0],M+tw,y+lh(8.5)*.78);y+=lh(8.5);if(ls.length>1)para(ls.slice(1).join(" "),M,CW,"normal",8.5,ink);y+=.8})}
+    /* Deine Notizen */
+    const ms=cheatMemos(o);
+    if(ms.length){head("Deine Notizen",[196,140,20]);ms.slice(0,10).forEach(m=>{const seq=m.h?m.h.split(" "):[];const lab=seq.length?`Nach ${fmtMoves(seq,0)}: `:"";need(lh(8.5)*2);
+      doc.setFillColor(255,244,196);const ls=doc.splitTextToSize(lab+m.t,CW-6);const hh=ls.length*lh(8.5)+3;need(hh);doc.roundedRect(M,y,CW,hh,1.5,1.5,"F");
+      let yy=y+1.6;ls.forEach((l,i)=>{font(i===0&&lab?"normal":"normal",8.5,ink);doc.text(l,M+3,yy+lh(8.5)*.78);yy+=lh(8.5)});y+=hh+1.5})}
+  }
+  /* Deckblatt mit Inhalt (kommt zum Schluss und wird nach vorn geschoben) */
+  doc.addPage();cur=null;y=M;
+  doc.setFillColor(106,72,238);doc.roundedRect(M,y,CW,46,4,4,"F");doc.setFillColor(176,107,255);doc.roundedRect(M+CW-62,y,62,46,4,4,"F");doc.setFillColor(106,72,238);doc.rect(M+CW-62,y,20,46,"F");
+  font("bold",24,[255,255,255]);doc.text("Mein Spickzettel",M+8,y+18);
+  font("normal",11,[255,255,255]);doc.text(`${toc.length} ${toc.length===1?"Eröffnung":"Eröffnungen"} · Zugzwang Eröffnungstrainer`,M+8,y+27);
+  font("normal",9,[255,255,255]);doc.text("Erstellt am "+new Date().toLocaleDateString("de-DE",{day:"numeric",month:"long",year:"numeric"}),M+8,y+35);
+  try{const tw=await svgPngData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">${TR_ART.mila("happy",true)}</svg>`,400,440);doc.addImage(tw,"PNG",M+CW-46,y+2,40,44)}catch(e){}
+  y+=56;
+  const grp=[["w","Mit Weiß"],["b","Mit Schwarz"],["x","Gambits & Fallen"],["c","Eigene Varianten"]];
+  font("bold",13,ink);doc.text("Inhalt",M,y);y+=7;
+  grp.forEach(([g,t])=>{const L=toc.filter(e=>(e.o.g==="x"?"x":e.o.g==="c"?"c":e.o.side)===g);if(!L.length)return;
+    need(12);font("bold",9,CHEAT_COL[g]);doc.text(t.toUpperCase(),M,y+3);y+=7;
+    L.forEach(e=>{need(6);font("normal",10.5,ink);doc.text(e.o.name,M+2,y+3);const pg=String(e.page+1);font("bold",10.5,ink);doc.text(pg,M+CW,y+3,{align:"right"});
+      const x1=M+4+doc.getTextWidth(e.o.name),x2=M+CW-doc.getTextWidth(pg)-2;font("normal",10.5,[190,182,170]);let dots="";while(doc.getTextWidth(dots+" .")<x2-x1-2)dots+=" .";doc.text(dots,x1,y+3);y+=6.4});y+=3});
+  y+=4;head("So liest du den Spickzettel",[106,72,238]);
+  ["Schlüsselstellungen zeigen die Stellung nach einem wichtigen Zug, darunter steht, warum er gespielt wird.","Im Zugbaum steht jede Abzweigung eingerückt unter dem Zug, nach dem sie abzweigt. Der farbige Name am Zeilenende ist der Name der Variante.","Die Diagramme zeigen das Brett aus deiner Sicht. Der zuletzt gespielte Zug ist gelb markiert.","Deine Notizen aus der App stehen auf gelbem Grund bei der passenden Eröffnung."].forEach(t=>{font("bold",9,[106,72,238]);doc.text("•",M+1,y+lh(9)*.78);para(t,M+4.5,CW-4.5,"normal",9,ink,.6)});
+  doc.movePage(doc.getNumberOfPages(),1);
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){doc.setPage(i);font("normal",7.5,soft);doc.text("Zugzwang · Spickzettel",M,H-8);doc.text(`Seite ${i} von ${n}`,W-M,H-8,{align:"right"});doc.setDrawColor(225,219,208);doc.setLineWidth(.2);doc.line(M,H-11,W-M,H-11)}
+  return {blob:doc.output("blob"),pages:n,count:toc.length};
+}
+function fens0(seq){const g=new Chess();for(let i=0;i<seq.length-1;i++){const mv=findMove(g,seq[i]);if(!mv)break;g.move(mv.san)}return g.fen()}
+async function svgPngData(svg,w,h){
+  const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));const img=new Image();await new Promise((ok,no)=>{img.onload=ok;img.onerror=no;img.src=url});
+  const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(img,0,0,w,h);URL.revokeObjectURL(url);return cv.toDataURL("image/png");
+}
+async function fileShare(blob,name,type,title){
+  try{const file=new File([blob],name,{type});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title});return "shared"}}catch(e){if(e&&e.name==="AbortError")return "abort"}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);return "saved";
+}
+function cheatDialog(){
+  const pool=ALL.filter(o=>o.lines&&o.lines.length&&!/^__/.test(o.id));
+  const practiced=pool.filter(o=>S.prog[o.id]&&Object.keys(S.prog[o.id]).length).map(o=>o.id);
+  let sel=new Set(S.rep.filter(id=>byId(id)).length?S.rep.filter(id=>byId(id)):practiced);
+  const groups=[["w","Mit Weiß"],["b","Mit Schwarz"],["x","Gambits & Fallen"],["c","Eigene Varianten"]];
+  const gOf=o=>o.g==="x"?"x":o.g==="c"?"c":o.side;
+  const ov=document.createElement("div");ov.className="onb";
+  ov.innerHTML=`<div class="onb-box cheat-dlg" role="dialog" aria-modal="true" aria-label="Spickzettel als PDF"><div class="cheat-hd"><span class="cheat-ic">${NI.print}</span><div><h2>Spickzettel als PDF</h2><p class="hint">Pro Eröffnung: Schlüsselstellungen mit Erklärung, Zugbaum, Pläne, Fallen und deine Notizen.</p></div></div>
+    <div class="chips cheat-q">${S.rep.filter(id=>byId(id)).length?`<button class="chip" data-q="rep">Mein Repertoire (${S.rep.filter(id=>byId(id)).length})</button>`:""}${practiced.length?`<button class="chip" data-q="prac">Geübte (${practiced.length})</button>`:""}<button class="chip" data-q="w">Alle mit Weiß</button><button class="chip" data-q="b">Alle mit Schwarz</button><button class="chip" data-q="none">Keine</button></div>
+    <div class="cheat-list">${groups.map(([g,t])=>{const L=pool.filter(o=>gOf(o)===g);return L.length?`<div class="cheat-g"><b>${t}</b>${L.map(o=>`<label class="cheat-it"><input type="checkbox" value="${esc(o.id)}"><span>${esc(o.name)}</span><small>${o.lines.length}</small></label>`).join("")}</div>`:""}).join("")}</div>
+    <p class="cheat-sum" id="cheatSum"></p>
+    <div class="btnrow onb-act"><button class="btn" data-x>Abbrechen</button><button class="btn grn" data-go>PDF erstellen</button></div></div>`;
+  document.body.appendChild(ov);
+  const boxes=[...ov.querySelectorAll(".cheat-it input")];
+  const sync=()=>{boxes.forEach(b=>b.checked=sel.has(b.value));const n=sel.size,pg=1+[...sel].reduce((a,id)=>{const o=byId(id);return a+(o&&o.lines.length>12?2:1)},0);ov.querySelector("#cheatSum").textContent=n?`${n} ${n===1?"Eröffnung":"Eröffnungen"} · etwa ${pg} Seiten`:"Wähle mindestens eine Eröffnung.";ov.querySelector("[data-go]").disabled=!n};
+  boxes.forEach(b=>b.onchange=()=>{if(b.checked)sel.add(b.value);else sel.delete(b.value);sync()});
+  ov.querySelectorAll("[data-q]").forEach(c=>c.onclick=()=>{const q=c.dataset.q;
+    sel=new Set(q==="rep"?S.rep.filter(id=>byId(id)):q==="prac"?practiced:q==="none"?[]:pool.filter(o=>o.g!=="c"&&o.g!=="x"&&o.side===q).map(o=>o.id));sync()});
+  sync();
+  const close=()=>{ov.remove();document.removeEventListener("keydown",k_)};const k_=e=>{if(e.key==="Escape"&&!busyPdf)close()};document.addEventListener("keydown",k_);
+  let busyPdf=false;ov.onclick=e=>{if(e.target===ov&&!busyPdf)close()};ov.querySelector("[data-x]").onclick=()=>{if(!busyPdf)close()};
+  ov.querySelector("[data-go]").onclick=async()=>{
+    if(busyPdf||!sel.size)return;busyPdf=true;const go=ov.querySelector("[data-go]");go.disabled=true;
+    const order=pool.filter(o=>sel.has(o.id)).sort((a,b)=>"wbxc".indexOf(gOf(a))-"wbxc".indexOf(gOf(b))).map(o=>o.id);
+    const sum=ov.querySelector("#cheatSum");
+    try{const R=await cheatPdf(order,(i,n,name)=>{go.textContent=`Erstelle PDF … ${i}/${n}`;sum.textContent=name});
+      busyPdf=false;const name=`Zugzwang-Spickzettel-${new Date().toISOString().slice(0,10)}.pdf`;
+      sum.textContent=`Fertig: ${R.pages} Seiten mit ${R.count} ${R.count===1?"Eröffnung":"Eröffnungen"}.`;
+      const act=ov.querySelector(".onb-act"),canSh=!!(navigator.canShare&&navigator.canShare({files:[new File([R.blob],name,{type:"application/pdf"})]}));act.innerHTML=`<button class="btn" data-x>Schließen</button><button class="btn${canSh?"":" grn"}" data-save>Speichern</button>${canSh?'<button class="btn grn" data-share>Teilen</button>':""}`;
+      act.querySelector("[data-x]").onclick=close;
+      act.querySelector("[data-save]").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(R.blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)};
+      const sh=act.querySelector("[data-share]");if(sh)sh.onclick=()=>fileShare(R.blob,name,"application/pdf","Mein Eröffnungs-Spickzettel");
+      window.__lastPdf=R;
+    }catch(e){busyPdf=false;go.disabled=false;go.textContent="PDF erstellen";sum.textContent="Das PDF konnte nicht erstellt werden"+(navigator.onLine===false?" – beim ersten Mal braucht die App dafür Internet.":".")}
+  };
+}
+
 /* ================= Neue Version: Hinweis statt veralteter App ================= */
 /* Bleibt die App tagelang offen (z. B. auf dem Handy), läuft sonst alter Code – und zwei Spieler hätten unterschiedliche Versionen. */
 (function(){
@@ -5620,5 +6007,5 @@ const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
 if(firstRun&&!location.hash)setTimeout(openLanding,300);else if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
 if(onlineReady())setTimeout(onlineBoot,600);
-window.__ET={updBanner,tryMove:(a,b,an,p)=>tryMove(a,b,an!==false,p),CLK,hist:()=>hist.slice(),srvNow,PZ,GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={updBanner,cheatPdf,get tp(){return tp},tryMove:(a,b,an,p)=>tryMove(a,b,an!==false,p),CLK,hist:()=>hist.slice(),srvNow,PZ,GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();
