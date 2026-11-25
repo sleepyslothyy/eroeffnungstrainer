@@ -3191,7 +3191,7 @@ async function doReset(email,msg){if(!email.trim()){msg("Trag zuerst deine E-Mai
 async function doLogout(){await cloudPush(true);ON.synced=false;try{await NET.signOut()}catch(e){}toast("Abgemeldet")}
 async function doDeleteAccount(msg){
   const u=ON.user;if(!u)return;const low=ON.profile&&ON.profile.nameLower;
-  try{if(low)await NET.del("usernames/"+low);await NET.del("users/"+u.uid+"/private/progress");await NET.del("users/"+u.uid+"/private/clock").catch(()=>{});await NET.del("users/"+u.uid);await NET.delUser();try{localStorage.removeItem("et-cloud-uid")}catch(e){}ON.synced=false;toast("Dein Konto wurde gelöscht.")}catch(e){msg(netErr(e))}
+  try{if(low)await NET.del("usernames/"+low);await NET.del("users/"+u.uid+"/private/progress");await NET.del("users/"+u.uid+"/private/clock").catch(()=>{});await NET.del("users/"+u.uid+"/private/push").catch(()=>{});await NET.del("users/"+u.uid);await NET.delUser();try{localStorage.removeItem("et-cloud-uid")}catch(e){}ON.synced=false;toast("Dein Konto wurde gelöscht.")}catch(e){msg(netErr(e))}
 }
 
 /* ---- Fortschritt in der Cloud ---- */
@@ -3716,7 +3716,7 @@ function wireAdmin(box){
   box.querySelectorAll("[data-ren]").forEach(b=>b.onclick=()=>{const u=ADM.users.find(x=>x.id===b.dataset.ren);const n=($("admRen").value||"").trim();if(!u)return;if(!NAME_RE.test(n)){msg("3–20 Zeichen: Buchstaben, Ziffern, _ oder -.");return}
     act(async()=>{const low=n.toLowerCase();const ok=await NET.tx("usernames/"+low,d=>d?null:{uid:u.id});if(!ok)throw new Error("Dieser Name ist schon vergeben.");if(u.nameLower&&u.nameLower!==low)await NET.del("usernames/"+u.nameLower).catch(()=>{});await NET.set("users/"+u.id,{name:n,nameLower:low},true)},"Umbenannt in "+n)});
   box.querySelectorAll("[data-udel]").forEach(b=>b.onclick=()=>{const u=ADM.users.find(x=>x.id===b.dataset.udel);if(!u)return;if(u.id===ON.user.uid){msg("Dein eigenes Konto löschst du unter „Konto“.");return}if(!sure(b,"Wirklich alles löschen?"))return;
-    act(async()=>{if(u.nameLower)await NET.del("usernames/"+u.nameLower).catch(()=>{});await NET.del("users/"+u.id+"/private/progress").catch(()=>{});await NET.del("users/"+u.id);ADM.sel=null},"Profildaten gelöscht")});
+    act(async()=>{if(u.nameLower)await NET.del("usernames/"+u.nameLower).catch(()=>{});await NET.del("users/"+u.id+"/private/progress").catch(()=>{});await NET.del("users/"+u.id+"/private/push").catch(()=>{});await NET.del("users/"+u.id);ADM.sel=null},"Profildaten gelöscht")});
   box.querySelectorAll("[data-clean]").forEach(b=>b.onclick=()=>{if(!sure(b,"Wirklich alle löschen?"))return;const k=b.dataset.clean,now=Date.now(),G=ADM.games;
     const ids=k==="stale"?G.filter(g=>g.status==="waiting"&&(g.created||0)<now-3*DAY).map(g=>"games/"+g.id):k==="gone"?G.filter(g=>g.status==="cancelled"||g.status==="declined"||(g.status==="over"&&g.result==="-")).map(g=>"games/"+g.id):k==="stuck"?G.filter(g=>g.status==="active"&&(g.updated||0)<now-14*DAY).map(g=>"games/"+g.id):ADM.names.filter(n=>!ADM.users.some(u=>u.id===n.uid)).map(n=>"usernames/"+n.id);
     act(async()=>{for(const p of ids)await NET.del(p)},ids.length+" Einträge gelöscht")});
