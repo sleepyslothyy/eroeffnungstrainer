@@ -80,10 +80,10 @@ const KEYS=["prog","srs","pos","rep","daily","streak","stats","set","custom","an
 const S={
   prog:store.get("et-prog",{}),srs:store.get("et-srs",{}),pos:store.get("et-pos",{}),rep:store.get("et-rep",[]),daily:store.get("et-daily",null),
   streak:store.get("et-streak",{last:null,n:0,best:0}),stats:store.get("et-stats",{}),
-  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true,crsBoard:true},store.get("et-set",{})),
+  set:Object.assign({revMs:300,theme:"green",pieces:"cburnett",sound:store.get("et-sound",true),ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true,crsBoard:true,voice:false,voiceMv:false,voiceIn:false},store.get("et-set",{})),
   custom:store.get("et-custom",{w:[],b:[]}),ana:store.get("et-ana",null),puz:store.get("et-puz",[]),memo:store.get("et-memo",{})
 };
-{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true,crsBoard:true};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
+{const SD={revMs:300,theme:"green",pieces:"cburnett",sound:true,ideas:true,coords:true,sf:5,design:"dark",evalbar:false,realistic:true,blitzSec:5,liToken:"",ghToken:"",gist:"",autoNext:true,autoQueen:false,swipe:true,font:100,calm:false,autoSync:true,tbHide:true,accent:"violet",learnFirst:true,premove:true,why:true,crsBoard:true,voice:false,voiceMv:false,voiceIn:false};fixT(S.set,SD);if(["violet","red","green"].indexOf(S.set.accent)<0)S.set.accent="violet"}
 fixT(S.streak,{last:"",n:0,best:0});if(S.streak.last==="")S.streak.last=null;
 fixT(S.custom,{w:[],b:[]});S.custom.w=S.custom.w.filter(l=>l&&Array.isArray(l.m));S.custom.b=S.custom.b.filter(l=>l&&Array.isArray(l.m));
 S.rep=S.rep.filter(x=>typeof x==="string");S.puz=S.puz.filter(x=>x&&typeof x==="object"&&x.key);
@@ -205,7 +205,7 @@ function sfx(kind){
   else if(kind==="badge"){tone(t,523,.2,.15,"triangle");tone(t+.1,784,.2,.15,"triangle");tone(t+.2,1047,.4,.15,"triangle")}
   else if(kind==="tick"){tone(t,1200,.04,.06,"square")}
 }
-const playSound=r=>sfx(/[+#]/.test(r.san)?"check":r.captured?"capture":"move");
+const playSound=r=>{sfx(/[+#]/.test(r.san)?"check":r.captured?"capture":"move");if(S.set.voiceMv)vcMove(r)};
 
 /* ---------------- Wiederholung (SM-2) für Varianten und Stellungen ---------------- */
 function sm2(s,q){
@@ -353,7 +353,7 @@ function resetBoard(fen){
   clearTimeout(learnNext);learnNext=null;learn=false;
   sfEnd=null;clearTimeout(timer);stopBlitz();cancelAuto();if(wrongT){clearTimeout(wrongT);wrongT=null;wrongRevert=null}whyStop();whyTok++;whyCur=null;tp=null;tpNote=null;const g=new Chess(fen||undefined);startFen=fen||null;
   hist=[];fens=[g.fen()];mvs=[];flags=[];view=0;shown=g;target=null;done=false;mistakes=0;usedHelp=false;hintLvl=0;sel=null;busy=false;lock=false;badge=null;sfEval=null;tried=new Set();peeked=false;evalCp=null;
-  marks.a.clear();marks.c.clear();xpl=null;pickWait=false;memoOpen.clear();
+  marks.a.clear();marks.c.clear();xpl=null;pickWait=false;memoOpen.clear();VC.km.clear();
 }
 function commit(mv,flag){const g=new Chess(fens[hist.length]);const r=g.move(mv.san||mv);hist.push(r.san);mvs.push(r);fens.push(g.fen());flags.push(flag);return r}
 function truncate(n){hist.length=n;mvs.length=n;fens.length=n+1;flags.length=n;if(tp){if(n<=tp.p)tp=null;else tpSync(n)}}
@@ -614,7 +614,7 @@ async function whyCheck(fen0,r,title,tail){
   else if(d<150){kind="meh";seq=eW.pv.slice(0,2);txt=`${wTxt} ist ungenau: Stockfish sieht ${fmtEv(eW.cp)} statt ${fmtEv(eB?eB.cp:eW.cp)}${rep?`, stark ist die Antwort ${rep}`:""}.`}
   else{kind="bad";const ls=whyLoss(fen0,fenW,eW.pv||[],me);seq=ls.seq.length?ls.seq:eW.pv.slice(0,2);txt=`Darum nicht: ${rep?`Auf ${wTxt} folgt ${rep} – `:""}${ls.txt||`${th} steht danach klar besser (${fmtEv(eW.cp)})`}.`}
   const sub=txt+" "+(curStatus[1]===title?tail:"Spiel jetzt den markierten Zug.");
-  setStatus(curStatus[0],curStatus[1],sub);
+  setStatus(curStatus[0],curStatus[1],sub);{const cc=crsSess();vcSay(txt,cc?coIdOf(cc):"mila")}
   whyCur={tok,view:v0,fen:fen0,san:r.san,seq,kind};
   const b=$("whyBtn");b.hidden=!(kind!=="ok"&&seq.length);b.textContent=kind==="bad"?"Zeigen, warum":"Antwort zeigen";
 }
@@ -648,6 +648,7 @@ function kmPaint(){
   el.innerHTML=`<span class="km-h"><span class="km-k" aria-hidden="true">${crsIcon("key",12)}</span>${ns.length>1?"Schlüsselzüge":"Schlüsselzug"} · ${esc(TRAINER[co].nick)}</span>`+
     ns.map((n,i)=>`<span class="km-i"><b class="km-m">${esc(numSan(fens[n-1],hist[n-1]))}</b> ${i===0?`<em>${esc(lead)}</em> `:""}${esc(keyWhy(n))}</span>`).join("");
   el.hidden=false;
+  if(live()&&S.set.voice){const kk=n=>n+"|"+hist.slice(0,n).join(" "),nw=ns.filter(n=>!VC.km.has(kk(n)));if(nw.length){const txt=lead+" "+nw.map(n=>keyWhy(n)).join(" "),keys=nw.map(kk);setTimeout(()=>vcSpeak(txt,co,"km",false,keys),0)}}
 }
 /* ================= Eigene Notizen an Stellungen =================
    Eine Notiz hängt an der Stellung (Brett, Zugrecht, Rochaderechte), nicht an der Zugfolge – sie erscheint also auch nach einer Zugumstellung.
@@ -1382,6 +1383,11 @@ $("xBack").onclick=()=>{if(xpl&&view>0)setView(view-1)};
 $("xTrain").onclick=()=>{if(!xpl)return;const i=bestLineAt(hist.slice(0,view));if(i===null)return;xpl=null;sess=null;forced=i;target=i;startTrain()};
 $("xEnd").onclick=()=>{xpl=null;forced=null;startTrain()};
 $("xplBtn").onclick=()=>startExplore([]);
+$("themeMi").onclick=()=>{$("bMenu").hidden=true;$("moreBtn").setAttribute("aria-expanded","false");
+  if(mode!=="train"||!op||!op.lines||!op.lines.length||op.g==="c"||op.endId||/^__/.test(op.id||"")){toast("Themenpartien gibt es für die Eröffnungen im Training.");return}
+  const li=target!==null&&op.lines[target]?target:themeStem(op).length>=2?-1:0;ON.theme={id:op.id,li};ON.col=op.side;store.set("et-ontheme",ON.theme);store.set("et-oncol",ON.col);
+  showView("online:play");toast(li>=0?`Themenpartie „${op.lines[li].n}“ – wähle Bedenkzeit und Gegner.`:`Themenpartie ${op.name} – wähle Bedenkzeit und Gegner.`);
+  setTimeout(()=>{const el=$("onTheme");if(el)el.scrollIntoView({behavior:calmNow()?"auto":"smooth",block:"center"})},120)};
 $("memoMi").onclick=()=>{$("bMenu").hidden=true;$("moreBtn").setAttribute("aria-expanded","false");memoEdit()};
 $("xplMi").onclick=()=>{$("bMenu").hidden=true;$("moreBtn").setAttribute("aria-expanded","false");if(op&&op.lines&&op.lines.length&&!op.endId)startExplore(hist.slice(0,view).length&&consistentIn(op,hist.slice(0,view)).length?hist.slice(0,view):[]);else toast("Erkunden geht in einer Eröffnung mit Varianten.")};
 function renderPickSeg(){$("poAuto").setAttribute("aria-pressed",String(!S.set.pickOpp));$("poPick").setAttribute("aria-pressed",String(!!S.set.pickOpp))}
@@ -1527,7 +1533,7 @@ function showView(v){
   if(base!==curView)cancelAuto();
   const prev=curView;curView=base;
   document.querySelectorAll(".view").forEach(el=>{const on=el.id==="v-"+base;el.hidden=!on;if(on&&prev!==base&&!calmNow()){el.classList.remove("enter");void el.offsetWidth;el.classList.add("enter")}});
-  if(base!=="train"){stopEngine();stopBlitz()}
+  if(base!=="train"){stopEngine();stopBlitz();if(VR.on)vrStop()}
   ({home:renderHome,tactics:renderTactics,learn:renderLearn,online:renderOnline,openings:renderOpenings,chess:renderChess,profile:renderProfile,quiz:renderQuizIntro,games:renderGames,import:renderImport,end:renderEndPage,bots:renderBots,scout:renderScout,memos:renderMemos,analyse:renderAnalyse,legal:renderLegal,courses:renderCourses,repedit:renderRepEdit,coords:renderCoords,guess:renderGuessPick,player:renderPlayer,tours:renderTours,league:renderLeague}[base]||(()=>{}))();
   if(base!=="train"){const sec=sectionOf();secLast[sec]=routeKey();store.set("et-seclast",secLast)}
   renderTabbar();applyBlind();if(base!=="train")window.scrollTo(0,0);else sizeVar();
@@ -1902,6 +1908,8 @@ function applySettings(){
   document.documentElement.style.setProperty("--fz",String((S.set.font||100)/100));
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=S.set.design==="light"?"#F4F3F0":"#1B1A18";
 }
+const VOICE_TEST={mila:"Hallo! Ich bin Mila. Merk dir: Erst die Figuren entwickeln, dann angreifen.",bruno:"Bruno hier. Wir bauen Zug für Zug – ein festes Fundament hält alles aus.",greta:"Greta. Deine Burg steht, wenn jeder Stein an seinem Platz liegt.",konrad:"Kapitän Konrad an Bord! Kurs halten, Springer f3, volle Fahrt voraus.",linus:"Linus Langbogen. Zielen, ruhig atmen – der Läufer trifft auf f7.",rex:"Rex! Angriff! Wer zögert, verliert das Feuer.",nova:"Nova, Systeme online. Berechnung läuft – die Diagonale ist frei.",ilka:"Dr. Ilka Glut. Die Messwerte steigen, der Vulkan erwacht.",rika:"Arrr, Rika Rotsegel! Ein Bauer weniger, dafür Wind in den Segeln."};
+function vcCoach(){const c=typeof crsSess==="function"&&mode==="train"?crsSess():null;if(c)return coIdOf(c);const l=st.crsLast&&typeof COURSES!=="undefined"?COURSES.find(x=>x.id===st.crsLast):null;return l?coIdOf(l):"mila"}
 function renderSettings(v){
   const sw=(id,on,t,d)=>`<div class="setrow"><span><b>${t}</b><small>${d}</small></span><button class="switch" id="${id}" aria-pressed="${on}" aria-label="${t}"></button></div>`;
   v.innerHTML=`<div class="card"><h3>Aussehen</h3><div class="setrow"><span><b>Akzentfarbe</b><small>Farbe für Knöpfe und Hervorhebungen</small></span></div>${accentPicker()}<div class="setrow" style="margin-top:6px"><span><b>Modus</b><small>Dunkel schont abends die Augen</small></span><span class="seg"><button data-design="dark" aria-pressed="${S.set.design!=="light"}">Dunkel</button><button data-design="light" aria-pressed="${S.set.design==="light"}">Hell</button></span></div></div>
@@ -1918,6 +1926,11 @@ function renderSettings(v){
     ${sw("swReal",S.set.realistic,"Realistische Gegnerzüge","Das Buch spielt häufige Antworten öfter – nach Lichess-Statistik")}
     <div class="setrow"><span><b>Blitz-Drill: <span id="blLbl">${S.set.blitzSec}</span> s pro Zug</b><small>Zeit pro Zug im Blitz-Drill</small></span><input type="range" id="blRange" min="2" max="15" value="${S.set.blitzSec}" aria-label="Sekunden pro Zug"></div>
     <div class="setrow"><span><b>Stockfish-Stärke: <span id="sfLbl">${S.set.sf}</span></b><small>1 = Anfänger, 10 = Vereinsspieler, 20 = volle Stärke</small></span><input type="range" id="sfRange" min="1" max="20" value="${S.set.sf}" aria-label="Stockfish-Stärke"></div>
+  </div>
+  <div class="card"><h3>Stimme</h3>
+    ${VC.ok?sw("swVoice",!!S.set.voice,"Trainer sprechen","Schlüsselzüge, Erklärungen und Sprüche liest dein Trainer vor – jeder mit eigener Stimmlage")+sw("swVoiceMv",!!S.set.voiceMv,"Züge ansagen","Jeder Zug wird angesagt, z. B. „Springer f3“ – praktisch im Blind-Training"):`<div class="setrow"><span><b>Sprachausgabe</b><small>Dieser Browser kann keinen Text vorlesen.</small></span></div>`}
+    ${VC.rec?sw("swVoiceIn",!!S.set.voiceIn,"Spracheingabe","Mikrofon unter dem Brett: „Springer f3“, „e schlägt d5“, „kurze Rochade“"):`<div class="setrow"><span><b>Spracheingabe</b><small>Dieser Browser erkennt keine Sprache. In Chrome und Safari geht es.</small></span></div>`}
+    ${VC.ok?`<div class="setrow"><span><b>Probehören</b><small>So klingt ${esc(TRAINER[vcCoach()].nick)}</small></span><button class="btn" id="voiceTest" style="padding:8px 12px">Anhören</button></div>`:""}
   </div>
   <div class="card"><h3>Komfort</h3>
     ${sw("swAuto",S.set.autoNext,"Automatisch weiter","Nach einer gelösten Variante oder Aufgabe startet kurz darauf die nächste")}
@@ -1939,6 +1952,8 @@ function renderSettings(v){
   v.querySelectorAll("[data-pset]").forEach(b=>b.onclick=()=>{S.set.pieces=b.dataset.pset;save("set");applySettings();renderProfile()});
   const tg=(id,key)=>$(id).onclick=()=>{S.set[key]=!S.set[key];save("set");applySettings();$(id).setAttribute("aria-pressed",String(S.set[key]));if(op&&curView==="train")render()};
   tg("swSound","sound");tg("swIdeas","ideas");tg("swWhy","why");tg("swCb","crsBoard");tg("swCoords","coords");tg("swEval","evalbar");tg("swReal","realistic");
+  if($("swVoice"))tg("swVoice","voice");if($("swVoiceMv"))tg("swVoiceMv","voiceMv");if($("swVoiceIn"))$("swVoiceIn").onclick=()=>{S.set.voiceIn=!S.set.voiceIn;save("set");$("swVoiceIn").setAttribute("aria-pressed",String(S.set.voiceIn));if(!S.set.voiceIn)vrStop();vrUi()};
+  if($("voiceTest"))$("voiceTest").onclick=()=>{const co=vcCoach();VC.unlocked=true;vcSay(VOICE_TEST[co]||VOICE_TEST.mila,co,true)};
   tg("swLearn","learnFirst");tg("swAuto","autoNext");tg("swQueen","autoQueen");tg("swSwipe","swipe");tg("swSync","autoSync");tg("swCalm","calm");
   v.querySelectorAll("[data-fz]").forEach(b=>b.onclick=()=>{S.set.font=+b.dataset.fz;save("set");applySettings();v.querySelectorAll("[data-fz]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
   $("onbAgain").onclick=()=>openOnboarding();
@@ -3111,7 +3126,8 @@ function netErr(e){const c=String(e&&(e.code||e.message)||e);
     "auth/unauthorized-domain":"Diese Seite ist im Firebase-Projekt noch nicht als autorisierte Domain eingetragen.","auth/configuration-not-found":"Die Anmeldung ist im Firebase-Projekt noch nicht eingeschaltet (Authentication → E-Mail/Passwort).","auth/admin-restricted-operation":"Die Registrierung ist im Firebase-Projekt gesperrt.","not-found":"Die Firestore-Datenbank ist noch nicht angelegt.","failed-precondition":"Die Firestore-Datenbank ist noch nicht bereit.","auth/missing-password":"Bitte gib ein Passwort ein.","auth/invalid-api-key":"Die Firebase-Konfiguration ist ungültig."}[c]||("Fehler: "+c)}
 
 /* ---- Zustand ---- */
-const ON={tickN:0,user:null,profile:null,games:[],seen:{},badge:0,gid:null,g:null,color:"w",unsubG:null,unsubL:null,unsubP:null,pendingJoin:null,syncAt:0,syncT:null,authKnown:false,tab:"play",busy:false,tick:null,claimT:0,tc:store.get("et-ontc","10+0"),col:store.get("et-oncol","r")};
+const ON={tickN:0,user:null,profile:null,games:[],seen:{},badge:0,gid:null,g:null,color:"w",unsubG:null,unsubL:null,unsubP:null,pendingJoin:null,syncAt:0,syncT:null,authKnown:false,tab:"play",busy:false,tick:null,claimT:0,tc:store.get("et-ontc","10+0"),col:store.get("et-oncol","r"),theme:store.get("et-ontheme",null)};
+if(ON.theme&&(typeof ON.theme!=="object"||typeof ON.theme.id!=="string"))ON.theme=null;
 const myName=()=>ON.profile&&ON.profile.name||"Ich";
 const oppUid=g=>(g.players||[]).find(u=>u!==ON.user.uid)||null;
 const oppName=g=>{const o=oppUid(g);return o?(g.names&&g.names[o])||"Gegner":"(wartet)"};
@@ -3213,7 +3229,7 @@ function gamesChanged(list){
     if(prev[g.id]===key||!ON.listInit)return;
     const viewing=mode==="online"&&ON.gid===g.id&&curView==="train";
     if(g.status==="waiting"&&g.invite===me&&!prev[g.id]&&!viewing)toast(`${g.names&&g.names[g.creator]||"Jemand"} fordert dich heraus (${tcTxt(g.tc)})`);
-    else if(g.status==="active"&&!viewing){const c=new Chess(g.fen||START_FEN);if(c.turn()===myColorIn(g)&&(g.moves||[]).length)toast(`${oppName(g)} hat gezogen – du bist am Zug`);else if(prev[g.id]&&prev[g.id].indexOf("waiting")===0)toast(`${oppName(g)} ist der Partie beigetreten`)}
+    else if(g.status==="active"&&!viewing){const c=new Chess(g.fen||START_FEN);if(c.turn()===myColorIn(g)&&playedN(g))toast(`${oppName(g)} hat gezogen – du bist am Zug`);else if(prev[g.id]&&prev[g.id].indexOf("waiting")===0)toast(`${oppName(g)} ist der Partie beigetreten`)}
     else if(g.status==="over"&&prev[g.id]&&prev[g.id].indexOf("over")!==0&&!viewing)toast(`Partie gegen ${oppName(g)}: ${resTxt(g,myColorIn(g))}`);
     if(g.status==="over")countResult(g);
   });
@@ -3236,17 +3252,35 @@ function countResult(g){
 
 /* ---- Partien anlegen, beitreten, Revanche ---- */
 function parseTc(s){if(s==="none")return null;if(/^d\d$/.test(s))return {m:0,i:0,d:+s.slice(1)};const m=String(s).match(/^(\d+)\+(\d+)$/);return m?{m:+m[1],i:+m[2]}:null}
-function newGameDoc(tc,myCol,friend){
+/* Themenpartien: Die Theoriezüge stehen schon in moves, pre zählt sie. Uhr, Abbruch und Zurücknahme rechnen erst ab pre. */
+const playedN=g=>Math.max(0,((g&&g.moves)||[]).length-((g&&g.pre)||0));
+function themeStem(o){const L=o.lines.map(l=>l.m);let k=0;while(L.every(m=>m.length>k&&strip(m[k])===strip(L[0][k])))k++;return L[0].slice(0,k)}
+function themeMoves(t){const o=t&&byId(t.id);if(!o||!o.lines||!o.lines.length)return null;const raw=t.li>=0&&o.lines[t.li]?o.lines[t.li].m:themeStem(o);
+  const g=new Chess(),out=[];for(const m of raw){const mv=findMove(g,m);if(!mv)return null;out.push(g.move(mv.san).san)}return out.length?{moves:out,fen:g.fen(),o}:null}
+function newGameDoc(tc,myCol,friend,theme){
   const me=ON.user.uid,now=srvNow();const col=myCol==="r"?(Math.random()<.5?"w":"b"):myCol;const other=col==="w"?"b":"w";
   const d={players:friend?[me,friend.uid]:[me],creator:me,invite:friend?friend.uid:null,white:null,black:null,names:{[me]:myName()},status:"waiting",tc:tc||null,moves:[],fen:START_FEN,
     times:tc&&!tc.d?{w:tc.m*60000,b:tc.m*60000}:null,lastAt:0,result:null,reason:"",drawOffer:null,rematch:null,created:now,updated:now};
+  const TM=theme?themeMoves(theme):null;
+  if(TM){d.moves=TM.moves;d.fen=TM.fen;d.pre=TM.moves.length;d.theme={id:TM.o.id,li:theme.li>=0?theme.li:-1,name:TM.o.name,line:theme.li>=0&&TM.o.lines[theme.li]?TM.o.lines[theme.li].n:""}}
   d[col==="w"?"white":"black"]=me;if(friend){d[other==="w"?"white":"black"]=friend.uid;d.names[friend.uid]=friend.name}
   return d;
+}
+/* Nach der Partie: Wer hat das Buch der Themen-Eröffnung zuerst verlassen? */
+function themeBook(g){
+  const o=g&&g.theme&&byId(g.theme.id);if(!o)return "";const ms=g.moves||[],pre=g.pre||0;if(ms.length<=pre)return "";
+  const gg=new Chess();for(let i=0;i<pre;i++)gg.move(ms[i]);
+  for(let k=pre;k<ms.length;k++){const bk=bookMovesIn(o,ms.slice(0,k));
+    if(!bk.length)return k===pre?"":`Ihr seid bis zum Ende der Theorie im Buch geblieben (${Math.ceil((k-pre)/2)} ${Math.ceil((k-pre)/2)===1?"Zug":"Züge"}).`;
+    if(bk.indexOf(strip(ms[k]))<0){const who=k%2===0?"w":"b",u=who==="w"?g.white:g.black,nm=(g.names&&g.names[u])||(who==="w"?"Weiß":"Schwarz");
+      return `${nm} verließ das Buch zuerst: ${numSan(gg.fen(),ms[k])} statt ${bk.slice(0,2).map(b=>{const mv=findMove(new Chess(gg.fen()),b);return mv?numSan(gg.fen(),mv.san):b}).join(" oder ")}.`}
+    gg.move(ms[k])}
+  return "Alle gespielten Züge standen im Buch.";
 }
 async function createGame(friend){
   if(!ON.profile){toast("Lege zuerst deinen Benutzernamen fest.");return null}
   if(ON.profile.banned){toast("Dein Konto ist gesperrt.");return null}
-  try{const id=await NET.add("games",newGameDoc(parseTc(ON.tc),ON.col,friend));openOnlineGame(id);if(!friend)shareInvite(id);return id}catch(e){toast(netErr(e));return null}
+  try{const id=await NET.add("games",newGameDoc(parseTc(ON.tc),ON.col,friend,ON.theme&&byId(ON.theme.id)?ON.theme:null));openOnlineGame(id);if(!friend)shareInvite(id);return id}catch(e){toast(netErr(e));return null}
 }
 function inviteLink(id){return location.origin+location.pathname+"#play="+id}
 function shareInvite(id){const link=inviteLink(id);
@@ -3265,7 +3299,7 @@ async function gameAct(fn){if(!ON.gid)return false;try{const ok=await withTimeou
 const otherCol=c=>c==="w"?"b":"w";
 const winRes=c=>c==="w"?"1-0":"0-1";
 function onResign(){const c=ON.color;gameAct(d=>d&&d.status==="active"?{status:"over",result:winRes(otherCol(c)),reason:"Aufgabe",updated:srvNow(),drawOffer:null}:null)}
-function onAbort(){gameAct(d=>d&&(d.status==="active"&&(d.moves||[]).length<2)?{status:"over",result:"-",reason:"Partie abgebrochen",updated:srvNow()}:d&&d.status==="waiting"?{status:"cancelled",updated:srvNow()}:null)}
+function onAbort(){gameAct(d=>d&&(d.status==="active"&&playedN(d)<2)?{status:"over",result:"-",reason:"Partie abgebrochen",updated:srvNow()}:d&&d.status==="waiting"?{status:"cancelled",updated:srvNow()}:null)}
 function onOfferDraw(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.drawOffer?{drawOffer:me,updated:srvNow()}:null).then(ok=>{if(ok)toast("Remis angeboten")})}
 function onDrawAnswer(acc){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&d.drawOffer&&d.drawOffer!==me?(acc?{status:"over",result:"1/2-1/2",reason:"Remis vereinbart",drawOffer:null,updated:srvNow()}:{drawOffer:null,updated:srvNow()}):null)}
 async function onDecline(){const me=ON.user.uid;await gameAct(d=>d&&d.status==="waiting"&&d.invite===me?{status:"declined",updated:srvNow()}:null);leaveOnline()}
@@ -3274,7 +3308,7 @@ async function onRematch(){
   if(g.rematch&&g.rematch.by!==me){const id=g.rematch.id;const d=await NET.get("games/"+id).catch(()=>null);if(d&&d.status==="waiting"){await joinGame(id,d).catch(()=>{});}openOnlineGame(id);return}
   if(g.rematch&&g.rematch.by===me){openOnlineGame(g.rematch.id);return}
   const opp=oppUid(g);if(!opp)return;
-  const d=newGameDoc(g.tc,otherCol(ON.color),{uid:opp,name:oppName(g)});
+  const d=newGameDoc(g.tc,otherCol(ON.color),{uid:opp,name:oppName(g)},g.theme&&byId(g.theme.id)?{id:g.theme.id,li:g.theme.li}:null);
   try{const id=await NET.add("games",d);const ok=await NET.tx("games/"+ON.gid,x=>x&&!x.rematch?{rematch:{by:me,id},updated:srvNow()}:null);
     /* Beide haben gleichzeitig Revanche gedrückt: eigene Partie verwerfen und die des Gegners annehmen */
     if(!ok){NET.set("games/"+id,{status:"cancelled",updated:srvNow()},true).catch(()=>{});const g2=await NET.getSrv("games/"+ON.gid).catch(()=>null);if(g2&&g2.rematch&&g2.rematch.by!==me){ON.g=g2;return onRematch()}toast("Revanche gerade nicht möglich.");return}
@@ -3340,8 +3374,9 @@ function applyGame(d,force){
   if(!force&&ON.busy&&ms.length===hist.length-1&&ms.every((m,i)=>m===hist[i])){renderChrome();onlineStatus();startOnTick();return}
   const same=!force&&ms.length>=hist.length&&hist.every((m,i)=>m===ms[i]);
   let last=null;
-  if(same){for(let i=hist.length;i<ms.length;i++){try{last=commit(ms[i],"g")}catch(e){force=true;break}}}
-  if(!same||force){resetBoard();mode="online";for(const m of ms){try{last=commit(m,"g")}catch(e){break}}view=hist.length;shown=new Chess(fens[view]);render();last=null}
+  const pre=d.pre||0;
+  if(same){for(let i=hist.length;i<ms.length;i++){try{last=commit(ms[i],i<pre?"b":"g")}catch(e){force=true;break}}}
+  if(!same||force){resetBoard();mode="online";for(let i=0;i<ms.length;i++){try{last=commit(ms[i],i<pre?"b":"g")}catch(e){break}}view=hist.length;shown=new Chess(fens[view]);render();last=null}
   else if(last){if(wasLive){view=hist.length;shown=new Chess(fens[view]);render(ms.length-hist.length===0?{fwd:last}:null);if(last.color!==ON.color)playSound(last)}else render()}
   if(d.status==="active"&&ms.length&&(!ON.recv||ON.recv.n!==ms.length)&&new Chess(d.fen||START_FEN).turn()===ON.color&&!ON.spect)ON.recv={n:ms.length,at:srvNow()};
   else render();
@@ -3363,10 +3398,10 @@ async function onlineMove(mv,animate){
     if(!d||d.status!=="active"||(d.moves||[]).length!==n)return null;
     const c=new Chess();for(const m of d.moves)c.move(m);if(c.turn()!==myC)return null;
     const m=c.move(r.san);if(!m)return null;
-    if(d.tc&&d.tc.d&&d.moves.length>=2&&now-(d.lastAt||now)>d.tc.d*DAY_MS)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};
+    if(d.tc&&d.tc.d&&playedN(d)>=2&&now-(d.lastAt||now)>d.tc.d*DAY_MS)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};
     const upd={moves:d.moves.concat(m.san),fen:c.fen(),lastAt:now,updated:now,drawOffer:null,takeback:null};
     const st0=Math.max(d.lastAt||now,Math.min(start0,(d.lastAt||now)+2000));
-    if(d.tc&&d.times&&d.moves.length>=2){const left=d.times[myC]-(now-st0);if(left<=0)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};upd.times={w:d.times.w,b:d.times.b};upd.times[myC]=left+d.tc.i*1000}
+    if(d.tc&&d.times&&playedN(d)>=2){const left=d.times[myC]-(now-st0);if(left<=0)return {status:"over",result:winRes(otherCol(myC)),reason:"Zeit abgelaufen",updated:now};upd.times={w:d.times.w,b:d.times.b};upd.times[myC]=left+d.tc.i*1000}
     if(d.tc&&!d.tc.d){const clk=(d.clk||[]).slice(0,d.moves.length);while(clk.length<d.moves.length)clk.push(null);clk.push(upd.times?Math.round(upd.times[myC]/100)*100:d.times?d.times[myC]:null);upd.clk=clk}
     const end=gameEndOf(c);if(end)Object.assign(upd,{status:"over",result:end.result,reason:end.reason});
     return upd}),15000)}catch(e){failed=true;toast(e&&e.code==="timeout"?"Der Zug kam nicht beim Server an – die Partie wird neu geladen.":netErr(e))}
@@ -3375,14 +3410,14 @@ async function onlineMove(mv,animate){
   if(!ok){if(failed){try{const d=await NET.getSrv("games/"+gid);if(d&&ON.gid===gid){applyGame(d,true);return}}catch(e){ON.conn=false;netState(false)}}if(ON.g)applyGame(ON.g,true)}else{onlineStatus();/* Bestätigung vom Live-Abo bleibt aus? Dann selbst nachsehen */setTimeout(()=>{if(ON.gid===gid&&ON.g&&(ON.g.moves||[]).length<hist.length)gamePoll(true)},2500)}
 }
 /* Uhren */
-function clockLeft(g,c){if(!g.tc||!g.times||g.tc.d)return null;let t=g.times[c];const running=g.status==="active"&&(g.moves||[]).length>=2&&new Chess(g.fen||START_FEN).turn()===c;if(running)t-=srvNow()-turnStart(g,c);return t}
+function clockLeft(g,c){if(!g.tc||!g.times||g.tc.d)return null;let t=g.times[c];const running=g.status==="active"&&playedN(g)>=2&&new Chess(g.fen||START_FEN).turn()===c;if(running)t-=srvNow()-turnStart(g,c);return t}
 const fmtClock=ms=>{if(ms==null)return "";ms=Math.max(0,ms);const s=ms/1000;if(s<20)return (Math.floor(s*10)/10).toFixed(1);const m=Math.floor(s/60),ss=Math.floor(s%60);return m+":"+String(ss).padStart(2,"0")};
 function onlineClocks(){
   const g=ON.g;const yc=$("youClock"),oc=$("oppClock");if(!g){yc.textContent=oc.textContent="";return}
   const me=ON.color,op2=otherCol(me);const turn=new Chess(g.fen||START_FEN).turn();const act=g.status==="active";
   if(g.tc&&g.tc.d){const L=corrLeft(g);yc.textContent=act?(turn===me?(L==null?"Am Zug":fmtDays(L)):"Wartet"):g.status==="waiting"?"Wartet":"Ende";oc.textContent=act?(turn===op2?(L==null?"Am Zug":fmtDays(L)):"Wartet"):g.status==="waiting"?"–":"Ende";yc.classList.toggle("low",act&&turn===me&&L!=null&&L<6*3600000);oc.classList.remove("low")}
   else if(g.tc){const a=clockLeft(g,me),b=clockLeft(g,op2);yc.textContent=fmtClock(a);oc.textContent=fmtClock(b);yc.classList.toggle("low",a<20000);oc.classList.toggle("low",b<20000);
-    if(act&&!ON.spect&&turn===me&&(g.moves||[]).length>=2&&S.set.lowTime!==false){const s=Math.ceil(a/1000);if(s<=10&&s>0&&s!==ON.lowS){ON.lowS=s;sfx("tick")}}}
+    if(act&&!ON.spect&&turn===me&&playedN(g)>=2&&S.set.lowTime!==false){const s=Math.ceil(a/1000);if(s<=10&&s>0&&s!==ON.lowS){ON.lowS=s;sfx("tick")}}}
   else{yc.textContent=act?(turn===me?"Am Zug":"Wartet"):g.status==="waiting"?"Wartet":"Ende";oc.textContent=act?(turn===op2?"Denkt …":"Wartet"):g.status==="waiting"?"–":"Ende"}
   yc.classList.toggle("on",act&&turn===me);oc.classList.toggle("on",act&&turn===op2);
 }
@@ -3391,7 +3426,7 @@ function startOnTick(){stopOnTick();if(!ON.g||ON.g.status!=="active")return;if(!
 function onlineAwayUi(){const a=oppAway(ON.g);if(a!==ON.awayShown){ON.awayShown=a;onlineChrome();onlineStatus()}}
 function stopOnTick(){clearInterval(ON.tick);ON.tick=null}
 function checkFlag(){
-  const g=ON.g;if(!g||g.status!=="active"||!g.tc||(g.moves||[]).length<2||ON.spect)return;
+  const g=ON.g;if(!g||g.status!=="active"||!g.tc||playedN(g)<2||ON.spect)return;
   if(g.tc.d){const L=corrLeft(g);if(L==null||L>-2000||srvNow()-ON.claimT<10000)return;ON.claimT=srvNow();const now=srvNow();
     NET.tx("games/"+ON.gid,d=>{if(!d||d.status!=="active"||!d.tc||!d.tc.d)return null;if(now-(d.lastAt||now)<=d.tc.d*DAY_MS)return null;const t=new Chess(d.fen).turn();return {status:"over",result:winRes(otherCol(t)),reason:"Zeit abgelaufen",updated:now}}).catch(()=>{});return}const turn=new Chess(g.fen).turn();const left=clockLeft(g,turn);
   const grace=turn===ON.color?0:2000;if(left>-grace||srvNow()-ON.claimT<3000)return;ON.claimT=srvNow();const now=srvNow();
@@ -3400,7 +3435,7 @@ function checkFlag(){
 /* Kopf, Spielerleisten, Knöpfe */
 function onlineChrome(){
   const g=ON.g;const me=ON.color,oc=otherCol(me);
-  $("eco").textContent="Online-Partie"+(g?" · "+tcTxt(g.tc):"")+(SOC.viewers?` · 👁 ${SOC.viewers} ${SOC.viewers===1?"Zuschauer":"Zuschauer"}`:"");$("title").textContent=g?`${(g.names&&g.white&&g.names[g.white])||"Weiß"} – ${(g.names&&g.black&&g.names[g.black])||"Schwarz"}`:"Online-Partie";
+  $("eco").textContent=(g&&g.theme?"Themenpartie · "+g.theme.name:"Online-Partie")+(g?" · "+tcTxt(g.tc):"")+(SOC.viewers?` · 👁 ${SOC.viewers} ${SOC.viewers===1?"Zuschauer":"Zuschauer"}`:"");$("title").textContent=g?`${(g.names&&g.white&&g.names[g.white])||"Weiß"} – ${(g.names&&g.black&&g.names[g.black])||"Schwarz"}`:"Online-Partie";
   $("desc").textContent=g?(g.status==="over"?`${resTxt(g,ON.spect?null:me)} · ${g.reason||""}`:g.status==="waiting"?"Wartet auf den Gegner":"Läuft"):"";
   $("phIcon").innerHTML=NI.online;
   const av=$("oppAv");av.className="avatar you2";av.innerHTML=ICON.face;
@@ -3410,7 +3445,7 @@ function onlineChrome(){
   if(!g){h=""}
   else if(ON.spect){h=`<button class="btn" data-on="leave">Zurück</button>`}
   else if(g.status==="waiting"){h=g.invite===myU?`<button class="btn grn" data-on="accept">Annehmen</button><button class="btn" data-on="decline">Ablehnen</button>`:`<button class="btn grn" data-on="share">${g.invite?"Wartet auf Zusage":"Link teilen"}</button><button class="btn" data-on="abort">Abbrechen</button>`}
-  else if(g.status==="active"){const n=(g.moves||[]).length;
+  else if(g.status==="active"){const n=playedN(g);
     if(g.takeback&&g.takeback.by!==myU)h=`<button class="btn grn" data-on="tbyes">Zurücknahme annehmen</button><button class="btn" data-on="tbno">Ablehnen</button>`;
     else if(g.drawOffer&&g.drawOffer!==myU)h=`<button class="btn grn" data-on="drawyes">Remis annehmen</button><button class="btn" data-on="drawno">Ablehnen</button>`;
     else if(canClaim(g))h=`<button class="btn grn" data-on="claim">Sieg beanspruchen</button><button class="btn" data-on="claimdraw">Remis</button><button class="btn red" data-on="resign">Aufgeben</button>`;
@@ -3424,7 +3459,7 @@ function onlineChrome(){
     else if(a==="analyze")analyzeOnline();else if(a==="rematch")onRematch();else if(a==="leave")leaveOnline();else if(a==="claim")onClaim(false);else if(a==="claimdraw")onClaim(true)});
 }
 /* Gegner seit über einer Minute weg und am Zug: Sieg oder Remis beanspruchen (nicht im Fernschach) */
-function canClaim(g){if(!g||ON.spect||g.status!=="active"||(g.tc&&g.tc.d)||(g.moves||[]).length<2)return false;const o=oppUid(g);const t=o&&g.seen&&g.seen[o];if(!t||srvNow()-t<60000)return false;return new Chess(g.fen||START_FEN).turn()!==ON.color}
+function canClaim(g){if(!g||ON.spect||g.status!=="active"||(g.tc&&g.tc.d)||playedN(g)<2)return false;const o=oppUid(g);const t=o&&g.seen&&g.seen[o];if(!t||srvNow()-t<60000)return false;return new Chess(g.fen||START_FEN).turn()!==ON.color}
 function onClaim(draw){const me=ON.color,o=oppUid(ON.g);const now=srvNow();gameAct(d=>{if(!d||d.status!=="active"||!o)return null;const t=d.seen&&d.seen[o];if(!t||now-t<60000||new Chess(d.fen||START_FEN).turn()===me)return null;
   return draw?{status:"over",result:"1/2-1/2",reason:"Gegner hat die Partie verlassen",updated:now,drawOffer:null}:{status:"over",result:winRes(me),reason:"Gegner hat die Partie verlassen",updated:now,drawOffer:null}})}
 /* Im Tab-Titel zeigen, wenn man am Zug ist – praktisch, wenn die Seite im Hintergrund liegt */
@@ -3435,12 +3470,12 @@ function onlineStatus(){
   if(g.status!=="over"&&(!ON.conn||!navigator.onLine)){setStatus("bad","Verbindung unterbrochen","Die Partie verbindet sich automatisch neu. Züge gehen erst wieder, wenn die Verbindung steht.",true);return}
   if(!live()){setStatus("view",`Du siehst Zug ${Math.ceil(view/2)}`,"Blättere mit → zurück zur aktuellen Stellung.",true);return}
   if(g.status==="waiting"){if(g.invite===myU)setStatus("turn",`${g.names[g.creator]||"Jemand"} fordert dich heraus`,`Bedenkzeit ${tcTxt(g.tc)} · du spielst ${me==="w"?"Weiß":"Schwarz"}.`,true);else setStatus("view","Warte auf deinen Gegner",g.invite?`${opn} muss die Herausforderung noch annehmen.`:"Schick den Einladungslink an deinen Freund. Die Partie startet, sobald er beitritt.",true);return}
-  if(g.status==="over"){const r=resTxt(g,ON.spect?null:me);setStatus(r==="Gewonnen"?"done":r==="Verloren"?"bad":"view",r==="Gewonnen"?"Du hast gewonnen!":r==="Verloren"?"Du hast verloren":r,`${g.reason||""}${g.result&&g.result!=="-"?" · "+g.result:""}. ${g.result!=="-"?"Mit »Partie analysieren« siehst du die Bewertung jedes Zugs.":""}`,true);return}
+  if(g.status==="over"){const r=resTxt(g,ON.spect?null:me),tb=themeBook(g);setStatus(r==="Gewonnen"?"done":r==="Verloren"?"bad":"view",r==="Gewonnen"?"Du hast gewonnen!":r==="Verloren"?"Du hast verloren":r,`${g.reason||""}${g.result&&g.result!=="-"?" · "+g.result:""}. ${tb?tb+" ":""}${g.result!=="-"?"Mit »Partie analysieren« siehst du die Bewertung jedes Zugs.":""}`,true);return}
   if(ON.spect){setStatus("view","Du schaust zu",`${(g.moves||[]).length} Halbzüge gespielt.`,true);return}
   const turn=new Chess(g.fen).turn();
   if(g.drawOffer&&g.drawOffer!==myU){setStatus("turn",`${opn} bietet Remis an`,"Nimm an oder spiel einfach weiter.",true);return}
   if(ON.busy){setStatus("view","Zug wird gesendet …","",true);return}
-  if(turn===me)setStatus("turn","Du bist am Zug",(g.moves||[]).length<2?"Die Uhr startet nach dem ersten Zug beider Seiten.":"",true);
+  if(turn===me)setStatus("turn","Du bist am Zug",(playedN(g)===0&&g.theme?`Themenpartie ${g.theme.name}${g.theme.line?" · "+g.theme.line:""}: Die Theorie ist gespielt, ab hier zählt es. `:"")+(playedN(g)<2&&g.tc?"Die Uhr startet nach dem ersten Zug beider Seiten.":""),true);
   else if(canClaim(g))setStatus("view",`${opn} ist seit über einer Minute weg`,"Du kannst weiter warten oder den Sieg beanspruchen.",true);
   else if(oppAway(g))setStatus("view",`${opn} ist gerade nicht verbunden`,"Vielleicht nur ein Funkloch – die Partie läuft weiter.",true);
   else setStatus("view",`${opn} denkt …`,g.drawOffer===myU?"Du hast Remis angeboten.":"",true);
@@ -3452,6 +3487,18 @@ function analyzeOnline(){
   reviewGame({id:"on-"+ON.gid,color:me,res,result:g.result||"",term:g.reason||"",fam:famOfMoves(g.moves),moves:g.moves.slice(),tc:"",url:"",opp:me==="w"?bn:wn,oppR:null,myR:null,date:g.created||srvNow(),name:me==="w"?wn:bn,acc:null,white:wn,black:bn,foreign:ON.spect});
 }
 
+/* Eröffnung für die Themenpartie: frei, nach den Stammzügen oder nach einer bestimmten Variante */
+function themePicker(){
+  const t=ON.theme&&byId(ON.theme.id)?ON.theme:null,o=t?byId(t.id):null;
+  const pool=ALL.filter(x=>x.lines&&x.lines.length&&x.g!=="c"&&!/^__/.test(x.id)),rep=pool.filter(x=>S.rep.indexOf(x.id)>=0);
+  const opt=x=>`<option value="${esc(x.id)}"${t&&t.id===x.id?" selected":""}>${esc(x.name)}</option>`;
+  const grp=(lab,L)=>L.length?`<optgroup label="${lab}">${L.map(opt).join("")}</optgroup>`:"";
+  let html=`<div class="fld">Eröffnung</div><select id="onTheme" class="txt onsel"><option value="">Freie Partie aus der Grundstellung</option>${grp("Dein Repertoire",rep)}${grp("Mit Weiß",pool.filter(x=>x.g==="w"))}${grp("Mit Schwarz",pool.filter(x=>x.g==="b"))}${grp("Gambits & Fallen",pool.filter(x=>x.g==="x"))}</select>`;
+  if(o){const stem=themeStem(o),TM=themeMoves(t);
+    html+=`<div class="fld" style="margin-top:10px">Start</div><select id="onThemeLi" class="txt onsel">${stem.length>=2?`<option value="-1"${t.li<0?" selected":""}>Nach den Stammzügen (${esc(fmtMoves(stem,0))})</option>`:""}${o.lines.map((l,i)=>`<option value="${i}"${t.li===i?" selected":""}>Nach „${esc(l.n)}“ (${Math.ceil(l.m.length/2)} Züge)</option>`).join("")}</select>
+      <p class="hint ontheme-h">${TM?`Ihr startet nach ${esc(fmtMoves(TM.moves,0))}. `:""}Nach der Partie siehst du, wer das Buch zuerst verlassen hat.</p>`}
+  return `<div style="margin:0 0 12px">${html}</div>`;
+}
 /* ---- Ansicht „Online“ ---- */
 function renderOnline(){
   const v=$("v-online");if(!v)return;
@@ -3466,7 +3513,7 @@ function renderOnline(){
   const inv=G.filter(g=>g.status==="waiting"&&g.invite===me);const mine=G.filter(g=>g.status==="waiting"&&g.creator===me);
   const act=G.filter(g=>g.status==="active");const over=G.filter(g=>g.status==="over"&&g.result!=="-").slice(0,20);
   const row=(g,extra)=>{const c=myColorIn(g);const turn=g.status==="active"?new Chess(g.fen||START_FEN).turn():null;const mine2=turn&&turn===c;
-    return `<div class="onrow"><button class="onopen" data-og="${esc(g.id)}"><span class="kchip ${c||"w"}"></span><span class="onn"><b>${esc(oppName(g))}</b><small>${tcTxt(g.tc)} · ${g.status==="over"?esc(resTxt(g,c))+" · "+esc(g.reason||""):g.status==="active"?((g.moves||[]).length+" Halbzüge"):g.invite?"Herausforderung":"Einladungslink"} · ${fmtDate(g.updated||g.created)}</small></span>${mine2?'<span class="onturn">Am Zug</span>':""}</button>${extra||""}</div>`};
+    return `<div class="onrow"><button class="onopen" data-og="${esc(g.id)}"><span class="kchip ${c||"w"}"></span><span class="onn"><b>${esc(oppName(g))}</b><small>${g.theme?esc(g.theme.name)+" · ":""}${tcTxt(g.tc)} · ${g.status==="over"?esc(resTxt(g,c))+" · "+esc(g.reason||""):g.status==="active"?((g.moves||[]).length+" Halbzüge"):g.invite?"Herausforderung":"Einladungslink"} · ${fmtDate(g.updated||g.created)}</small></span>${mine2?'<span class="onturn">Am Zug</span>':""}</button>${extra||""}</div>`};
   const tcs=[["1+0","1 Min"],["3+2","3 | 2"],["5+0","5 Min"],["10+0","10 Min"],["15+10","15 | 10"],["30+0","30 Min"],["d1","1 Tag/Zug"],["d3","3 Tage/Zug"],["none","Ohne Uhr"]];
   const friends=(P.friends||[]);
   const OTH={leader:["Bestenliste","Alle Spieler im Vergleich."],friends:["Freunde","Anfragen, Online-Status und Herausforderungen."],live:["Live","Laufende Partien – tippe zum Zuschauen."],admin:["Admin","Übersicht über Konten und Partien."]}[ON.tab];
@@ -3477,6 +3524,7 @@ function renderOnline(){
   <div class="card mmcard"><h3>Schnelle Partie</h3>${MM.on?`<div class="mm-on"><span class="mm-spin"></span><span><b>Suche Gegner …</b><small>${esc(tcTxt(parseTc(MM.tc)))} · <span id="mmTime">${Math.floor((Date.now()-MM.t0)/1000)} s</span> · etwa gleich stark</small></span><button class="btn" id="mmStop">Abbrechen</button></div>`:`<p class="hint" style="margin:0 0 10px">Ein zufälliger Gegner mit ähnlicher Wertung und derselben Bedenkzeit (${esc(tcTxt(parseTc(ON.tc)))}).</p><button class="btn grn wide" id="mmGo">Gegner suchen</button>`}</div>
   <div class="card"><h3>Partie gegen Freunde</h3>
     <div class="fld">Bedenkzeit</div><div class="filters" style="margin:6px 0 12px">${tcs.map(t=>`<button class="chip${ON.tc===t[0]?" on":""}" data-tc="${t[0]}">${t[1]}</button>`).join("")}</div>
+    ${themePicker()}
     <div class="fld">Deine Farbe</div><div class="seg" style="margin:6px 0 14px">${[["w","Weiß"],["r","Zufall"],["b","Schwarz"]].map(c=>`<button data-col="${c[0]}" aria-pressed="${ON.col===c[0]}">${c[1]}</button>`).join("")}</div>
     <div class="btnrow"><button class="btn grn" id="onLink" style="padding:11px 16px">Einladungslink erstellen</button>${friends.length?`<select id="onFr" class="txt" style="width:auto;flex:1;min-width:120px">${friends.map(f=>`<option value="${esc(f.uid)}">${esc(f.name)}</option>`).join("")}</select><button class="btn" id="onChal" style="padding:11px 16px">Herausfordern</button>`:`<span class="hint">Füge unter Profil → Freunde Freunde hinzu, um sie direkt herauszufordern.</span>`}</div></div>
   ${act.length?`<div class="card"><h3>Laufende Partien</h3>${act.map(g=>row(g)).join("")}</div>`:""}
@@ -3493,6 +3541,8 @@ function renderOnline(){
   if(ON.tab==="account")wireAvPicker(v);v.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>showView(b.dataset.go));
   v.querySelectorAll("[data-tc]").forEach(b=>b.onclick=()=>{ON.tc=b.dataset.tc;store.set("et-ontc",ON.tc);renderOnline()});
   v.querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{ON.col=b.dataset.col;store.set("et-oncol",ON.col);renderOnline()});
+  if($("onTheme"))$("onTheme").onchange=()=>{const id=$("onTheme").value;if(!id){ON.theme=null}else{const o=byId(id);ON.theme={id,li:themeStem(o).length>=2?-1:0};ON.col=o.side;store.set("et-oncol",ON.col)}store.set("et-ontheme",ON.theme);renderOnline()};
+  if($("onThemeLi"))$("onThemeLi").onchange=()=>{if(ON.theme){ON.theme.li=+$("onThemeLi").value;store.set("et-ontheme",ON.theme);renderOnline()}};
   v.querySelectorAll("[data-acc]").forEach(b=>b.onclick=async()=>{const id=b.dataset.acc;try{await joinGame(id)}catch(e){toast(netErr(e))}openOnlineGame(id)});
   v.querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>{const id=b.dataset.dec;NET.tx("games/"+id,d=>d&&d.status==="waiting"&&d.invite===me?{status:"declined",updated:Date.now()}:null).catch(e=>toast(netErr(e)))});
   v.querySelectorAll("[data-shr]").forEach(b=>b.onclick=()=>shareInvite(b.dataset.shr));
@@ -3876,7 +3926,7 @@ const BOT_SAY={
 };
 const botNick=()=>op&&op.botCo&&TRAINER[op.botCo]?TRAINER[op.botCo].nick:"Stockfish";
 let botMood="neutral",botQuip="";
-const botSay=k=>op&&op.botCo&&BOT_SAY[op.botCo]?`${botNick()}: „${BOT_SAY[op.botCo][k]}“`:"";
+const botSay=k=>{if(!(op&&op.botCo&&BOT_SAY[op.botCo]))return "";const t=BOT_SAY[op.botCo][k];vcSay(t,op.botCo);return `${botNick()}: „${t}“`};
 const BOTCFG=Object.assign({lvl:4,col:"r",start:"std",oid:"",style:"bal"},store.get("et-bot",{}));
 /* ---- Weiterspielen gegen einen Trainer: genau ab der Stellung am Ende der Variante ----
    Im Kurs spielt der Kurstrainer, sonst der Trainer, der zur eingestellten Stockfish-Stärke passt. Die Stärke bleibt deine Einstellung. */
@@ -4313,7 +4363,7 @@ function crsFinishDate(c){
 /* Behalten statt nur einmal gekonnt: Abstand der nächsten Wiederholung als Maß */
 function crsRetention(c){let fest=0,lang=0;courseKeys(c).forEach(k=>{const s=S.srs[k];if(s&&Pk(k)===2){if(s.iv>=7)fest++;if(s.iv>=21)lang++}});return {fest,lang}}
 /* Trainer sagt einen eigenen Text (Phasen, Denkfragen) */
-function coachRaw(c,html,mood){if(!c)return;const el=$("trSay");el.hidden=false;el.innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> ${html}`;coachPaint(c,mood);crsLast="raw"}
+function coachRaw(c,html,mood){if(!c)return;const el=$("trSay");el.hidden=false;el.innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> ${html}`;coachPaint(c,mood);crsLast="raw";vcSay(String(html).replace(/<span class="tr-acts">[\s\S]*$/,"").replace(/<[^>]+>/g," "),coIdOf(c))}
 const EXPLAIN_Q=["Was ist die Idee hinter dieser Variante? Sag es dir in einem Satz.","Welcher Zug war hier der wichtigste – und warum?","Wohin wollen deine Figuren nach dieser Variante? Erklär es dir kurz selbst."];
 function crsAskExplain(i){
   const c=crsSess();if(!c)return;const l=op.lines[i];const plan=(l&&l.p)||(op.plan&&op.plan.length?op.plan[i%op.plan.length]:"");
@@ -4458,7 +4508,7 @@ function coachPaint(c,mood){
 function coachSay(c,key,vars,mood,idx){
   if(!c)return;const t=coachLine(c,key,vars,idx);if(!t)return;crsLast=key;
   const el=$("trSay");el.hidden=false;el.innerHTML=`<b>${esc(COACHES[coIdOf(c)].n)}:</b> ${esc(t)}`;
-  coachPaint(c,mood);const fs=$("face").querySelector("svg");if(fs)fs.classList.add("talk");
+  coachPaint(c,mood);const fs=$("face").querySelector("svg");if(fs)fs.classList.add("talk");vcSay(t,coIdOf(c));
 }
 /* Gesicht im Hinweisfeld außerhalb der Kurse: gegen den Computer der Gegner, sonst Mila als Lehrerin */
 function facePaint(id,mood){const co=$("coach"),f=$("face");if(!COACHES[id])return;co.dataset.co=id;co.style.setProperty("--k1",COACHES[id].bg[0]);co.style.setProperty("--k2",COACHES[id].bg[1]);
@@ -4926,11 +4976,11 @@ function renderQChat(){
 }
 
 /* ---- Zug zurücknehmen (Gegner muss zustimmen) ---- */
-function canAskTakeback(g){if(!g||g.status!=="active"||ON.spect)return false;const n=(g.moves||[]).length;if(!n||g.takeback)return false;return (n%2===1?"w":"b")===ON.color}
-function onTakebackAsk(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.takeback&&(d.moves||[]).length?{takeback:{by:me,n:d.moves.length},updated:srvNow()}:null).then(ok=>{if(ok)toast("Zurücknahme angefragt")})}
+function canAskTakeback(g){if(!g||g.status!=="active"||ON.spect)return false;const n=(g.moves||[]).length;if(!playedN(g)||g.takeback)return false;return (n%2===1?"w":"b")===ON.color}
+function onTakebackAsk(){const me=ON.user.uid;gameAct(d=>d&&d.status==="active"&&!d.takeback&&playedN(d)?{takeback:{by:me,n:d.moves.length},updated:srvNow()}:null).then(ok=>{if(ok)toast("Zurücknahme angefragt")})}
 function onTakebackAnswer(acc){const me=ON.user.uid;const now=srvNow();
   gameAct(d=>{if(!d||d.status!=="active"||!d.takeback||d.takeback.by===me)return null;if(!acc||(d.moves||[]).length!==d.takeback.n)return {takeback:null,updated:now};
-    const mv=d.moves.slice(0,d.takeback.n-1);const c=new Chess();mv.forEach(m=>c.move(m));return {moves:mv,fen:c.fen(),takeback:null,drawOffer:null,lastAt:now,updated:now}})}
+    if(d.takeback.n-1<(d.pre||0))return {takeback:null,updated:now};const mv=d.moves.slice(0,d.takeback.n-1);const c=new Chess();mv.forEach(m=>c.move(m));return {moves:mv,fen:c.fen(),takeback:null,drawOffer:null,lastAt:now,updated:now}})}
 
 /* ---- Vorzüge (Premoves): Zug vormerken, während der Gegner nachdenkt ---- */
 function onCanPremove(){const g=ON.g;return S.set.premove!==false&&!!g&&g.status==="active"&&!ON.spect&&live()&&shown.turn()!==ON.color&&!!ON.color}
@@ -4941,7 +4991,7 @@ function runPremove(){const p=ON.pre;if(!p||!onCanMove())return;ON.pre=null;cons
 
 /* ---- Fernschach: Tage pro Zug ---- */
 const DAY_MS=86400000;
-function corrLeft(g){if(!g||!g.tc||!g.tc.d||g.status!=="active"||(g.moves||[]).length<2)return null;return (g.lastAt||srvNow())+g.tc.d*DAY_MS-srvNow()}
+function corrLeft(g){if(!g||!g.tc||!g.tc.d||g.status!=="active"||playedN(g)<2)return null;return (g.lastAt||srvNow())+g.tc.d*DAY_MS-srvNow()}
 const fmtDays=ms=>{if(ms==null)return "";ms=Math.max(0,ms);const h=Math.floor(ms/3600000);return h>=48?Math.floor(h/24)+" Tage":h>=1?h+" Std":Math.ceil(ms/60000)+" Min"};
 
 /* ---- Schnellsuche: gleich starke Gegner mit derselben Bedenkzeit ---- */
@@ -5791,6 +5841,94 @@ renderHome=function(){
   v.querySelectorAll("[data-hc]").forEach(b=>b.onclick=()=>showView(b.dataset.hc));
 };
 
+/* ================= Stimme: Trainer sprechen, Züge ansagen, Züge per Sprache =================
+   Sprachausgabe mit den Stimmen des Geräts (Web Speech API). Jeder Trainer hat eine eigene Stimmlage;
+   wenn das Gerät mehrere deutsche Stimmen hat, bekommen Trainerinnen eine weibliche und Trainer eine männliche. */
+const VC={km:new Set(),ok:typeof window!=="undefined"&&"speechSynthesis" in window&&typeof SpeechSynthesisUtterance!=="undefined",rec:window.SpeechRecognition||window.webkitSpeechRecognition||null,kind:null,unlocked:false};
+const VOICE_PROF={mila:{g:"f",p:1.12,r:1.02},bruno:{g:"m",p:.84,r:.95},greta:{g:"f",p:1.0,r:.95},konrad:{g:"m",p:.74,r:.9},linus:{g:"m",p:1.02,r:1.06},rex:{g:"m",p:.7,r:1.12},nova:{g:"f",p:1.26,r:1.12},ilka:{g:"f",p:.95,r:.98},rika:{g:"f",p:1.14,r:1.1}};
+const VC_F=/anna|petra|helena|katja|hedda|marlene|vicki|female|weiblich|sandy|shelley|flo\b|grandma|amala|seraphina|louisa|tanja|elke|gisela|klarissa|maja|ingrid|katharina|leonie|amala/i,
+  VC_M=/markus|yannick|martin|stefan|conrad|hans\b|male|männlich|reed|rocko|eddy|grandpa|ralf|bernd|christoph|killian|kasper|florian|jonas|klaus|lukas|georg|bjarne|viktor/i;
+function vcVoice(co){
+  if(!VC.ok)return null;const L=speechSynthesis.getVoices().filter(v=>/^de([-_]|$)/i.test(v.lang));if(!L.length)return null;
+  const want=(VOICE_PROF[co]||VOICE_PROF.mila).g==="f"?VC_F:VC_M;
+  return L.find(v=>want.test(v.name)&&v.localService)||L.find(v=>want.test(v.name))||L.find(v=>v.default)||L[0];
+}
+if(VC.ok){try{speechSynthesis.getVoices();speechSynthesis.addEventListener&&speechSynthesis.addEventListener("voiceschanged",()=>{})}catch(e){}}
+const SP_P={K:"König",D:"Dame",T:"Turm",L:"Läufer",S:"Springer"};
+/* Schachnotation aussprechbar machen: „4…Sf6“ → „Springer f6“, „axb5“ → „a schlägt b5“, „0-0“ → „kurze Rochade“ */
+function spoken(t){
+  return String(t).replace(/<[^>]+>/g," ")
+    .replace(/\b(0-0-0|O-O-O)([+#]?)/g,(m,c,x)=>"lange Rochade"+(x==="#"?" matt":x?" Schach":""))
+    .replace(/\b(0-0|O-O)([+#]?)/g,(m,c,x)=>"kurze Rochade"+(x==="#"?" matt":x?" Schach":""))
+    .replace(/\b\d+\s?(\.{3}|…|\.)\s?(?=[KDTLSa-h]|lange|kurze)/g,"")
+    .replace(/\b([KDTLS])?([a-h])?([1-8])?(x)?([a-h][1-8])(=([DTLS]))?([+#])?(?![a-zäöü])/g,(m,p,f,r,x,to,_,pr,ch)=>[p?SP_P[p]:"",f||"",r||"",x?"schlägt":"",to,pr?"wird "+SP_P[pr]:"",ch==="#"?"matt":ch?"Schach":""].filter(Boolean).join(" "))
+    .replace(/([+−-])(\d+)\.(\d)\b/g,(m,s,a,b)=>(s==="+"?"plus ":"minus ")+a+","+b)
+    .replace(/\s+/g," ").trim();
+}
+/* Eigene Warteschlange: Zugansagen gehen nie verloren, ein neuer Trainersatz ersetzt den alten */
+VC.q=[];VC.cur=null;VC.wd=null;
+function vcPump(){
+  if(VC.cur||!VC.q.length)return;const it=VC.q.shift();const P=VOICE_PROF[it.co]||VOICE_PROF.mila;
+  const u=new SpeechSynthesisUtterance(it.t);u.lang="de-DE";u.pitch=P.p;u.rate=P.r;const v=vcVoice(it.co);if(v)u.voice=v;
+  const done=()=>{if(VC.cur!==it)return;clearTimeout(VC.wd);VC.cur=null;setTimeout(vcPump,40)};u.onend=done;u.onerror=done;
+  VC.cur=it;if(it.kms)it.kms.forEach(k=>VC.km.add(k));VC.wd=setTimeout(done,1500+it.t.length*110);try{speechSynthesis.speak(u)}catch(e){done()}
+}
+/* kind: "move" (Zugansage, stellt sich an), "km" (Schlüsselzug, ersetzt nur wartende Schlüsselzüge), "line" (Trainersatz, ersetzt den laufenden) */
+function vcSpeak(text,co,kind,force,kms){
+  if(!VC.ok||!text||(!force&&(kind==="move"?!S.set.voiceMv:!S.set.voice)))return;
+  const t=spoken(text);if(!t)return;const it={t,co:co||"mila",kind,kms};
+  if(kind==="km")VC.q=VC.q.filter(x=>x.kind!=="km");
+  else if(kind==="line"){VC.q=VC.q.filter(x=>x.kind==="move");if(VC.cur&&VC.cur.kind==="line"){VC.q.push(it);const c=VC.cur;try{speechSynthesis.cancel()}catch(e){}setTimeout(()=>{if(VC.cur===c){clearTimeout(VC.wd);VC.cur=null;vcPump()}},120);return}}
+  VC.q.push(it);vcPump();
+}
+function vcStop(){VC.q=[];if(VC.cur){VC.cur=null;clearTimeout(VC.wd);try{speechSynthesis.cancel()}catch(e){}}}
+const vcSay=(t,co,force)=>vcSpeak(t,co||"mila","line",force);
+function vcMove(r){if(!r||!r.san)return;const c=crsSess&&mode==="train"?crsSess():null;vcSpeak(de(r.san),c?coIdOf(c):mode==="engine"&&op&&op.botCo&&r.color!==op.side?op.botCo:"mila","move")}
+/* iOS gibt die Sprachausgabe erst nach einer Berührung frei */
+document.addEventListener("pointerdown",()=>{if(VC.unlocked||!VC.ok||!(S.set.voice||S.set.voiceMv))return;VC.unlocked=true;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}catch(e){}},{capture:true});
+/* Spracheingabe: „Springer f3“, „e4“, „e schlägt d5“, „kurze Rochade“, „Bauer e8 wird Dame“, „g1 f3“ */
+const SP_NUM={eins:1,ein:1,eine:1,zwei:2,zwo:2,drei:3,vier:4,"fünf":5,fuenf:5,sechs:6,sieben:7,acht:8};
+const SP_FILE={a:"a",ah:"a",anton:"a",b:"b",be:"b",beh:"b",berta:"b",c:"c",ce:"c",zeh:"c","cäsar":"c",caesar:"c",d:"d",de:"d",deh:"d",dora:"d",e:"e",eh:"e",emil:"e",f:"f",ef:"f",eff:"f",friedrich:"f",g:"g",ge:"g",geh:"g",gustav:"g",h:"h",ha:"h",heinrich:"h"};
+const SP_PC=[[/\b(springer|pferd|pferdchen|ross|rössel|roessel|knight)\b/,"n"],[/\b(läufer|laeufer|leufer|bishop)\b/,"b"],[/\b(turm|rook)\b/,"r"],[/\b(dame|königin|koenigin|queen)\b/,"q"],[/\b(könig|koenig|king)\b/,"k"],[/\b(bauer|bauern|pawn)\b/,"p"]];
+function parseSpoken(raw,g){
+  let t=" "+String(raw).toLowerCase().replace(/ß/g,"ss")+" ";const legal=g.moves({verbose:true});
+  const cs=/lange rochade|rochade lang|gro(ss|ß)e rochade|0-0-0|o-o-o/.test(t)?"q":/kurze rochade|rochade kurz|kleine rochade|0-0|o-o/.test(t)?"k":/rochade|rochiere/.test(t)?"?":null;
+  if(cs){const c=legal.filter(m=>cs==="?"?/[kq]/.test(m.flags):m.flags.indexOf(cs)>=0);return c.length===1?{mv:c[0]}:c.length?{err:"Welche Rochade? Sag „kurze“ oder „lange Rochade“."}:{err:"Eine Rochade geht hier nicht."}}
+  t=t.replace(/[.,!?;:„“"'()\-–]/g," ");
+  let promo=null;t=t.replace(/\b(umwandlung|umwandeln|wird|zur|zu|in|gleich)\s+(eine?n?\s+)?(dame|turm|läufer|laeufer|springer)\b/,(m,a,b,p)=>{promo={dame:"q",turm:"r",läufer:"b",laeufer:"b",springer:"n"}[p];return " "});
+  let piece=null;for(const [re,p] of SP_PC){if(re.test(t)){piece=p;t=t.replace(re," ");break}}
+  const cap=/\b(schlägt|schlaegt|nimmt|schlagen|mal|x)\b/.test(t);t=t.replace(/\b(schlägt|schlaegt|nimmt|schlagen|mal|x|von|nach|auf|zieht|ziehe|zug|spiele|spielt|bitte|und|der|die|das)\b/g," ");
+  t=t.replace(/\b(eins|ein|eine|zwei|zwo|drei|vier|fünf|fuenf|sechs|sieben|acht)\b/g,w=>" "+SP_NUM[w]+" ").replace(/\s+/g," ");
+  const sq=[];t=t.replace(/(^|\s)(a|ah|anton|b|be|beh|berta|c|ce|zeh|cäsar|caesar|d|de|deh|dora|e|eh|emil|f|ef|eff|friedrich|g|ge|geh|gustav|h|ha|heinrich)\s?([1-8])(?=\s|$)/g,(m,s0,f,r)=>{sq.push(SP_FILE[f]+r);return " "});
+  const rest=t.trim().split(/\s+/).filter(Boolean);const dfile=rest.map(w=>SP_FILE[w]).find(Boolean)||null,drank=rest.find(w=>/^[1-8]$/.test(w))||null;
+  if(!sq.length)return {err:null};
+  let c=sq.length>=2?legal.filter(m=>m.from===sq[0]&&m.to===sq[1]):legal.filter(m=>m.to===sq[sq.length-1]);
+  if(piece){const pc=c.filter(m=>m.piece===piece);if(!pc.length&&!promo&&/[qrbn]/.test(piece)&&c.some(m=>m.promotion)){promo=piece;c=c.filter(m=>m.promotion)}else c=pc}
+  else if(sq.length<2&&c.some(m=>m.piece==="p")&&!dfile)c=c.filter(m=>m.piece==="p")||c;
+  if(dfile)c=c.filter(m=>m.from[0]===dfile);if(drank)c=c.filter(m=>m.from[1]===drank);
+  if(cap&&c.some(m=>m.captured))c=c.filter(m=>m.captured);
+  if(c.some(m=>m.promotion))c=c.filter(m=>m.promotion===(promo||"q"));
+  if(c.length===1)return {mv:c[0]};
+  if(c.length>1)return {err:`Mehrdeutig: ${[...new Set(c.map(m=>de(m.san)))].join(" oder ")}. Sag z. B. „${SP_P[de(c[0].san)[0]]||"Bauer"} ${c[0].from[0]} ${c[0].to}“.`};
+  return {err:`„${raw}“ ist hier kein legaler Zug.`};
+}
+const VR={on:false,r:null,fails:0};
+function vrUi(){const b=$("micBtn");if(!b)return;const show=!!(VC.rec&&S.set.voiceIn);b.hidden=!show;b.classList.toggle("on",VR.on);b.setAttribute("aria-pressed",String(VR.on));b.title=VR.on?"Spracheingabe aus":"Zug sprechen"}
+function vrStop(){VR.on=false;if(VR.r){try{VR.r.abort()}catch(e){}VR.r=null}vrUi()}
+function vrStart(){
+  if(!VC.rec||VR.r)return;const R=new VC.rec();R.lang="de-DE";R.interimResults=false;R.maxAlternatives=5;R.continuous=false;
+  R.onresult=e=>{const alts=[...e.results[e.results.length-1]].map(a=>a.transcript);vrHandle(alts)};
+  R.onerror=e=>{const er=e&&e.error;if(er==="not-allowed"||er==="service-not-allowed"||er==="audio-capture"){vrStop();toast(er==="audio-capture"?"Kein Mikrofon gefunden.":"Kein Zugriff aufs Mikrofon – erlaube es in den Einstellungen des Browsers.")}else if(er==="network"){vrStop();toast("Die Spracherkennung braucht gerade Internet.")}else if(er!=="no-speech"&&er!=="aborted"&&++VR.fails>3){vrStop();toast("Die Spracherkennung macht Pause – tippe aufs Mikrofon, um es neu zu versuchen.")}};
+  R.onend=()=>{VR.r=null;if(VR.on&&curView==="train")setTimeout(()=>{if(VR.on&&!VR.r)vrStart()},300);else if(curView!=="train")vrStop();vrUi()};
+  VR.r=R;try{R.start()}catch(e){VR.r=null;vrStop()}vrUi();
+}
+function vrHandle(alts){
+  if(!shown)return;let first=null;
+  for(const a of alts){const r=parseSpoken(a,new Chess(shown.fen()));if(r.mv){VR.fails=0;toast(`„${a.trim()}“ → ${de(r.mv.san)}`);if(!tryMove(r.mv.from,r.mv.to,true,r.mv.promotion))toast("Gerade kannst du nicht ziehen.");return}if(!first&&r.err)first=r.err}
+  if(first)toast(first);
+}
+function vrToggle(){if(!VC.rec)return;if(VR.on){vrStop();return}VR.on=true;VR.fails=0;vrStart();toast("Sprich deinen Zug, z. B. „Springer f3“ oder „kurze Rochade“.")}
+
 /* ================= Spickzettel als PDF =================
    Pro Eröffnung: Kopfband, bis zu drei Schlüsselstellungen als Diagramm mit Erklärung, der Zugbaum,
    Ideen und Pläne, Fallen und deine Notizen. jsPDF und die Schrift werden erst beim Erstellen geladen. */
@@ -5986,7 +6124,7 @@ function updBanner(){
 }
 
 /* ================= Start ================= */
-applySettings();
+applySettings();$("micBtn").onclick=vrToggle;vrUi();
 st.badges=BADGES.filter(b=>{try{return b.ok()}catch(e){return false}}).map(b=>b.id);saveStats();
 const last=store.get("et-last",null);
 try{
@@ -6007,5 +6145,5 @@ const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
 if(firstRun&&!location.hash)setTimeout(openLanding,300);else if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
 if(onlineReady())setTimeout(onlineBoot,600);
-window.__ET={updBanner,cheatPdf,get tp(){return tp},tryMove:(a,b,an,p)=>tryMove(a,b,an!==false,p),CLK,hist:()=>hist.slice(),srvNow,PZ,GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={updBanner,cheatPdf,pieceImgs,parseSpoken,get tp(){return tp},tryMove:(a,b,an,p)=>tryMove(a,b,an!==false,p),CLK,hist:()=>hist.slice(),srvNow,PZ,GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();

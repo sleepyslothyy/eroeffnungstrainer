@@ -52,6 +52,24 @@ await B.evaluate(() => { window.__MOCKOFF = false; window.__MOCKDEAF = false; di
 await move(B, "g8", "f6", 900);
 check(await n(A) === 6 && await n(B) === 6, "Nach dem Wiederverbinden geht der Zug durch");
 
+// Themenpartie: Italienisch ab den Stammzügen, danach Buchvergleich und Revanche mit Thema
+await A.evaluate(() => { __ET.ON.theme = { id: "italienisch", li: -1 }; __ET.ON.col = "w"; __ET.ON.tc = "10+0"; });
+const tg = await A.evaluate(() => __ET.createGame(null)); await W(900);
+await B.evaluate(id => __ET.openOnlineGame(id), tg); await W(1500);
+const pre = await A.evaluate(() => __ET.ON.g && __ET.ON.g.pre);
+check(pre === 5 && await n(A) === 5 && await n(B) === 5, `Themenpartie startet nach den Stammzügen (${pre} Halbzüge auf beiden Brettern)`);
+check(/Themenpartie Italienisch/.test(await B.evaluate(() => stText.textContent)), "Schwarz sieht den Hinweis auf die Themenpartie");
+check(await A.evaluate(() => /Abbrechen/.test(actsOn.textContent)), "Abbrechen geht noch, solange nach der Theorie keiner gezogen hat");
+await move(B, "f8", "c5", 900); await move(A, "c2", "c3", 900); await move(B, "g8", "f6", 900); await move(A, "h2", "h3", 1200);
+check(await n(A) === 9 && await n(B) === 9, "Themenpartie läuft auf beiden Brettern weiter");
+await A.evaluate(() => document.querySelector('[data-on="resign"]').click()); await W(200);
+await A.evaluate(() => document.querySelector('[data-on="resign"]').click()); await W(1500);
+const tbTxt = await A.evaluate(() => stText.textContent);
+check(/Alice verließ das Buch zuerst: 5\.h3 statt/.test(tbTxt), "Nach der Partie steht, wer das Buch zuerst verlassen hat: " + tbTxt.slice(0, 140));
+await B.evaluate(() => document.querySelector('[data-on="rematch"]').click()); await W(1800);
+const rm = await A.evaluate(() => { const D = JSON.parse(localStorage.getItem("mocknet-db") || "{}"); return Object.values(D).filter(g => g && g.theme && g.status === "waiting").map(g => [g.pre, g.theme.id, g.white === g.creator]) });
+check(rm.length === 1 && rm[0][0] === 5 && rm[0][1] === "italienisch" && rm[0][2], "Revanche ist wieder eine Themenpartie, Bob jetzt mit Weiß: " + JSON.stringify(rm));
+
 check(errs.length === 0, "keine JavaScript-Fehler" + (errs.length ? ": " + errs.join(" | ") : ""));
 await b.close();
 if (fails.length) { console.error(`${fails.length} Prüfung(en) fehlgeschlagen`); process.exit(1); }
