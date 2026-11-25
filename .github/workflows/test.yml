@@ -13,7 +13,9 @@ jobs:
         with:
           node-version: 22
       - name: Syntax prüfen
-        run: node --check app.js && node --check data.js && node --check trees.js && node --check coaches.js && node --check trainers.js && node --check worlds.js && node --check sections.js && node --check keymoves.js && node --check plans.js && node --check sw.js
+        run: node --check app.js && node --check data.js && node --check trees.js && node --check coaches.js && node --check trainers.js && node --check worlds.js && node --check sections.js && node --check keymoves.js && node --check plans.js && node --check sw.js && node --check tools/remind/remind.mjs && node --check tools/remind/remind-core.mjs
+      - name: Logik der Erinnerungen
+        run: node tools/remind/test-core.mjs
       - name: Playwright installieren
         run: npm install --no-save playwright@1.56.0 && npx playwright install --with-deps chromium
       - name: Server starten
@@ -24,6 +26,8 @@ jobs:
         run: node tests/online.mjs
       - name: Klick-Durchlauf (alle Bereiche, beide Designs, Handy und Computer)
         run: node tests/sweep.mjs
+      - name: Erinnerungen (Service Worker, Push, Abgleich)
+        run: node tests/push.mjs
   safari:
     runs-on: ubuntu-24.04
     timeout-minutes: 25

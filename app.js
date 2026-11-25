@@ -245,6 +245,8 @@ function markDailyDone(k){
   if(S.daily.done.length>=S.daily.queue.length&&S.streak.last!==today()){
     S.streak.n=S.streak.last===yesterday()?S.streak.n+1:1;S.streak.last=today();S.streak.best=Math.max(S.streak.best||0,S.streak.n);save("streak");
     celebrate("streak",S.streak.n,"Tagestraining geschafft!");streakMilestone();
+    /* einmaliger Hinweis auf die Erinnerungen, sobald jemand dranbleibt */
+    if(S.streak.n>=2&&!S.set.push&&typeof pushSupported==="function"&&pushSupported()&&!store.get("et-pushtip",0)){store.set("et-pushtip",1);setTimeout(()=>toast("Tipp: Unter Profil → Einstellungen → Erinnerungen meldet sich dein Trainer, wenn Wiederholungen fällig sind."),3400)}
   }
 }
 
@@ -1939,6 +1941,7 @@ function renderSettings(v){
     ${VC.rec?sw("swVoiceIn",!!S.set.voiceIn,"Spracheingabe","Mikrofon unter dem Brett: „Springer f3“, „e schlägt d5“, „kurze Rochade“"):`<div class="setrow"><span><b>Spracheingabe</b><small>Dieser Browser erkennt keine Sprache. In Chrome und Safari geht es.</small></span></div>`}
     ${VC.ok?`<div class="setrow"><span><b>Probehören</b><small>So klingt ${esc(TRAINER[vcCoach()].nick)}</small></span><button class="btn" id="voiceTest" style="padding:8px 12px">Anhören</button></div>`:""}
   </div>
+  <div class="card" id="pushCard">${pushCardInner()}</div>
   <div class="card"><h3>Komfort</h3>
     ${sw("swAuto",S.set.autoNext,"Automatisch weiter","Nach einer gelösten Variante oder Aufgabe startet kurz darauf die nächste")}
     ${sw("swQueen",S.set.autoQueen,"Automatisch Dame","Bei der Umwandlung ohne Nachfrage eine Dame nehmen")}
@@ -1961,6 +1964,7 @@ function renderSettings(v){
   tg("swSound","sound");tg("swIdeas","ideas");tg("swWhy","why");tg("swCb","crsBoard");tg("swCoords","coords");tg("swEval","evalbar");tg("swReal","realistic");
   if($("swVoice"))tg("swVoice","voice");if($("swVoiceMv"))tg("swVoiceMv","voiceMv");if($("swVoiceIn"))$("swVoiceIn").onclick=()=>{S.set.voiceIn=!S.set.voiceIn;save("set");$("swVoiceIn").setAttribute("aria-pressed",String(S.set.voiceIn));if(!S.set.voiceIn)vrStop();vrUi()};
   if($("voiceTest"))$("voiceTest").onclick=()=>{const co=vcCoach();VC.unlocked=true;vcSay(VOICE_TEST[co]||VOICE_TEST.mila,co,true)};
+  wirePush();
   tg("swLearn","learnFirst");tg("swAuto","autoNext");tg("swQueen","autoQueen");tg("swSwipe","swipe");tg("swSync","autoSync");tg("swCalm","calm");
   v.querySelectorAll("[data-fz]").forEach(b=>b.onclick=()=>{S.set.font=+b.dataset.fz;save("set");applySettings();v.querySelectorAll("[data-fz]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)))});
   $("onbAgain").onclick=()=>openOnboarding();
@@ -3156,7 +3160,7 @@ async function onlineBoot(){
   let n;try{n=await netInit()}catch(e){ON.netErr=true;if(curView==="online")renderOnline();return}
   n.onAuth(async u=>{
     ON.authKnown=true;socialStop();tourStop();mmStop();FEED.items=null;if(ON.unsubL){ON.unsubL();ON.unsubL=null}if(ON.unsubP){ON.unsubP();ON.unsubP=null}
-    ON.user=u;ON.profile=null;ON.games=[];
+    ON.user=u;ON.profile=null;ON.games=[];renderSetPush();if(u)setTimeout(pushRefresh,2500);
     if(u){
       ON.unsubP=n.watch("users/"+u.uid,p=>{ON.profile=p;if(p&&ON.user&&(!p.lastSeen||srvNow()-p.lastSeen>3600000)){p.lastSeen=srvNow();n.set("users/"+ON.user.uid,{lastSeen:p.lastSeen},true).catch(()=>{})}if(curView==="online")renderOnline();if(mode==="online")renderChrome()});
       ON.unsubL=n.watchQ("games","players","array-contains",u.uid,list=>{if(!list)return;gamesChanged(list)});
@@ -4179,7 +4183,7 @@ function renderLegal(){
   const v=$("v-legal");if(!v)return;const I=IMPRESSUM;
   const H=(t)=>`<h3>${t}</h3>`;
   const priv=`<article class="legal">
-  <p class="hint">Stand: Oktober 2026</p>
+  <p class="hint">Stand: November 2026</p>
   ${H("1. Verantwortlicher")}<p>${esc(I.name)}, ${esc(I.street)}, ${esc(I.city)}, ${esc(I.country)}<br>E-Mail: ${esc(I.mail)}</p>
   ${H("2. Das Wichtigste in Kürze")}<ul><li>${BRAND} lässt sich ohne Konto nutzen. Dann bleibt dein Fortschritt ausschließlich in deinem Browser.</li><li>Es gibt keine Werbung, kein Tracking, keine Analyse- oder Marketing-Cookies und keine Weitergabe zu Werbezwecken.</li><li>Ein Konto brauchst du nur für Online-Partien, Bestenliste, Freunde und die Synchronisierung zwischen Geräten.</li><li>Stockfish rechnet direkt auf deinem Gerät, deine Partien werden dafür nicht hochgeladen.</li></ul>
   ${H("3. Hosting")}<p>Die App wird über GitHub Pages bereitgestellt (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). Beim Aufruf verarbeitet GitHub technisch notwendige Daten wie deine IP-Adresse, Datum und Uhrzeit sowie die angeforderte Datei, um die Seite auszuliefern und vor Angriffen zu schützen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer sicheren Bereitstellung). GitHub ist unter dem EU-US Data Privacy Framework zertifiziert. Details: <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">Datenschutzerklärung von GitHub</a>.</p>
@@ -4189,6 +4193,7 @@ function renderLegal(){
   <p><b>Sichtbar für andere Spieler</b> sind dein Benutzername, deine Online-Wertung und -Bilanz, deine laufenden und beendeten Partien sowie, ob du gerade online bist. Taktik-Wertung, gelernte Varianten und Serie kannst du unter Profil → Konto für die Bestenliste ausblenden. Deine E-Mail-Adresse sehen andere Spieler nie.</p>
   <p><b>Moderation:</b> Um Missbrauch zu verhindern, kann der Betreiber im Admin-Bereich Benutzernamen, E-Mail-Adressen, Partien und Statistiken einsehen, Konten sperren und unangemessene Namen ändern.</p>
   <p><b>Löschung:</b> Unter Profil → Konto kannst du dein Konto jederzeit selbst löschen. Dabei werden Anmeldedaten (E-Mail und Passwort), Profil, Benutzername und der gespeicherte Fortschritt entfernt. Bereits gespielte Partien und Freundschaftsanfragen bleiben bei deinen Gegnern als Verlauf erhalten und zeigen deinen damaligen Benutzernamen. Auf Wunsch entfernen wir auch diese – schreib uns einfach.</p>
+  <p><b>Erinnerungen (nur wenn du sie einschaltest):</b> Dann speichern wir in deinem Konto zusätzlich ein Push-Token deines Geräts (Firebase Cloud Messaging), die gewünschte Uhrzeit, deine Zeitzone, die Fälligkeitstermine deiner Wiederholungen, deine Serie und den Trainer deines Kurses. Ein automatischer Dienst auf GitHub Actions (GitHub, Inc.) prüft einmal pro Stunde, ob eine Erinnerung fällig ist, und schickt sie über Firebase Cloud Messaging (Google) an dein Gerät; zugestellt wird sie vom Push-Dienst deines Browsers (Google, Apple oder Mozilla). Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Schaltest du die Erinnerungen aus, werden Token und Erinnerungsdaten gelöscht; die Einwilligung kannst du jederzeit unter Profil → Einstellungen widerrufen.</p>
   ${H("6. Dienste, die nur auf deinen Wunsch aufgerufen werden")}<p>Folgende Dienste werden direkt aus deinem Browser angefragt, und zwar nur, wenn du die jeweilige Funktion benutzt. Dabei erhält der Anbieter deine IP-Adresse und die Anfrage (zum Beispiel einen Benutzernamen oder eine Stellung):</p><ul><li><b>Lichess</b> (lichess.org, Frankreich): Eröffnungsdatenbank, Meisterpartien, Taktik-Rätsel, Studien-Import und Partien per Link</li><li><b>Chess.com</b> (Chess.com, LLC, USA): Profil, Wertungen und Partien des Benutzernamens, den du eingibst, sowie das Tagesrätsel</li><li><b>GitHub</b> (GitHub, Inc., USA): nur wenn du die Synchronisierung über ein privates Gist mit deinem eigenen Token einrichtest</li></ul><p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
   ${H("7. Deine Rechte")}<p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Schreib dazu einfach an die oben genannte E-Mail-Adresse. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren, zum Beispiel bei der Behörde deines Bundeslandes.</p>
   ${H("8. Kinder")}<p>Für ein Konto solltest du mindestens 16 Jahre alt sein oder die Erlaubnis deiner Eltern haben. Ohne Konto kann jeder die App nutzen, dabei werden keine Daten an uns übertragen.</p>
@@ -5850,6 +5855,86 @@ renderHome=function(){
   v.querySelectorAll("[data-hc]").forEach(b=>b.onclick=()=>showView(b.dataset.hc));
 };
 
+/* ================= Erinnerungen per Push (Firebase Cloud Messaging) =================
+   Das Gerät meldet sich bei FCM an. Token, Uhrzeit, Zeitzone, Fälligkeiten, Serie und Trainer liegen in users/{uid}/private/push,
+   dazu push:true im Profil. Ein stündlicher GitHub-Workflow (tools/remind) schickt höchstens eine Erinnerung pro Tag. */
+const PUSH={busy:false,sig:"",at:0,perm:null};
+/* Erlaubnis: die Permissions-API zuerst (Notification.permission hinkt in manchen Browsern hinterher) */
+async function pushPerm(){try{if(navigator.permissions&&navigator.permissions.query){const r=await navigator.permissions.query({name:"notifications"});if(r&&r.state){PUSH.perm=r.state==="prompt"?"default":r.state;return PUSH.perm}}}catch(e){}PUSH.perm=typeof Notification!=="undefined"?Notification.permission:"denied";return PUSH.perm}
+const pushSupported=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window&&(location.protocol==="https:"||!!window.__PUSHTEST);
+const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const isStandalone=()=>{try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}catch(e){return false}};
+function pushDue(){const r=[];ALL.forEach(o=>o.lines.forEach((l,i)=>{const s=S.srs[lk(o.id,i)];if(s&&s.due)r.push(s.due)}));return r.sort((a,b)=>a-b).slice(0,300)}
+function pushTz(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||"Europe/Berlin"}catch(e){return "Europe/Berlin"}}
+function pushState(){return {hour:S.set.pushH==null?18:S.set.pushH,tz:pushTz(),due:pushDue(),sn:S.streak.n||0,sl:S.streak.last||null,co:vcCoach()}}
+async function fcmMod(){if(window.__PUSHTEST)return window.__PUSHTEST;const B=new URL(`lib/firebase/${FB_VER}/`,location.href).href;const [A,M]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-messaging.js")]);
+  if(!(await M.isSupported()))throw new Error("unsupported");const app=A.getApps().length?A.getApp():A.initializeApp(FB_CONFIG);return {M,m:M.getMessaging(app)}}
+async function fcmToken(){const {M,m}=await fcmMod();const reg=await navigator.serviceWorker.ready;return M.getToken(m,{serviceWorkerRegistration:reg})}
+async function pushEnable(){
+  if(PUSH.busy)return false;
+  if(!pushSupported()){toast(isIOS()&&!isStandalone()?"Leg die App zuerst auf den Home-Bildschirm und öffne sie dort.":"Dieser Browser kann keine Benachrichtigungen empfangen.");return false}
+  if(!ON.user){toast("Melde dich zuerst an – dann weiß die Erinnerung, wann etwas fällig ist.");return false}
+  PUSH.busy=true;renderSetPush();
+  try{
+    const p=await Notification.requestPermission();PUSH.perm=p;
+    if(p!=="granted"){toast(p==="denied"?"Benachrichtigungen sind blockiert – erlaube sie in den Einstellungen des Browsers.":"Ohne deine Erlaubnis gibt es keine Erinnerungen.");return false}
+    const tok=await fcmToken();if(!tok)throw new Error("Kein Token erhalten");
+    const n=await netInit();await n.set("users/"+ON.user.uid+"/private/push",Object.assign({on:true,tok,upd:Date.now(),test:false},pushState()),true);await n.set("users/"+ON.user.uid,{push:true},true);
+    S.set.push=true;save("set");PUSH.sig="";pushBadge();toast(`Erinnerungen sind an – ab ${S.set.pushH==null?18:S.set.pushH} Uhr, wenn etwas fällig ist.`);return true;
+  }catch(e){const m=String(e&&e.message||e);toast(m==="unsupported"?"Dieser Browser kann keine Benachrichtigungen empfangen.":/permission|blocked/i.test(m)?"Benachrichtigungen sind blockiert – erlaube sie in den Einstellungen des Browsers.":"Erinnerungen ließen sich nicht einschalten: "+netErr(e));return false}
+  finally{PUSH.busy=false;renderSetPush()}
+}
+async function pushDisable(){
+  S.set.push=false;save("set");
+  try{if(ON.user){const n=await netInit();await n.set("users/"+ON.user.uid+"/private/push",{on:false,tok:null,upd:Date.now()},true);await n.set("users/"+ON.user.uid,{push:false},true)}}catch(e){}
+  try{const {M,m}=await fcmMod();await M.deleteToken(m)}catch(e){}
+  try{if(navigator.clearAppBadge)navigator.clearAppBadge().catch(()=>{})}catch(e){}
+  toast("Erinnerungen sind aus.");
+}
+/* Fälligkeiten und Serie aktuell halten: beim Verlassen der App, nur wenn sich etwas geändert hat */
+async function pushSync(force){
+  if(!S.set.push||!ON.user||!NET)return;
+  const ps=pushState(),sig=JSON.stringify([ps.hour,ps.tz,ps.due.slice(0,80),ps.sn,ps.sl,ps.co]);
+  if(!force&&sig===PUSH.sig)return;
+  PUSH.sig=sig;PUSH.at=Date.now();
+  try{await NET.set("users/"+ON.user.uid+"/private/push",Object.assign({upd:Date.now()},ps),true)}catch(e){PUSH.sig=""}
+}
+/* Nach der Anmeldung: Token erneuern (FCM tauscht ihn gelegentlich), Erlaubnis entzogen = aus */
+async function pushRefresh(){
+  if(!S.set.push||!ON.user||!pushSupported())return;
+  if((await pushPerm())!=="granted"){S.set.push=false;save("set");try{await NET.set("users/"+ON.user.uid+"/private/push",{on:false,tok:null,upd:Date.now()},true);await NET.set("users/"+ON.user.uid,{push:false},true)}catch(e){}renderSetPush();return}
+  try{const tok=await fcmToken();if(tok){await NET.set("users/"+ON.user.uid+"/private/push",Object.assign({on:true,tok,upd:Date.now()},pushState()),true);await NET.set("users/"+ON.user.uid,{push:true},true);PUSH.sig=""}}catch(e){}
+}
+function pushBadge(){if(!navigator.setAppBadge)return;try{const n=dueKeys().length;(n?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{})}catch(e){}}
+async function pushLocalTest(){
+  const reg=await navigator.serviceWorker.ready,co=vcCoach();
+  await reg.showNotification(TRAINER[co].nick,{body:"So sieht deine Erinnerung aus. Tippen öffnet das Tagestraining.",icon:"icons/icon-192.png",badge:"icons/icon-192.png",tag:"zz-test",data:{u:"./#taeglich"}});
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&S.set.push){pushSync();pushBadge()}});
+if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{const d=e.data||{};if(d.type==="go"&&d.hash==="#taeglich"&&mode!=="engine"&&mode!=="online"&&!sess)startSession("daily")});
+function pushCardInner(){
+  const head=`<h3>Erinnerungen</h3>`;
+  if(!pushSupported()){const ios=isIOS()&&!isStandalone();
+    return head+`<div class="setrow"><span><b>Erinnerung aufs Handy</b><small>${ios?"Auf dem iPhone kommen Erinnerungen nur, wenn die App auf dem Home-Bildschirm liegt: im Teilen-Menü „Zum Home-Bildschirm“ wählen, die App von dort öffnen und hier einschalten.":"Dieser Browser kann keine Benachrichtigungen empfangen. In Chrome, Edge, Firefox und Safari geht es."}</small></span></div>`}
+  if(!onlineReady())return head+`<div class="setrow"><span><b>Erinnerung aufs Handy</b><small>Dafür muss der Server verbunden sein.</small></span></div>`;
+  if(!ON.authKnown)return head+`<div class="setrow"><span><b>Erinnerung aufs Handy</b><small>Anmeldung wird geprüft …</small></span></div>`;
+  if(!ON.user)return head+`<div class="setrow"><span><b>Erinnerung aufs Handy</b><small>Dafür brauchst du ein Konto: Der Server muss wissen, wann deine Wiederholungen fällig sind.</small></span><button class="btn" id="pushLogin" style="padding:8px 12px">Anmelden</button></div>`;
+  const on=!!S.set.push,den=(PUSH.perm||Notification.permission)==="denied",h=S.set.pushH==null?18:S.set.pushH;
+  return head+pushSw("swPush",on,"Erinnerung aufs Handy",`Höchstens einmal am Tag, wenn Wiederholungen fällig sind oder deine Serie reißen würde – im Ton von ${esc(TRAINER[vcCoach()].nick)}`)+
+    (den&&!on?`<p class="hint" style="margin:6px 0 0">Benachrichtigungen sind für diese Seite blockiert. Erlaube sie in den Einstellungen des Browsers und schalte dann hier ein.</p>`:"")+
+    (PUSH.busy?`<p class="hint" style="margin:6px 0 0">Wird eingerichtet …</p>`:"")+
+    (on?`<div class="setrow"><span><b>Uhrzeit</b><small>Frühestens um diese Zeit, sonst beim nächsten stündlichen Lauf</small></span><select id="pushH" class="txt onsel push-h" aria-label="Uhrzeit der Erinnerung">${Array.from({length:17},(_,i)=>i+6).map(x=>`<option value="${x}"${x===h?" selected":""}>${x}:00 Uhr</option>`).join("")}</select></div>
+      <div class="setrow"><span><b>Probe</b><small>Auf diesem Gerät sofort, vom Server beim nächsten Lauf (spätestens in einer Stunde)</small></span><span class="push-b"><button class="btn" id="pushTest">Auf diesem Gerät</button><button class="btn" id="pushSrv">Vom Server</button></span></div>`:"");
+}
+const pushSw=(id,on,t,d)=>`<div class="setrow"><span><b>${t}</b><small>${d}</small></span><button class="switch" id="${id}" aria-pressed="${on}" aria-label="${t}"></button></div>`;
+function renderSetPush(){const el=$("pushCard");if(!el)return;el.innerHTML=pushCardInner();wirePush();if(pushSupported()){const was=PUSH.perm;pushPerm().then(p=>{if(p!==was&&$("pushCard"))(el.innerHTML=pushCardInner(),wirePush())})}}
+function wirePush(){
+  const b=$("swPush");if(b)b.onclick=async()=>{if(PUSH.busy)return;if(S.set.push)await pushDisable();else await pushEnable();renderSetPush()};
+  const l=$("pushLogin");if(l)l.onclick=()=>showView("online:account");
+  const h=$("pushH");if(h)h.onchange=()=>{S.set.pushH=+h.value;save("set");pushSync(true);toast(`Erinnerung ab ${h.value} Uhr.`)};
+  const t=$("pushTest");if(t)t.onclick=()=>pushLocalTest().catch(e=>toast("Die Probe ging nicht: "+(e&&e.message||e)));
+  const sv=$("pushSrv");if(sv)sv.onclick=async()=>{try{await NET.set("users/"+ON.user.uid+"/private/push",{test:true},true);toast("Die Probe kommt mit dem nächsten Lauf – spätestens in einer Stunde.")}catch(e){toast(netErr(e))}};
+}
 /* ================= Planaufgaben: nach der Theorie ein Ziel gegen den Trainer (plans.js) ================= */
 const PT=typeof PLAN_TASKS!=="undefined"?PLAN_TASKS:[];
 const ptKey=T=>T.o+"|"+T.l;
@@ -6256,5 +6341,5 @@ const firstRun=!store.get("et-onb",0)&&!last&&!Object.keys(S.prog).length;
 if(firstRun&&!location.hash)setTimeout(openLanding,300);else if(firstRun)setTimeout(openOnboarding,350);else store.set("et-onb",1);
 setTimeout(()=>autoSync(false),2500);
 if(onlineReady())setTimeout(onlineBoot,600);
-window.__ET={updBanner,ptStart,PT,ptCond,byId,findMove,cheatPdf,pieceImgs,parseSpoken,get tp(){return tp},tryMove:(a,b,an,p)=>tryMove(a,b,an!==false,p),CLK,hist:()=>hist.slice(),srvNow,PZ,GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
+window.__ET={updBanner,ptStart,PT,ptCond,byId,findMove,S,get sess(){return sess},cheatPdf,pieceImgs,parseSpoken,get tp(){return tp},tryMove:(a,b,an,p)=>tryMove(a,b,an!==false,p),CLK,hist:()=>hist.slice(),srvNow,PZ,GX,st,gain,isoWeek,gxSettle,gxRoll,tacticSession,renderStats:()=>showView("profile:stats"),ON,MM,mmStart,mmStop,sendQuick,TOUR,FEED,openLanding,openAnaBoard,startBot,goSection,sectionOf,legal:t=>{legalTab=t},openOnlineGame,createGame,joinGame,onlineBoot,autoSync,confetti,celebrate,openOnboarding,takeBack,applySettings,render:()=>render(),setTab:t=>setTab(t),select:(id,l)=>selectOpening(ALL.find(o=>o.id===id),l),hint:()=>$("hintBtn").click(),expected:()=>expected(),fen:()=>shown.fen(),orient:()=>orient(),mode:()=>mode,S,CH,analyze,normPgnGame,normLichess,normApiGame,pgnMoves,pgnLines,explain,matchGame,ALL:()=>ALL,startSession,openGame,openEditor,startEngine,showView,parseMoveQuery,dueKeys,reviewGame,startPuzzle,startEndgame,game:()=>game};
 })();

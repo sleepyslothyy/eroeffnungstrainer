@@ -1,0 +1,9 @@
+{
+  "name": "zugzwang-erinnerungen",
+  "private": true,
+  "type": "module",
+  "description": "Stündliche Erinnerungen über Firebase Cloud Messaging (läuft in GitHub Actions)",
+  "dependencies": {
+    "firebase-admin": "12.7.0"
+  }
+}
