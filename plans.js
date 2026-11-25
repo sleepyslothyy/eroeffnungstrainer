@@ -4,7 +4,8 @@
      push:"d5" (ein eigener Bauer zieht auf das Feld), capt:"c3" (eigener Schlagzug auf das Feld),
      castle:"k"/"q" (kurze/lange Rochade), all:[…] (alles), any:[…] (eines davon)
    n = höchstens so viele eigene Züge. Erreicht zählt nur, wenn die Stellung danach höchstens einen Bauern schlechter ist als am Anfang
-   und nicht schlechter als −1 (Stockfish; bei Gambits mit schlechterer Ausgangslage höchstens −2,5). Matt zählt auch. */
+   und nicht schlechter als −1 (Stockfish; bei Gambits mit schlechterer Ausgangslage höchstens −2,5). Matt zählt auch,
+   ebenso eine klar gewonnene Stellung (mindestens +3) nach dem letzten erlaubten Zug. */
 const PLAN_TASKS=[
   /* ---- Mit Weiß ---- */
   {o:"italienisch",l:"Giuoco Pianissimo",t:"Springer über d2 und f1 nach g3",d:"Im ruhigen Italiener wandert der Damenspringer an den Königsflügel. Von g3 zielt er auf f5 und h5.",c:{on:"Ng3"},n:8},
@@ -26,7 +27,7 @@ const PLAN_TASKS=[
   {o:"colle",l:"Klassisch",t:"Das klassische Läuferopfer auf h7",d:"Nach e5 fehlt der Springer f6 als Verteidiger. Lxh7+ Kxh7 Sg5+, dann kommt die Dame über g4 oder h5 dazu. Rechne vorher – Stockfish prüft, ob das Opfer hält.",c:{capt:"h7"},n:6},
   {o:"trompowsky",l:"2...Se4",t:"Zentrum mit e2–e4 und lange Rochade",d:"Die Dame steht zentral auf d4. Mit e4 und der langen Rochade wird das Zentrum zur Angriffsbasis.",c:{all:[{push:"e4"},{castle:"q"}]},n:8},
   {o:"jobava",l:"Gegen ...e6",t:"g2–g3 und kurze Rochade",d:"Nach exf4 hat Weiß einen Doppelbauern auf der f-Linie. g3 stützt den Bauern f4 und sichert das Feld e5, danach geht der König in Sicherheit. Achte auf den Bauern d4.",c:{all:[{push:"g3"},{castle:"k"}]},n:8},
-  {o:"gegen_holl_w",l:"Gegen Leningrad",t:"Läufer nach d4 und ein Turm in die Mitte",d:"Die stärkste schwarze Figur ist der Läufer g7. Ld4 stellt ihm einen Läufer entgegen, ein Turm auf d1 oder e1 bereitet das Zentrum vor, bevor Schwarz mit …e5 öffnet.",c:{all:[{on:"Bd4"},{on:["Rd1","Re1"]}]},n:6},
+  {o:"gegen_holl_w",l:"Gegen Leningrad",t:"Ein Turm in die Mitte und ein Springer auf einen Vorposten",d:"Weiß hat Raum. Ein Turm kommt nach d1 oder e1, ein Springer auf einen starken Vorposten: von b5 drückt er auf c7, von d4 auf e6 und die lange Diagonale.",c:{all:[{on:["Rd1","Re1"]},{on:["Nb5","Nd4"]}]},n:6},
   {o:"kia",l:"Königsindischer Angriff",t:"e4–e5 und Springer nach f1",d:"Der klassische KIA-Plan: e5 gewinnt Raum, der Springer läuft über f1 nach h2 oder g3 zum Königsangriff.",c:{all:[{push:"e5"},{on:"Nf1"}]},n:8},
   {o:"alapin_w",l:"Alapin-Variante",t:"Turm nach d1 und Springer nach c3",d:"Nach dem Damentausch zählt Entwicklung: Td1 nimmt die offene Linie, Sc3 kommt ins Spiel.",c:{all:[{on:"Rd1"},{on:"Nc3"}]},n:6},
   {o:"gegen_pirc_w",l:"Pirc-Verteidigung",t:"Bauernsturm h4–h5 und g2–g4",d:"Nach der langen Rochade stürmt Weiß gegen den schwarzen König. h5 öffnet die h-Linie.",c:{all:[{push:"h5"},{push:"g4"}]},n:8},
@@ -66,7 +67,7 @@ const PLAN_TASKS=[
   {o:"blackmar",l:"Euwe 5...e6",t:"Dame nach e2 und ein Turm in die Mitte",d:"Schwarz hat den Bauern, Weiß die Entwicklung. Die Dame auf e2 und ein Turm auf d1 oder e1 zielen auf e6 und den König in der Mitte, bevor Schwarz rochiert.",c:{all:[{on:"Qe2"},{on:["Rd1","Re1"]}]},n:6},
   {o:"halloween",l:"5...Sg6",t:"Springer nach e4 und kurze Rochade",d:"Für die Figur hat Weiß das Zentrum. Se4 zielt auf f6 und d6, danach geht der König in Sicherheit.",c:{all:[{on:"Ne4"},{castle:"k"}]},n:6},
   {o:"fallen_w",l:"Blackburne-Shilling umgehen",t:"Erobere das Zentrum: ein Bauer auf d4",d:"Die Falle ist umgangen. Jetzt holt sich Weiß mit cxd4 oder d4 das Zentrum zurück.",c:{on:"Pd4"},n:6},
-  {o:"budapester",l:"Rubinstein 4.Lf4",t:"Turmschwenk: …a5 und Turm nach h6 oder g6",d:"Der Budapester Klassiker: …a5 macht a6 frei, der Turm schwenkt über a6 an den Königsflügel.",c:{all:[{push:"a5"},{on:["Rh6","Rg6"]}]},n:10},
+  {o:"budapester",l:"Rubinstein 4.Lf4",t:"Turmschwenk: …a5 und der Turm auf die sechste Reihe",d:"Der Budapester Klassiker: …a5 macht das Feld a6 frei, der Turm kommt über a6 auf die sechste Reihe und von dort an den Königsflügel.",c:{all:[{push:"a5"},{on:["Ra6","Rg6","Rh6"]}]},n:8},
   {o:"albin",l:"Hauptvariante 4.Sf3",t:"Angriff: …h5–h4 und Läufer nach h3",d:"Nach der langen Rochade stürmt Schwarz: h4 öffnet die h-Linie, Lh3 tauscht den Läufer g2.",c:{all:[{push:"h4"},{on:"Bh3"}]},n:8},
   {o:"jaenisch",l:"Hauptvariante 4.Sc3",t:"Bring den König in Sicherheit – kurz oder lang",d:"Die schwarzen Figuren sind aktiv, aber der König steht in der Mitte, und der Springer c6 droht mit Abzugsschach. Rochiere, kurz oder lang.",c:{any:[{castle:"k"},{castle:"q"}]},n:8},
   {o:"stafford",l:"5.Sc3 mit ...h5",t:"Dame nach h4: Angriff über die h-Linie",d:"Die h-Linie ist halb offen und der Läufer c5 zielt auf f2. Die Dame auf h4 macht beides gefährlich.",c:{on:"Qh4"},n:4},

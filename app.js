@@ -5903,17 +5903,23 @@ function ptAfterMove(){
       .catch(()=>{if(tok!==ptLock)return;busy=false;ptFinish(G,true,n,null)});
     return true;
   }
-  if(H.length>=G.n){ptFinish(G,false,H.length,null,`Nach ${G.n} Zügen ist das Ziel noch nicht erreicht. ${G.d}`);return true}
+  if(H.length>=G.n){
+    /* Ziel verfehlt – außer man steht klar auf Gewinn: Das zählt auch */
+    busy=true;const tok=++ptLock,n=H.length,miss=`Nach ${G.n} Zügen ist das Ziel noch nicht erreicht. ${G.d}`;setStatus("sf","Die Züge sind um","Stockfish schaut, wie du stehst …");
+    whyEval(g.fen()).then(e=>{if(tok!==ptLock||mode!=="engine")return;busy=false;const cp=e.cp*(me==="w"?1:-1);if(cp>=300)ptFinish(G,true,n,cp,null,false,true);else ptFinish(G,false,n,cp,miss)})
+      .catch(()=>{if(tok!==ptLock)return;busy=false;ptFinish(G,false,n,null,miss)});
+    return true;
+  }
   return false;
 }
-function ptFinish(G,ok,n,cp,why,mate){
+function ptFinish(G,ok,n,cp,why,mate,won){
   const k=ptKey(G);st.plans=st.plans&&typeof st.plans==="object"?st.plans:{};const r=st.plans[k]||(st.plans[k]={ok:false,best:null,tries:0});
   r.tries=(r.tries||0)+1;r.d=Date.now();const first=ok&&!r.ok;if(ok){r.ok=true;r.best=r.best?Math.min(r.best,n):n}saveStats();
   endEngine(ok?"win":"loss","Planaufgabe");
   if(op.botCo){botMood=ok?"worry":"joy";renderChrome()}
   if(ok){if(first)wlog("plan",`Planaufgabe geschafft: ${G.t}`);gain("plan",{first});if(first)confetti();sfx("done")}checkBadges();
-  setStatus(ok?"done":"bad",ok?(mate?`Schachmatt in ${n} ${n===1?"Zug":"Zügen"}!`:`Ziel erreicht in ${n} ${n===1?"Zug":"Zügen"}!`):"Ziel verfehlt",ok&&mate?"Matt ist mehr als jeder Plan – die Aufgabe zählt als geschafft.":ok?`${G.t} – genau das ist der Plan dieser Eröffnung.${cp!=null?` Stockfish: ${fmtEv(cp*(op.side==="w"?1:-1))}.`:""}${r.best&&r.best<n?` Deine Bestmarke: ${r.best} Züge.`:""}`:why||"");
-  {const cc=crsSess();vcSay(ok?`Ziel erreicht! ${G.t}.`:"Ziel verfehlt. Versuch es noch einmal.",op.botCo||(cc?coIdOf(cc):"mila"))}
+  setStatus(ok?"done":"bad",ok?(mate?`Schachmatt in ${n} ${n===1?"Zug":"Zügen"}!`:won?"Anders als geplant – aber klar besser!":`Ziel erreicht in ${n} ${n===1?"Zug":"Zügen"}!`):"Ziel verfehlt",ok&&mate?"Matt ist mehr als jeder Plan – die Aufgabe zählt als geschafft.":ok&&won?`Das Ziel ist nicht ganz erreicht, aber du stehst klar auf Gewinn (Stockfish ${fmtEv(cp*(op.side==="w"?1:-1))}). Das zählt. Der Plan wäre gewesen: ${G.t}.`:ok?`${G.t} – genau das ist der Plan dieser Eröffnung.${cp!=null?` Stockfish: ${fmtEv(cp*(op.side==="w"?1:-1))}.`:""}${r.best&&r.best<n?` Deine Bestmarke: ${r.best} Züge.`:""}`:why||"");
+  {const cc=crsSess();vcSay(ok?(mate?"Schachmatt! Das zählt.":won?"Klar gewonnen – das zählt!":`Ziel erreicht! ${G.t}.`):"Ziel verfehlt. Versuch es noch einmal.",op.botCo||(cc?coIdOf(cc):"mila"))}
 }
 /* Karte nach einer gelösten Variante: Es gibt eine Planaufgabe für genau diese Stellung */
 function planPaint(){
