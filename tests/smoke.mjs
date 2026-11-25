@@ -64,6 +64,11 @@ for (const vp of [{ width: 390, height: 844, isMobile: true, hasTouch: true }, {
     // Spickzettel: ein PDF mit Italienisch erzeugen
     const pdf = await page.evaluate(async () => { try { const R = await window.__ET.cheatPdf(["italienisch"]); return R.pages + " Seiten, " + R.blob.size + " Bytes" } catch (e) { return "Fehler: " + e.message } });
     if (!/Seiten/.test(pdf)) errs.push("Spickzettel-PDF: " + pdf); else console.log("Spickzettel: " + pdf);
+    const pcs = await page.evaluate(async () => { const im = await window.__ET.pieceImgs(); return Object.values(im).filter(i => i.naturalWidth > 0).length });
+    if (pcs !== 12) errs.push("Figurenbilder für die Diagramme: nur " + pcs + " von 12 geladen");
+    // Spracheingabe: Parser für gesprochene Züge
+    const sp = await page.evaluate(() => { const g = new Chess(); return ["Springer f3", "e vier", "Läufer zeh 4"].map(t => { const r = window.__ET.parseSpoken(t, g); return r.mv ? r.mv.san : "-" }).join(" ") });
+    if (sp !== "Nf3 e4 -") errs.push("Spracheingabe versteht Züge falsch: " + sp);
   }
   await page.evaluate(() => window.__ET.showView("profile:stats")); await W(400);
   console.log(`${vp.width}px: ${VIEWS.length} Bereiche, Variante: ${done}, XP ${xp}`);
