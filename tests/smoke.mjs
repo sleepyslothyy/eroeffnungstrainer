@@ -6,7 +6,7 @@ import { chromium, webkit } from "playwright";
 const ENGINE = process.env.BROWSER === "webkit" ? webkit : chromium;
 const BASE = process.env.BASE || "http://localhost:8765/";
 const W = ms => new Promise(r => setTimeout(r, ms));
-const VIEWS = ["home","learn","courses","openings","openings:lex","tactics","tactics:hist","end","quiz","games","coords","guess","bots","tours","scout","memos","online:play","online:live","analyse","chess","profile:stats","league","profile:badges","profile:settings","profile:sync","online:account","legal"];
+const VIEWS = ["home","learn","plans","courses","openings","openings:lex","tactics","tactics:hist","end","quiz","games","coords","guess","bots","tours","scout","memos","online:play","online:live","analyse","chess","profile:stats","league","profile:badges","profile:settings","profile:sync","online:account","legal"];
 let failed = false;
 const browser = await ENGINE.launch();
 console.log("Browser: " + (process.env.BROWSER === "webkit" ? "WebKit (Safari)" : "Chromium"));
@@ -46,6 +46,19 @@ for (const vp of [{ width: 390, height: 844, isMobile: true, hasTouch: true }, {
     for (let k = 0; k < 60 && !/Stockfish|Darum nicht/.test(why); k++) { await W(500); why = await page.evaluate(() => document.getElementById("stText").textContent) }
     if (!/Stockfish|Darum nicht/.test(why)) errs.push("Nicht-Buchzug wurde nicht eingeordnet: " + why);
     else console.log("Darum nicht: " + why);
+    // Planaufgaben: jede gehört zu einer Variante, deren Züge legal sind, und ihr Ziel ist am Anfang noch nicht erreicht
+    const ptBad = await page.evaluate(() => { const E = window.__ET, bad = [];
+      for (const T of E.PT) { const o = E.byId(T.o), l = o && o.lines.find(x => x.n === T.l); if (!l) { bad.push(T.o + ": Variante „" + T.l + "“ fehlt"); continue }
+        const g = new Chess(); for (const m of l.m) { const mv = E.findMove(g, m); if (!mv) { bad.push(T.o + ": Zug " + m + " illegal"); break } g.move(mv.san) }
+        if (E.ptCond(T.c, g, [], o.side)) bad.push(T.o + ": Ziel schon erfüllt"); if (!(T.n >= 2 && T.n <= 12)) bad.push(T.o + ": n=" + T.n) }
+      return { n: E.PT.length, bad } });
+    if (ptBad.bad.length) errs.push("Planaufgaben: " + ptBad.bad.join("; ")); else console.log(`Planaufgaben: ${ptBad.n} geprüft`);
+    // Planaufgabe: beginnt am Ende der Variante, der Trainer zieht zuerst, das Ziel steht im Hinweisfeld
+    await page.evaluate(() => window.__ET.ptStart(window.__ET.PT[0]));
+    let pt = "";
+    for (let k = 0; k < 60 && !/^Planaufgabe/.test(pt); k++) { await W(500); pt = await page.evaluate(() => document.getElementById("stTitle").textContent) }
+    if (!/^Planaufgabe/.test(pt)) errs.push("Planaufgabe startet nicht: " + pt);
+    else console.log(pt + " · " + await page.evaluate(() => document.getElementById("stText").textContent));
   }
   // Zugumstellung: 4.d3 statt 4.c3 im Giuoco Pianissimo führt nach 4…Sf6 5.c3 in die Buchstellung
   if (!vp.isMobile) {
