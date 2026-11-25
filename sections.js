@@ -18,7 +18,8 @@ const SECT={
   lex:{c1:"#7B2D96",c2:"#D16BE8",pat:"diag"},
   crsmap:{c1:"#1460A8",c2:"#4FB0F5",pat:"waves"},
   scout:{c1:"#3B3D9E",c2:"#1FA39C",pat:"stars"},
-  memo:{c1:"#8E4F12",c2:"#CF9128",pat:"dots"}
+  memo:{c1:"#8E4F12",c2:"#CF9128",pat:"dots"},
+  plan:{c1:"#2F3A56",c2:"#E8654F",pat:"grid"}
 };
 
 const _star4=(x,y,r,f)=>`<path d="M${x} ${y-r}l${r*.28} ${r*.72} ${r*.72} ${r*.28}-${r*.72} ${r*.28}-${r*.28} ${r*.72}-${r*.28}-${r*.72}-${r*.72}-${r*.28} ${r*.72}-${r*.28}z" fill="${f}"/>`;
@@ -28,6 +29,15 @@ const _king=(x,y,s,cls)=>`<g transform="translate(${x} ${y}) scale(${s})" class=
 const _queen=(x,y,s,cls)=>`<g transform="translate(${x} ${y}) scale(${s})" class="${cls}"><circle cx="0" cy="-44" r="5"/><path d="M-22-30l7 22h30l7-22-12 10-8-16-8 16z"/><rect x="-18" y="-10" width="36" height="7" rx="3"/><path d="M-14-3l-6 37h40l-6-37z"/><rect x="-26" y="32" width="52" height="10" rx="4"/></g>`;
 
 const SECT_SCN={
+  /* Planaufgaben: ein Brettausschnitt als Lagekarte – der Springer folgt der gestrichelten Route zur Zielfahne */
+  plan:()=>{let q="";for(let r=0;r<4;r++)for(let c=0;c<5;c++)q+=`<rect x="${152+c*30}" y="${42+r*30}" width="30" height="30" class="${(r+c)%2?"b1":"w3"}"/>`;
+    return `<rect x="146" y="36" width="162" height="132" rx="8" class="b3"/>${q}
+    <rect x="146" y="36" width="162" height="132" rx="8" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="2.5"/>
+    <path d="M182 146C190 122 204 116 214 108S236 82 254 72" fill="none" stroke="#FFD166" stroke-width="3.2" stroke-dasharray="6 6" stroke-linecap="round"/>
+    <path d="M250 64l13 3-8 10z" fill="#FFD166"/>
+    <circle cx="272" cy="64" r="15" fill="none" stroke="#fff" stroke-width="3"/><circle cx="272" cy="64" r="6" fill="#E8654F"/>
+    <path d="M286 30v30" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M287 31h17l-5 6 5 6h-17z" fill="#E8654F"/>
+    ${_knight(178,132,.46,"w0")}`},
   /* Notizen: eine Pinnwand mit drei Zetteln – einer zeigt eine kleine Stellung mit Pfeil */
   memo:()=>`<rect x="136" y="30" width="176" height="142" rx="10" class="b2"/>
     <rect x="136" y="30" width="176" height="142" rx="10" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="3"/>

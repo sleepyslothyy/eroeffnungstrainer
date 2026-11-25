@@ -6,14 +6,14 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-24.04  # Playwright 1.56 kennt Ubuntu 26.04 noch nicht
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Syntax prüfen
-        run: node --check app.js && node --check data.js && node --check trees.js && node --check coaches.js && node --check trainers.js && node --check worlds.js && node --check sections.js && node --check keymoves.js && node --check sw.js
+        run: node --check app.js && node --check data.js && node --check trees.js && node --check coaches.js && node --check trainers.js && node --check worlds.js && node --check sections.js && node --check keymoves.js && node --check plans.js && node --check sw.js
       - name: Playwright installieren
         run: npm install --no-save playwright@1.56.0 && npx playwright install --with-deps chromium
       - name: Server starten
@@ -22,9 +22,11 @@ jobs:
         run: sleep 1 && node tests/smoke.mjs
       - name: Online-Test (zwei Spieler, Uhrversatz, Verbindungsabbruch)
         run: node tests/online.mjs
+      - name: Klick-Durchlauf (alle Bereiche, beide Designs, Handy und Computer)
+        run: node tests/sweep.mjs
   safari:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,3 +38,5 @@ jobs:
         run: python3 -m http.server 8765 >/dev/null 2>&1 &
       - name: Rauchtest in WebKit (Safari-Engine)
         run: sleep 1 && BROWSER=webkit node tests/smoke.mjs
+      - name: Klick-Durchlauf in WebKit
+        run: BROWSER=webkit PER_VIEW=6 node tests/sweep.mjs
